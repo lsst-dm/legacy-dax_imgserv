@@ -1,0 +1,4 @@
+# -*- python -*-
+from lsst.imgServ import scripts
+scripts.BasicSConscript.python()
+
