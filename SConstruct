@@ -1,3 +1,3 @@
 # -*- python -*-
-from lsst.imgServ import scripts
+from lsst.sconsUtils import scripts
 scripts.BasicSConstruct("imgserv")
