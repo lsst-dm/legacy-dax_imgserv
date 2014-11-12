@@ -2,7 +2,7 @@
 
 /*
  * LSST Data Management System
- * Copyright 2008, 2009, 2010 LSST Corporation.
+ * Copyright 2014 LSST Corporation.
  *
  * This product includes software developed by the
  * LSST Project (http://www.lsst.org/).
@@ -22,7 +22,7 @@
  * see <http://www.lsstcorp.org/LegalNotices/>.
  */
 
-%define utils_DOCSTRING
+%define imgserv_DOCSTRING
 "
 Access to useful Utility classes.
 "
@@ -30,9 +30,8 @@ Access to useful Utility classes.
 
 %feature("autodoc", "1");
 
-%module(package="lsst.imgserv", docstring=utils_DOCSTRING) utilsLib
+%module(package="lsst.imgserv", docstring=imgserv_DOCSTRING) imgservLib
 
 %{
 #include "lsst/imgserv/ImgServ.h"
 %}
-
