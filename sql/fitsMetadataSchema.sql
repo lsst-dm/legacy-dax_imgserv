@@ -40,7 +40,10 @@ CREATE TABLE IF NOT EXISTS ZZZ_Db_Description
 INSERT INTO ZZZ_Db_Description(f) VALUES('fitsMetadataSchema.sql');
 
 
-CREATE TABLE FitsFiles 
+CREATE TABLE FitsFiles
+    -- <descr>Table of basic FITS file information. Name, location, 
+    -- number of HDUs 
+    -- </desc>
 (
     fitsFileId BIGINT       NOT NULL AUTO_INCREMENT, 
     fileName   VARCHAR(255) NOT NULL, 
@@ -48,7 +51,8 @@ CREATE TABLE FitsFiles
     PRIMARY KEY (fitsFileId)
 ) ENGINE=InnoDB;
 
-CREATE TABLE FitsKeyValues 
+CREATE TABLE FitsKeyValues
+    -- <descr>Table of FITS keyword and value pairs. </decr>
 (
     fitsFileId  BIGINT      NOT NULL, 
     fitsKey     VARCHAR(8)  NOT NULL,
@@ -61,6 +65,7 @@ CREATE TABLE FitsKeyValues
 
 
 CREATE TABLE FitsPositions 
+    -- <descr>Table of RA and Dec position and exposure time.</descr>
 (
     fitsFileId BIGINT  NOT NULL, 
     hdu        TINYINT NOT NULL, 
@@ -72,10 +77,10 @@ CREATE TABLE FitsPositions
     FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)
 ) ENGINE=InnoDB;
 
-CREATE INDEX fits_key_fitsKey ON FitsKeyValues (fitsKey)
+CREATE INDEX fits_key_fitsKey ON FitsKeyValues (fitsKey);
 
-CREATE INDEX fits_pos_date ON FitsPositions (date)
+CREATE INDEX fits_pos_date ON FitsPositions (date);
 
-CREATE INDEX fits_pos_ra ON FitsPositions (pra)
+CREATE INDEX fits_pos_ra ON FitsPositions (pra);
 
-CREATE INDEX fits_pos_dec ON FitsPositions (pdec)
+CREATE INDEX fits_pos_dec ON FitsPositions (pdec);
