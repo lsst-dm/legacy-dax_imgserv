@@ -76,8 +76,6 @@ class MetadataFits:
         names = meta.names()
         for name in names:
             data = meta.get(name)
-            #comment = " "
-            #comment = meta.getComment
             self._entries[(name,hdu)] = data
 
     def dump(self):
