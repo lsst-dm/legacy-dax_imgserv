@@ -35,6 +35,7 @@ import MySQLdb
 
 import lsst.afw
 import lsst.afw.image as afwImage
+import lsst.daf.base as dafBase
 
 
 
@@ -44,6 +45,14 @@ def isDateFormatValid(dt):
         return True
     except ValueError:
         return False
+
+
+class ExpectedHduError(Exception):
+    def __init__(self):
+        self.value = "Next HDU not found. This could be hiding a more serious C error."
+
+    def __str__(self):
+        return repr(self.value)
 
 
 class MetadataFits:
@@ -61,8 +70,8 @@ class MetadataFits:
                 self.scanFile(hdu)
                 self._hdus = hdu
                 hdu += 1
-            except:
-                print "exception ", hdu
+            except  ExpectedHduError as err:
+                print "exception while scanning ", hdu, err
                 break
 
     def getFileName(self):
@@ -72,16 +81,34 @@ class MetadataFits:
         return self._hdus
 
     def scanFile(self, hdu):
-        meta = afwImage.readMetadata(self._fileName, hdu)
-        names = meta.names()
+        # The only way to tell that the last HDU has been read is there is a C++ error.
+        # We catch all exceptions and assume it's the past end of file error and
+        # raise a specific exception. Catching everything later was horrifyingly good at
+        # hiding problems.
+        try:
+            meta = afwImage.readMetadata(self._fileName, hdu)
+        except:
+            raise ExpectedHduError
+        # Cast to PropertyList to access more extensive information
+        metaPl = dafBase.PropertyList.cast(meta)
+        names = metaPl.getOrderedNames()
+        lineNum = 0
         for name in names:
-            data = meta.get(name)
-            self._entries[(name,hdu)] = data
+             data = metaPl.get(name)
+             comment = metaPl.getComment(name)
+             print "Reading", name, lineNum, data, comment
+             self._entries[(name,hdu)] = (data, lineNum, comment)
+             # Increment the line number by 1 for each value so they can be expanded later
+             # in insertMetadataFits.
+             if isinstance(data, tuple):
+                 lineNum += len(data)
+             else:
+                 lineNum += 1
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
         for key, value in self._entries.iteritems():
-            s += "( {}:{} ) = {}\n".format(key[0], key[1], value)
+            s += "( {}:{} ) = ({}, {}, {})\n".format(key[0], key[1], value[0], value[1], value[2])
         return s
 
 
@@ -99,7 +126,7 @@ class MetadataPosition:
         # Figure out the date
         columns = {}
         if ('DATE', self._hdu) in self._entries:
-            dt = self._entries[('DATE', self._hdu)]
+            dt = self._entries[('DATE', self._hdu)][0]
             dt = dt.replace('T',' ')
             print dt
             if isDateFormatValid(dt):
@@ -107,7 +134,8 @@ class MetadataPosition:
         found = False
         # Set equinox, use EQUINOX if it exists, otherwise use EPOC (deprecated)
         if ('EQUINOX', self._hdu) in self._entries:
-            eq = self._entries[('EQUINOX', self._hdu)]
+            eq = self._entries[('EQUINOX', self._hdu)][0]
+            print "EQUINNOX eq=", eq
             try:
                 columns['equinox'] = float(eq)
                 found = True
@@ -115,7 +143,7 @@ class MetadataPosition:
                 pass
         if not found:
             if ('EPOC', self._hdu) in self._entries:
-                eq = self._entries[('EPOC', self._hdu)]
+                eq = self._entries[('EPOC', self._hdu)][0]
                 try:
                     columns['equinox'] = float(eq)
                     found = True
@@ -126,7 +154,7 @@ class MetadataPosition:
             if column != 'date' and column != 'equinox':
                 key = colKey[1]
                 if (key, self._hdu) in self._entries:
-                    value = self._entries[(key, self._hdu)]
+                    value = self._entries[(key, self._hdu)][0]
                     try:
                         columns[column] = float(value)
                     except:
@@ -139,7 +167,7 @@ class MetadataPosition:
                 sql_1 += ", {}".format(col)
                 sql_2 += ", " + valueSql(val)
             sql = sql_1 + sql_2 + ")"
-            print sql
+            print sql # TODO DELETE
             self._cursor.execute(sql)
 
 
@@ -189,6 +217,8 @@ class MetadataFitsDb:
              "stringValue VARCHAR(255), "
              "intValue    INTEGER, "
              "doubleValue DOUBLE, "
+             "lineNum     INTEGER, "
+             "comment     VARCHAR(90), "
              "FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)"
              ")")
         positionTable = \
@@ -241,7 +271,7 @@ class MetadataFitsDb:
             print cursor.fetchall()
         cursor.close()
 
-    def _insertFitsValue(self, cursor, fitsFileId, key, value):
+    def _insertFitsValue(self, cursor, fitsFileId, key, value, lineNum, comment):
         '''Insert a Fits row entry into the FitsKeyValues table
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
@@ -260,9 +290,10 @@ class MetadataFitsDb:
         except ValueError:
             pass
         sql = ("INSERT INTO FitsKeyValues "
-               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue) "
-               "VALUES ({}, '{}', {}, '{}', {}, {})".format(
-                fitsFileId, key[0], key[1], value, intValue, doubleValue))
+               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue, lineNum, comment) "
+               "VALUES ({}, '{}', {}, '{}', {}, {}, {}, '{}')".format(
+                fitsFileId, key[0], key[1], value, intValue, doubleValue, lineNum, comment))
+        print sql #TODO DELETE
         cursor.execute(sql)
 
     def insertFile(self, fileName):
@@ -273,6 +304,7 @@ class MetadataFitsDb:
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
             self.insertMetadataFits(mdFits)
+            print mdFits.dump()
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
@@ -285,6 +317,7 @@ class MetadataFitsDb:
         try:
             sql = ("SELECT 1 FROM FitsFiles WHERE "
                    "fileName = '{}'".format(fileName))
+            print sql # TODO delete
             cursor.execute(sql)
             r = cursor.fetchall()
             # Nothing found, so it needs to be added.
@@ -294,16 +327,28 @@ class MetadataFitsDb:
                 cursor.execute("SET autocommit = 0")
                 sql = ("INSERT INTO FitsFiles (fileName, hdus) "
                        "VALUES ('{}', {})".format(fileName, hdus))
+                print sql # TODO DELETE
                 cursor.execute(sql)
                 lastFitsFileId = cursor.lastrowid
-                for key, value in entries.iteritems():
+                for key, entry in entries.iteritems():
+                    value   = entry[0]
+                    lineNum = entry[1]
+                    comment = entry[2]
                     # TODO Temporary hack - merge tuple into single string
-                    # Fix is TBD
+                    #if isinstance(value, tuple):
+                    #    valStrs = map(str, value)
+                    #    s = ", "
+                    #    value = s.join(valStrs)
+                    #self._insertFitsValue(cursor, lastFitsFileId, key, value, lineNum, comment)
+                    # Or put in one entry for each element of the tuple
                     if isinstance(value, tuple):
-                        valStrs = map(str, value)
-                        s = ", "
-                        value = s.join(valStrs)
-                    self._insertFitsValue(cursor, lastFitsFileId, key, value)
+                        num = lineNum
+                        for v in value:
+                            # scanFile should be skipping line numbers when it sees a tuple.
+                            self._insertFitsValue(cursor, lastFitsFileId, key, v, num, comment)
+                            num += 1
+                    else:
+                        self._insertFitsValue(cursor, lastFitsFileId, key, value, lineNum, comment)
                 for hdu in range(1,hdus+1):
                     metadataPosition = MetadataPosition(lastFitsFileId, hdu, cursor, entries)
                     metadataPosition._insert()
@@ -375,10 +420,6 @@ def directoryCrawl(rootDir, metaDb):
             fullName = dirName+'/'+fname
             print('\t\t%s'%  fullName)
             metaDb.insertFile(fullName)
-            #if isFits(fullName):
-            #    mdFits = MetadataFits(fullName)
-            #    mdFits.scanFileAllHdus()
-            #    metaDb.insertMetadataFits(mdFits)
 
 def insertFile(fileName, metaDb):
     '''Insert the header information for 'fileName' into the
@@ -409,6 +450,7 @@ def test():
 
    # test a specific file
    metadataFits.insertFile(problemFile)
+   quit()
 
    #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
    root = '/lsst/home/jgates/test_metadata'
