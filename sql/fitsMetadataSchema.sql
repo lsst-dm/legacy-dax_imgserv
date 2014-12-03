@@ -52,9 +52,11 @@ CREATE TABLE FitsKeyValues
     fitsFileId  BIGINT      NOT NULL,
     fitsKey     VARCHAR(8)  NOT NULL,
     hdu         TINYINT     NOT NULL,
-    stringValue VARCHAR(90),
+    stringValue VARCHAR(1000),
     intValue    INTEGER,
     doubleValue DOUBLE,
+    lineNum     INTEGER,
+    comment     VARCHAR(90),
     INDEX IDX_fitsKeyVal_fitsFileId (fitsFileId),
     INDEX IDX_fitsKeyVal_fitsKey (fitsKey)
 ) ENGINE=InnoDB;
