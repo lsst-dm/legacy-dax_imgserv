@@ -29,6 +29,7 @@
 
 import os
 import time
+import logging
 
 import gzip
 import MySQLdb
@@ -37,6 +38,7 @@ import lsst.afw
 import lsst.afw.image as afwImage
 import lsst.daf.base as dafBase
 
+from MetadataDbSetup import setup
 
 
 def isDateFormatValid(dt):
@@ -96,7 +98,6 @@ class MetadataFits:
         for name in names:
              data = metaPl.get(name)
              comment = metaPl.getComment(name)
-             print "Reading", name, lineNum, data, comment
              self._entries[(name,hdu)] = (data, lineNum, comment)
              # Increment the line number by 1 for each value so they can be expanded later
              # in insertMetadataFits.
@@ -120,7 +121,7 @@ class MetadataPosition:
         self._cursor = cursor
         self._entries = entries
         self._columnKeys = (("equinox","EQUINOX"), ("pra","PRA"), ("pdec","PDEC"), 
-                           ("rotang","ROTANG"), ("date","DATE"))
+                           ("rotang","ROTANG"), ("pdate","DATE"))
 
     def _insert(self):
         # Figure out the date
@@ -128,14 +129,12 @@ class MetadataPosition:
         if ('DATE', self._hdu) in self._entries:
             dt = self._entries[('DATE', self._hdu)][0]
             dt = dt.replace('T',' ')
-            print dt
             if isDateFormatValid(dt):
-                columns['date'] = dt
+                columns['pdate'] = dt
         found = False
         # Set equinox, use EQUINOX if it exists, otherwise use EPOC (deprecated)
         if ('EQUINOX', self._hdu) in self._entries:
             eq = self._entries[('EQUINOX', self._hdu)][0]
-            print "EQUINNOX eq=", eq
             try:
                 columns['equinox'] = float(eq)
                 found = True
@@ -151,7 +150,7 @@ class MetadataPosition:
                     pass
         for colKey in self._columnKeys:
             column = colKey[0]
-            if column != 'date' and column != 'equinox':
+            if column != 'pdate' and column != 'equinox':
                 key = colKey[1]
                 if (key, self._hdu) in self._entries:
                     value = self._entries[(key, self._hdu)][0]
@@ -167,7 +166,6 @@ class MetadataPosition:
                 sql_1 += ", {}".format(col)
                 sql_2 += ", " + valueSql(val)
             sql = sql_1 + sql_2 + ")"
-            print sql # TODO DELETE
             self._cursor.execute(sql)
 
 
@@ -199,67 +197,6 @@ class MetadataFitsDb:
 
     def close(self):
         self._connect.close()
-
-    def _createTables(self):    # TODO delete this function
-        #InnoDB
-        fileTable = \
-            ("CREATE TABLE FitsFiles ("
-             "fitsFileId BIGINT       NOT NULL AUTO_INCREMENT, "
-             "fileName   VARCHAR(255) NOT NULL, "
-             "hdus       TINYINT      NOT NULL, "
-             "PRIMARY KEY (fitsFileId)"
-             ")") # TODO add hash?, timestamp?
-        valuesTable = \
-            ("CREATE TABLE FitsKeyValues ("
-             "fitsFileId  BIGINT      NOT NULL, "
-             "fitsKey     VARCHAR(8)  NOT NULL, "
-             "hdu         TINYINT     NOT NULL, "
-             "stringValue VARCHAR(255), "
-             "intValue    INTEGER, "
-             "doubleValue DOUBLE, "
-             "lineNum     INTEGER, "
-             "comment     VARCHAR(90), "
-             "FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)"
-             ")")
-        positionTable = \
-            ("CREATE TABLE FitsPositions ("
-             "fitsFileId BIGINT  NOT NULL, "
-             "hdu        TINYINT NOT NULL, "
-             "equinox    DOUBLE, " 
-             "pdec       DOUBLE, "
-             "pra        DOUBLE, "
-             "rotang     DOUBLE, "
-             "date       TIMESTAMP, "
-             "FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)"
-             ")")
-        indexFitsKey     = "CREATE INDEX fits_key_fitsKey ON FitsKeyValues (fitsKey)"
-        indexFitsPosDate = "CREATE INDEX fits_pos_date ON FitsPositions (date)"
-        indexFitsPosRA   = "CREATE INDEX fits_pos_ra ON FitsPositions (pra)"
-        indexFitsPosDec  = "CREATE INDEX fits_pos_dec ON FitsPositions (pdec)"
-        cursor = self._connect.cursor()
-        for sql in ( fileTable, valuesTable, positionTable, indexFitsKey,
-                     indexFitsPosDate, indexFitsPosRA, indexFitsPosDec ):
-            try:
-                cursor.execute(sql)
-                print "created {}".format(sql)
-            except MySQLdb.Error as err:
-                print "ERROR MySQL {} --  {}".format(err, sql)
-                quit()
-        cursor.close()
-
-    def _dropTables(self, code):  # TODO delete this function
-        '''For testing purposes only'''
-        if code == "DELETE":
-            cursor = self._connect.cursor()
-            for tbl in ("FitsKeyValues", "FitsPositions", "FitsFiles"):
-                try:
-                    cursor.execute("DROP TABLE {}".format(tbl))
-                    print "dropped", tbl
-                except MySQLdb.Error as err:
-                    print "ERROR MySQL {} --  {}".format(err, tbl)
-            cursor.close()
-        else:
-            print "Keeping all tables."
 
     def showTables(self):
         cursor = self._connect.cursor()
@@ -293,7 +230,6 @@ class MetadataFitsDb:
                "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue, lineNum, comment) "
                "VALUES ({}, '{}', {}, '{}', {}, {}, {}, '{}')".format(
                 fitsFileId, key[0], key[1], value, intValue, doubleValue, lineNum, comment))
-        print sql #TODO DELETE
         cursor.execute(sql)
 
     def insertFile(self, fileName):
@@ -304,7 +240,7 @@ class MetadataFitsDb:
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
             self.insertMetadataFits(mdFits)
-            print mdFits.dump()
+            # print mdFits.dump()
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
@@ -317,7 +253,6 @@ class MetadataFitsDb:
         try:
             sql = ("SELECT 1 FROM FitsFiles WHERE "
                    "fileName = '{}'".format(fileName))
-            print sql # TODO delete
             cursor.execute(sql)
             r = cursor.fetchall()
             # Nothing found, so it needs to be added.
@@ -327,7 +262,6 @@ class MetadataFitsDb:
                 cursor.execute("SET autocommit = 0")
                 sql = ("INSERT INTO FitsFiles (fileName, hdus) "
                        "VALUES ('{}', {})".format(fileName, hdus))
-                print sql # TODO DELETE
                 cursor.execute(sql)
                 lastFitsFileId = cursor.lastrowid
                 for key, entry in entries.iteritems():
@@ -355,7 +289,7 @@ class MetadataFitsDb:
                 cursor.execute("COMMIT")
         except MySQLdb.Error as err:
             cursor.execute("ROLLBACK")
-            print "ERROR MySQLdb {} -- {}".format(err, sql)
+            print "ROLLBACK due to ERROR MySQLdb {} -- {}".format(err, sql)
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
 
@@ -380,11 +314,20 @@ def dbTest():
     mdFits.showTables()
     mdFits.close()
 
+def dbTestDestroyCreate(code):
+    '''Open the test database, delete tables, then re-create them.
+    '''
+    print "Calling setup"
+    if (code == "DELETE"):
+        setup()
+        print "done setup"
+    else:
+        print "code not supplied, database un-altered."
+
 def isFitsExt(fileName):
     '''Return True if the file extension reasonable for a FITS file.
     '''
     nameSplit = fileName.split('.')
-    #print nameSplit
     length = len(nameSplit)
     if length < 2:
         return False
@@ -442,8 +385,11 @@ def test():
    assert isFitsExt(testFile) == True
    assert isFits(testFile) == True
 
+   #readCredentials("~/.lsst.test1.cnf")
+
    # Destroy existing tables and re-create them
-   dbTest()
+   #dbTest()
+   dbTestDestroyCreate("DELETE")
 
    # Open a connection to the database.
    metadataFits = dbOpenTest()
