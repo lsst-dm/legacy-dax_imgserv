@@ -38,7 +38,9 @@ import lsst.afw
 import lsst.afw.image as afwImage
 import lsst.daf.base as dafBase
 
-from MetadataDbSetup import setup
+from lsst.cat.dbSetup import DbSetup
+from lsst.db.utils import readCredentialFile
+
 
 
 def isDateFormatValid(dt):
@@ -293,7 +295,7 @@ class MetadataFitsDb:
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
 
-def dbOpenTest():
+def dbOpenTest(): # TODO delete
     # Hard coded credentials will be replaced with readCredentialFile.
     dbHost = "lsst10.ncsa.illinois.edu"
     dbPort = 3306
@@ -305,24 +307,27 @@ def dbOpenTest():
                             dbName=dbName)
     return mdFits
 
-def dbTest():
-    '''Open the test database, delete tables and re-create.
-    '''
-    mdFits = dbOpenTest()
-    mdFits._dropTables("DELETE")
-    mdFits._createTables()
-    mdFits.showTables()
-    mdFits.close()
+def dbOpen(credFileName, dbName):
+    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
+    port = int(creds['port'])
+    mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
+                            dbUser=creds['user'], dbPasswd=creds['passwd'],
+                            dbName=dbName)
+    return mdFits
 
-def dbTestDestroyCreate(code):
+def dbTestDestroyCreate(credFileName, userDb, code):
     '''Open the test database, delete tables, then re-create them.
     '''
-    print "Calling setup"
+    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
+    port = int(creds['port'])
     if (code == "DELETE"):
-        setup()
-        print "done setup"
+        print "DbSetup attempting to delete and then create", userDb
+        db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
+                     dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
+        scripts = ["fitsMetadataSchema.sql"]
+        db.setupDb(scripts)
     else:
-        print "code not supplied, database un-altered."
+        print "code not supplied, database un-altered.", userDb
 
 def isFitsExt(fileName):
     '''Return True if the file extension reasonable for a FITS file.
@@ -374,6 +379,9 @@ def insertFile(fileName, metaDb):
         metaDb.insertMetadataFits(mdFits)
 
 def test():
+   credFile = "~/.mysqlAuthLSST"
+   creds = readCredentialFile(credFile, logging.getLogger("lsst.imgserv.metadatafits"))
+   dbName = "{}_fitsTest".format(creds['user'])
    testFile = ("/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000/R01/"
                "eimage_886946741_R01_S00_E000.fits.gz")
    problemFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/"
@@ -385,14 +393,11 @@ def test():
    assert isFitsExt(testFile) == True
    assert isFits(testFile) == True
 
-   #readCredentials("~/.lsst.test1.cnf")
-
    # Destroy existing tables and re-create them
-   #dbTest()
-   dbTestDestroyCreate("DELETE")
+   dbTestDestroyCreate(credFile, dbName, "DELETE")
 
    # Open a connection to the database.
-   metadataFits = dbOpenTest()
+   metadataFits = dbOpen(credFile, dbName)
 
    # test a specific file
    metadataFits.insertFile(problemFile)
@@ -405,6 +410,10 @@ def test():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
+        datefmt='%m/%d/%Y %I:%M:%S', 
+        level=logging.DEBUG)
     test()
 
 
