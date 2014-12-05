@@ -1,5 +1,10 @@
+setupRequired(afw)
 setupRequired(base)
 setupRequired(boost)
+setupRequired(cat)
+setupRequired(dafBase)
+setupRequired(db)
+setupRequired(mysqlpython)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
 envPrepend(DYLD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)

@@ -29,12 +29,17 @@
 
 import os
 import time
+import logging
 
 import gzip
 import MySQLdb
 
 import lsst.afw
 import lsst.afw.image as afwImage
+import lsst.daf.base as dafBase
+
+from lsst.cat.dbSetup import DbSetup
+from lsst.db.utils import readCredentialFile
 
 
 
@@ -44,6 +49,14 @@ def isDateFormatValid(dt):
         return True
     except ValueError:
         return False
+
+
+class ExpectedHduError(Exception):
+    def __init__(self):
+        self.value = "Next HDU not found. This could be hiding a more serious C error."
+
+    def __str__(self):
+        return repr(self.value)
 
 
 class MetadataFits:
@@ -61,8 +74,8 @@ class MetadataFits:
                 self.scanFile(hdu)
                 self._hdus = hdu
                 hdu += 1
-            except:
-                print "exception ", hdu
+            except  ExpectedHduError as err:
+                print "exception while scanning ", hdu, err
                 break
 
     def getFileName(self):
@@ -72,16 +85,33 @@ class MetadataFits:
         return self._hdus
 
     def scanFile(self, hdu):
-        meta = afwImage.readMetadata(self._fileName, hdu)
-        names = meta.names()
+        # The only way to tell that the last HDU has been read is there is a C++ error.
+        # We catch all exceptions and assume it's the past end of file error and
+        # raise a specific exception. Catching everything later was horrifyingly good at
+        # hiding problems.
+        try:
+            meta = afwImage.readMetadata(self._fileName, hdu)
+        except:
+            raise ExpectedHduError
+        # Cast to PropertyList to access more extensive information
+        metaPl = dafBase.PropertyList.cast(meta)
+        names = metaPl.getOrderedNames()
+        lineNum = 0
         for name in names:
-            data = meta.get(name)
-            self._entries[(name,hdu)] = data
+             data = metaPl.get(name)
+             comment = metaPl.getComment(name)
+             self._entries[(name,hdu)] = (data, lineNum, comment)
+             # Increment the line number by 1 for each value so they can be expanded later
+             # in insertMetadataFits.
+             if isinstance(data, tuple):
+                 lineNum += len(data)
+             else:
+                 lineNum += 1
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
         for key, value in self._entries.iteritems():
-            s += "( {}:{} ) = {}\n".format(key[0], key[1], value)
+            s += "( {}:{} ) = ({}, {}, {})\n".format(key[0], key[1], value[0], value[1], value[2])
         return s
 
 
@@ -93,21 +123,20 @@ class MetadataPosition:
         self._cursor = cursor
         self._entries = entries
         self._columnKeys = (("equinox","EQUINOX"), ("pra","PRA"), ("pdec","PDEC"), 
-                           ("rotang","ROTANG"), ("date","DATE"))
+                           ("rotang","ROTANG"), ("pdate","DATE"))
 
     def _insert(self):
         # Figure out the date
         columns = {}
         if ('DATE', self._hdu) in self._entries:
-            dt = self._entries[('DATE', self._hdu)]
+            dt = self._entries[('DATE', self._hdu)][0]
             dt = dt.replace('T',' ')
-            print dt
             if isDateFormatValid(dt):
-                columns['date'] = dt
+                columns['pdate'] = dt
         found = False
         # Set equinox, use EQUINOX if it exists, otherwise use EPOC (deprecated)
         if ('EQUINOX', self._hdu) in self._entries:
-            eq = self._entries[('EQUINOX', self._hdu)]
+            eq = self._entries[('EQUINOX', self._hdu)][0]
             try:
                 columns['equinox'] = float(eq)
                 found = True
@@ -115,7 +144,7 @@ class MetadataPosition:
                 pass
         if not found:
             if ('EPOC', self._hdu) in self._entries:
-                eq = self._entries[('EPOC', self._hdu)]
+                eq = self._entries[('EPOC', self._hdu)][0]
                 try:
                     columns['equinox'] = float(eq)
                     found = True
@@ -123,10 +152,10 @@ class MetadataPosition:
                     pass
         for colKey in self._columnKeys:
             column = colKey[0]
-            if column != 'date' and column != 'equinox':
+            if column != 'pdate' and column != 'equinox':
                 key = colKey[1]
                 if (key, self._hdu) in self._entries:
-                    value = self._entries[(key, self._hdu)]
+                    value = self._entries[(key, self._hdu)][0]
                     try:
                         columns[column] = float(value)
                     except:
@@ -139,7 +168,6 @@ class MetadataPosition:
                 sql_1 += ", {}".format(col)
                 sql_2 += ", " + valueSql(val)
             sql = sql_1 + sql_2 + ")"
-            print sql
             self._cursor.execute(sql)
 
 
@@ -172,65 +200,6 @@ class MetadataFitsDb:
     def close(self):
         self._connect.close()
 
-    def _createTables(self):    # TODO delete this function
-        #InnoDB
-        fileTable = \
-            ("CREATE TABLE FitsFiles ("
-             "fitsFileId BIGINT       NOT NULL AUTO_INCREMENT, "
-             "fileName   VARCHAR(255) NOT NULL, "
-             "hdus       TINYINT      NOT NULL, "
-             "PRIMARY KEY (fitsFileId)"
-             ")") # TODO add hash?, timestamp?
-        valuesTable = \
-            ("CREATE TABLE FitsKeyValues ("
-             "fitsFileId  BIGINT      NOT NULL, "
-             "fitsKey     VARCHAR(8)  NOT NULL, "
-             "hdu         TINYINT     NOT NULL, "
-             "stringValue VARCHAR(255), "
-             "intValue    INTEGER, "
-             "doubleValue DOUBLE, "
-             "FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)"
-             ")")
-        positionTable = \
-            ("CREATE TABLE FitsPositions ("
-             "fitsFileId BIGINT  NOT NULL, "
-             "hdu        TINYINT NOT NULL, "
-             "equinox    DOUBLE, " 
-             "pdec       DOUBLE, "
-             "pra        DOUBLE, "
-             "rotang     DOUBLE, "
-             "date       TIMESTAMP, "
-             "FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId)"
-             ")")
-        indexFitsKey     = "CREATE INDEX fits_key_fitsKey ON FitsKeyValues (fitsKey)"
-        indexFitsPosDate = "CREATE INDEX fits_pos_date ON FitsPositions (date)"
-        indexFitsPosRA   = "CREATE INDEX fits_pos_ra ON FitsPositions (pra)"
-        indexFitsPosDec  = "CREATE INDEX fits_pos_dec ON FitsPositions (pdec)"
-        cursor = self._connect.cursor()
-        for sql in ( fileTable, valuesTable, positionTable, indexFitsKey,
-                     indexFitsPosDate, indexFitsPosRA, indexFitsPosDec ):
-            try:
-                cursor.execute(sql)
-                print "created {}".format(sql)
-            except MySQLdb.Error as err:
-                print "ERROR MySQL {} --  {}".format(err, sql)
-                quit()
-        cursor.close()
-
-    def _dropTables(self, code):  # TODO delete this function
-        '''For testing purposes only'''
-        if code == "DELETE":
-            cursor = self._connect.cursor()
-            for tbl in ("FitsKeyValues", "FitsPositions", "FitsFiles"):
-                try:
-                    cursor.execute("DROP TABLE {}".format(tbl))
-                    print "dropped", tbl
-                except MySQLdb.Error as err:
-                    print "ERROR MySQL {} --  {}".format(err, tbl)
-            cursor.close()
-        else:
-            print "Keeping all tables."
-
     def showTables(self):
         cursor = self._connect.cursor()
         cursor.execute("SHOW TABLES")
@@ -241,7 +210,7 @@ class MetadataFitsDb:
             print cursor.fetchall()
         cursor.close()
 
-    def _insertFitsValue(self, cursor, fitsFileId, key, value):
+    def _insertFitsValue(self, cursor, fitsFileId, key, value, lineNum, comment):
         '''Insert a Fits row entry into the FitsKeyValues table
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
@@ -260,9 +229,9 @@ class MetadataFitsDb:
         except ValueError:
             pass
         sql = ("INSERT INTO FitsKeyValues "
-               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue) "
-               "VALUES ({}, '{}', {}, '{}', {}, {})".format(
-                fitsFileId, key[0], key[1], value, intValue, doubleValue))
+               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue, lineNum, comment) "
+               "VALUES ({}, '{}', {}, '{}', {}, {}, {}, '{}')".format(
+                fitsFileId, key[0], key[1], value, intValue, doubleValue, lineNum, comment))
         cursor.execute(sql)
 
     def insertFile(self, fileName):
@@ -273,6 +242,7 @@ class MetadataFitsDb:
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
             self.insertMetadataFits(mdFits)
+            # print mdFits.dump()
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
@@ -292,54 +262,60 @@ class MetadataFitsDb:
                 #If this fails for any reason, we do not want the database altered.
                 cursor.execute("START TRANSACTION")
                 cursor.execute("SET autocommit = 0")
-                sql = ("INSERT INTO FitsFiles (fileName, hdus) "
+                sql = ("INSERT INTO FitsFiles (fileName, hduCount) "
                        "VALUES ('{}', {})".format(fileName, hdus))
                 cursor.execute(sql)
                 lastFitsFileId = cursor.lastrowid
-                for key, value in entries.iteritems():
-                    # TODO Temporary hack - merge tuple into single string
-                    # Fix is TBD
+                for key, entry in entries.iteritems():
+                    value   = entry[0]
+                    lineNum = entry[1]
+                    comment = entry[2]
+                    # Put in one entry for each element of the tuple
                     if isinstance(value, tuple):
-                        valStrs = map(str, value)
-                        s = ", "
-                        value = s.join(valStrs)
-                    self._insertFitsValue(cursor, lastFitsFileId, key, value)
+                        num = lineNum
+                        for v in value:
+                            # scanFile should be skipping line numbers when it sees a tuple,
+                            # so that there are no duplicates.
+                            self._insertFitsValue(cursor, lastFitsFileId, key, v, num, comment)
+                            num += 1
+                    else:
+                        self._insertFitsValue(cursor, lastFitsFileId, key, value, lineNum, comment)
                 for hdu in range(1,hdus+1):
                     metadataPosition = MetadataPosition(lastFitsFileId, hdu, cursor, entries)
                     metadataPosition._insert()
                 cursor.execute("COMMIT")
         except MySQLdb.Error as err:
             cursor.execute("ROLLBACK")
-            print "ERROR MySQLdb {} -- {}".format(err, sql)
+            print "ROLLBACK due to ERROR MySQLdb {} -- {}".format(err, sql)
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
 
-def dbOpenTest():
-    # Hard coded credentials will be replaced with readCredentialFile.
-    dbHost = "lsst10.ncsa.illinois.edu"
-    dbPort = 3306
-    dbUser ="jgates"
-    dbPass = "squid7sql"
-    dbName = "jgates_test1"
-    mdFits = MetadataFitsDb(dbHost=dbHost, dbPort=dbPort,
-                            dbUser=dbUser, dbPasswd=dbPass,
+def dbOpen(credFileName, dbName):
+    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
+    port = int(creds['port'])
+    mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
+                            dbUser=creds['user'], dbPasswd=creds['passwd'],
                             dbName=dbName)
     return mdFits
 
-def dbTest():
-    '''Open the test database, delete tables and re-create.
+def dbTestDestroyCreate(credFileName, userDb, code):
+    '''Open the test database, delete tables, then re-create them.
     '''
-    mdFits = dbOpenTest()
-    mdFits._dropTables("DELETE")
-    mdFits._createTables()
-    mdFits.showTables()
-    mdFits.close()
+    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
+    port = int(creds['port'])
+    if (code == "DELETE"):
+        print "DbSetup attempting to delete and then create", userDb
+        db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
+                     dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
+        scripts = ["fitsMetadataSchema.sql"]
+        db.setupDb(scripts)
+    else:
+        print "code not supplied, database un-altered.", userDb
 
 def isFitsExt(fileName):
-    '''Return True if the file extension reasonable for a FITS file.
+    '''Return True if the file extension is reasonable for a FITS file.
     '''
     nameSplit = fileName.split('.')
-    #print nameSplit
     length = len(nameSplit)
     if length < 2:
         return False
@@ -375,10 +351,6 @@ def directoryCrawl(rootDir, metaDb):
             fullName = dirName+'/'+fname
             print('\t\t%s'%  fullName)
             metaDb.insertFile(fullName)
-            #if isFits(fullName):
-            #    mdFits = MetadataFits(fullName)
-            #    mdFits.scanFileAllHdus()
-            #    metaDb.insertMetadataFits(mdFits)
 
 def insertFile(fileName, metaDb):
     '''Insert the header information for 'fileName' into the
@@ -390,6 +362,9 @@ def insertFile(fileName, metaDb):
         metaDb.insertMetadataFits(mdFits)
 
 def test():
+   credFile = "~/.mysqlAuthLSST"
+   creds = readCredentialFile(credFile, logging.getLogger("lsst.imgserv.metadatafits"))
+   dbName = "{}_fitsTest".format(creds['user'])
    testFile = ("/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000/R01/"
                "eimage_886946741_R01_S00_E000.fits.gz")
    problemFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/"
@@ -402,13 +377,14 @@ def test():
    assert isFits(testFile) == True
 
    # Destroy existing tables and re-create them
-   dbTest()
+   dbTestDestroyCreate(credFile, dbName, "DELETE")
 
    # Open a connection to the database.
-   metadataFits = dbOpenTest()
+   metadataFits = dbOpen(credFile, dbName)
 
    # test a specific file
    metadataFits.insertFile(problemFile)
+   quit()
 
    #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
    root = '/lsst/home/jgates/test_metadata'
@@ -417,6 +393,10 @@ def test():
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
+        datefmt='%m/%d/%Y %I:%M:%S', 
+        level=logging.DEBUG)
     test()
 
 
