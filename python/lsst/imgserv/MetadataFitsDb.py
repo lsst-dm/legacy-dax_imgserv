@@ -270,17 +270,12 @@ class MetadataFitsDb:
                     value   = entry[0]
                     lineNum = entry[1]
                     comment = entry[2]
-                    # TODO Temporary hack - merge tuple into single string
-                    #if isinstance(value, tuple):
-                    #    valStrs = map(str, value)
-                    #    s = ", "
-                    #    value = s.join(valStrs)
-                    #self._insertFitsValue(cursor, lastFitsFileId, key, value, lineNum, comment)
-                    # Or put in one entry for each element of the tuple
+                    # Put in one entry for each element of the tuple
                     if isinstance(value, tuple):
                         num = lineNum
                         for v in value:
-                            # scanFile should be skipping line numbers when it sees a tuple.
+                            # scanFile should be skipping line numbers when it sees a tuple,
+                            # so that there are no duplicates.
                             self._insertFitsValue(cursor, lastFitsFileId, key, v, num, comment)
                             num += 1
                     else:
@@ -294,18 +289,6 @@ class MetadataFitsDb:
             print "ROLLBACK due to ERROR MySQLdb {} -- {}".format(err, sql)
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
-
-def dbOpenTest(): # TODO delete
-    # Hard coded credentials will be replaced with readCredentialFile.
-    dbHost = "lsst10.ncsa.illinois.edu"
-    dbPort = 3306
-    dbUser ="jgates"
-    dbPass = "squid7sql"
-    dbName = "jgates_test1"
-    mdFits = MetadataFitsDb(dbHost=dbHost, dbPort=dbPort,
-                            dbUser=dbUser, dbPasswd=dbPass,
-                            dbName=dbName)
-    return mdFits
 
 def dbOpen(credFileName, dbName):
     creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
@@ -330,7 +313,7 @@ def dbTestDestroyCreate(credFileName, userDb, code):
         print "code not supplied, database un-altered.", userDb
 
 def isFitsExt(fileName):
-    '''Return True if the file extension reasonable for a FITS file.
+    '''Return True if the file extension is reasonable for a FITS file.
     '''
     nameSplit = fileName.split('.')
     length = len(nameSplit)
