@@ -42,7 +42,7 @@ CREATE TABLE FitsFiles
 (
     fitsFileId BIGINT       NOT NULL AUTO_INCREMENT,
     fileName   VARCHAR(255) NOT NULL,
-    hdus       TINYINT      NOT NULL,
+    hduCount       TINYINT      NOT NULL,
     PRIMARY KEY (fitsFileId)
 ) ENGINE=InnoDB;
 
@@ -68,14 +68,14 @@ CREATE TABLE FitsPositions
     fitsFileId BIGINT  NOT NULL,
     hdu        TINYINT NOT NULL,
     equinox    DOUBLE,
-    pdec       DOUBLE,
-    pra        DOUBLE,
-    rotang     DOUBLE,
-    pdate      TIMESTAMP,
+    pDec       DOUBLE,
+    pRa        DOUBLE,
+    rotAng     DOUBLE,
+    pDate      TIMESTAMP,
     INDEX IDX_fitsPos_fitsFileId (fitsFileId),
-    INDEX IDX_fitsPos_date (pdate),
-    INDEX IDX_fitsPos_ra (pra),
-    INDEX IDX_fitsPos_dec (pdec)
+    INDEX IDX_fitsPos_date (pDate),
+    INDEX IDX_fitsPos_ra (pRa),
+    INDEX IDX_fitsPos_dec (pDec)
 ) ENGINE=InnoDB;
 
 

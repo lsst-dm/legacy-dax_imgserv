@@ -122,8 +122,8 @@ class MetadataPosition:
         self._hdu = hdu
         self._cursor = cursor
         self._entries = entries
-        self._columnKeys = (("equinox","EQUINOX"), ("pra","PRA"), ("pdec","PDEC"), 
-                           ("rotang","ROTANG"), ("pdate","DATE"))
+        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"), ("pDec","PDEC"), 
+                           ("rotAng","ROTANG"), ("pDate","DATE"))
 
     def _insert(self):
         # Figure out the date
@@ -162,14 +162,10 @@ class MetadataPosition:
                         pass
         # if any column values were successfully defined, insert the row into the table
         if len(columns) > 0:
-            sql_1 = "INSERT INTO FitsPositions (fitsFileId, hdu"
-            sql_2 = ") VALUES ({}, {}".format(self._fileId, self._hdu)
+            colVal = [("fitsFileId", self._fileId), ("hdu", self._hdu)]
             for col, val in columns.iteritems():
-                sql_1 += ", {}".format(col)
-                sql_2 += ", " + valueSql(val)
-            sql = sql_1 + sql_2 + ")"
-            self._cursor.execute(sql)
-
+                colVal.append((col, val))
+            executeInsertList(self._cursor, "FitsPositions", colVal)
 
 def valueSql(value):
     '''Return a string encapsulated by single quotes for strings, otherwise just a returns
@@ -177,6 +173,28 @@ def valueSql(value):
     if isinstance(value,  str):
         return "'{}'".format(value)
     return "{}".format(value)
+
+def executeInsertList(cursor, table, columnValues):
+    print table, columnValues
+    if len(columnValues) < 1:
+        return
+    sql_1 = "INSERT INTO {} (".format(table)
+    colStr = ""
+    valStr = ""
+    values = []
+    first = True
+    for col, val in columnValues:
+        values.append(val)
+        if first:
+            first = False
+            colStr = "{}".format(col)
+            valStr = "%s"
+        else:
+            colStr += ", {}".format(col)
+            valStr += ", %s"
+    sql = sql_1 + colStr + ") Values (" + valStr + ")"
+    print sql, values
+    cursor.execute(sql, values)
 
 
 class MetadataFitsDb:
@@ -192,6 +210,7 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         sql = "SET time_zone = '+0:00'"
         try:
+            print sql
             cursor.execute(sql)
         except MySQLdb.Error as err:
             print "ERROR MySQL {} --  {}".format(err, crt)
@@ -206,7 +225,7 @@ class MetadataFitsDb:
         ret = cursor.fetchall()
         print ret
         for tbl in ret:
-            cursor.execute("SHOW COLUMNS from {}".format(tbl[0]))
+            cursor.execute("SHOW COLUMNS from %s", (tbl[0]))
             print cursor.fetchall()
         cursor.close()
 
@@ -215,6 +234,8 @@ class MetadataFitsDb:
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
         '''
+        colVal = [("fitsFileId", fitsFileId), ("fitsKey", key[0]), ("hdu", key[1]),
+                  ("stringValue", value), ("lineNum", lineNum), ("comment", comment) ]
         intValue = 'NULL'
         doubleValue = 'NULL'
         try:
@@ -222,17 +243,15 @@ class MetadataFitsDb:
             # integer values in some cases, so it is avoided.
             if not isinstance(value, float):
                 intValue = int(value)
+                colVal.append(("intValue", intValue))
         except ValueError:
             pass
         try:
             doubleValue = float(value)
+            colVal.append(("doubleValue", doubleValue))
         except ValueError:
             pass
-        sql = ("INSERT INTO FitsKeyValues "
-               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue, lineNum, comment) "
-               "VALUES ({}, '{}', {}, '{}', {}, {}, {}, '{}')".format(
-                fitsFileId, key[0], key[1], value, intValue, doubleValue, lineNum, comment))
-        cursor.execute(sql)
+        executeInsertList(cursor, "FitsKeyValues", colVal)
 
     def insertFile(self, fileName):
         '''Insert the header information for 'fileName' into the
@@ -254,17 +273,18 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         try:
             sql = ("SELECT 1 FROM FitsFiles WHERE "
-                   "fileName = '{}'".format(fileName))
-            cursor.execute(sql)
+                   "fileName = %s")
+            print sql, fileName
+            cursor.execute(sql, (fileName))
             r = cursor.fetchall()
             # Nothing found, so it needs to be added.
             if len(r) < 1:
                 #If this fails for any reason, we do not want the database altered.
                 cursor.execute("START TRANSACTION")
                 cursor.execute("SET autocommit = 0")
-                sql = ("INSERT INTO FitsFiles (fileName, hduCount) "
-                       "VALUES ('{}', {})".format(fileName, hdus))
-                cursor.execute(sql)
+                # Insert the file into the file table.
+                colVal = [("fileName", fileName), ("hduCount", hdus)]
+                executeInsertList(cursor, "FitsFiles", colVal)
                 lastFitsFileId = cursor.lastrowid
                 for key, entry in entries.iteritems():
                     value   = entry[0]
@@ -365,8 +385,7 @@ def test():
    credFile = "~/.mysqlAuthLSST"
    creds = readCredentialFile(credFile, logging.getLogger("lsst.imgserv.metadatafits"))
    dbName = "{}_fitsTest".format(creds['user'])
-   testFile = ("/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000/R01/"
-               "eimage_886946741_R01_S00_E000.fits.gz")
+   testFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886469580-fz/E000/R02/eimage_886469580_R02_S10_E000.fits.gz")
    problemFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/"
                   "replaced/raw/v886258731-fr/E000/R33/S21/"
                   "imsim_886258731_R33_S21_C12_E000.fits.gz")
