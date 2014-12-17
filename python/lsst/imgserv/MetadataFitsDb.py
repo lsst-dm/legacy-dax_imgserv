@@ -52,7 +52,7 @@ def isDateFormatValid(dt):
 def executeInsertList(cursor, table, columnValues, logger=log):
     '''Insert the columnValues into 'table'
     columnValue is a list of column name and value pairs.
-    Values are be sanitized.
+    Values are sanitized.
     '''
     if len(columnValues) < 1:
         return
@@ -313,7 +313,7 @@ class MetadataFitsDb:
 def dbOpen(credFileName, dbName, logger=log):
     creds = readCredentialFile(credFileName, logger)
     port = 3306
-    if port in creds:
+    if 'port' in creds:
         port = int(creds['port'])
     mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
                             dbUser=creds['user'], dbPasswd=creds['passwd'],
@@ -324,13 +324,17 @@ def dbTestDestroyCreate(credFileName, userDb, code, logger=log):
     '''Open the test database, delete tables, then re-create them.
     '''
     creds = readCredentialFile(credFileName, logger)
-    port = int(creds['port'])
+    port = 3306
+    if 'port' in creds:
+        port = int(creds['port'])
+    print "port=", port
     if (code == "DELETE"):
         logger.info("DbSetup attempting to delete and then create %s" % userDb)
         db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
                      dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
         scripts = ["fitsMetadataSchema.sql"]
         db.setupDb(scripts)
+        logger.info("DbSetup done")
     else:
         logger.warn("code not supplied, database un-altered. %s" % userDb)
 
@@ -416,7 +420,7 @@ def test():
 
 
 if __name__ == "__main__":
-    # log.setLevel("", log.INFO)
+    log.setLevel("", log.DEBUG)
     test()
 
 
