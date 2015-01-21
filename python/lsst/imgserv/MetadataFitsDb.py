@@ -29,6 +29,7 @@
 import gzip
 import MySQLdb
 import os
+import sys
 import time
 
 
@@ -131,6 +132,10 @@ class MetadataFits:
                  lineNum += len(data)
              else:
                  lineNum += 1
+        #try:
+        #    wcs = afwImage.makeWcs(metaPl)
+        #except:
+        #    pass
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
@@ -263,6 +268,18 @@ class MetadataFitsDb:
             mdFits.scanFileAllHdus()
             self.insertMetadataFits(mdFits)
 
+    def isFileInDb(self, fileName):
+        '''Test if this filename in the database
+        '''
+        cursor = self._connect.cursor()
+        sql = ("SELECT 1 FROM FitsFiles WHERE "
+               "fileName = %s")
+        self._log.debug(sql % (fileName))
+        cursor.execute(sql, (fileName))
+        r = cursor.fetchall()
+        return len(r) >= 1
+
+
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
         '''
@@ -310,9 +327,9 @@ class MetadataFitsDb:
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
 
-def dbOpen(credFileName, dbName, logger=log):
+def dbOpen(credFileName, dbName, portDb=3306, logger=log):
     creds = readCredentialFile(credFileName, logger)
-    port = 3306
+    port = portDb
     if 'port' in creds:
         port = int(creds['port'])
     mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
@@ -320,14 +337,13 @@ def dbOpen(credFileName, dbName, logger=log):
                             dbName=dbName)
     return mdFits
 
-def dbTestDestroyCreate(credFileName, userDb, code, logger=log):
-    '''Open the test database, delete tables, then re-create them.
+def dbDestroyCreate(credFileName, userDb, code, logger=log):
+    '''Open the database userDb, delete tables, then re-create them.
     '''
     creds = readCredentialFile(credFileName, logger)
     port = 3306
     if 'port' in creds:
         port = int(creds['port'])
-    print "port=", port
     if (code == "DELETE"):
         logger.info("DbSetup attempting to delete and then create %s" % userDb)
         db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
@@ -362,8 +378,7 @@ def isFits(fileName):
     else:
         f = open(fileName, 'r')
     line = f.read(9)
-    s = line
-    if s == 'SIMPLE  =':
+    if line == 'SIMPLE  =':
         return True
 
 def directoryCrawl(rootDir, metaDb):
@@ -387,41 +402,34 @@ def insertFile(fileName, metaDb):
         mdFits.scanFileAllHdus()
         metaDb.insertMetadataFits(mdFits)
 
-def test():
-   credFile = "~/.mysqlAuthLSST"
-   #creds = readCredentialFile(credFile, logging.getLogger("lsst.imgserv.metadatafits"))
-   creds = readCredentialFile(credFile, log)
-   dbName = "{}_fitsTest".format(creds['user'])
-   testFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886469580-fz/E000/R02/eimage_886469580_R02_S10_E000.fits.gz")
-   problemFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/"
-                  "replaced/raw/v886258731-fr/E000/R33/S21/"
-                  "imsim_886258731_R33_S21_C12_E000.fits.gz")
-   assert isFitsExt('stuf.fits') == True
-   assert isFitsExt('thing.txt') == False
-   assert isFitsExt('item.tx.gz') == False
-   assert isFitsExt(testFile) == True
-   assert isFits(testFile) == True
+def test(rootDir="~/test_metadata"):
+    '''This test only works on specific servers and uses a large dataset.
+    '''
+    credFile = "~/.mysqlAuthLSST"
+    creds = readCredentialFile(credFile, log)
+    dbName = "{}_fitsTest".format(creds['user'])
 
-   # Destroy existing tables and re-create them
-   dbTestDestroyCreate(credFile, dbName, "DELETE")
+    # Destroy existing tables and re-create them
+    dbDestroyCreate(credFile, dbName, "DELETE")
 
-   # Open a connection to the database.
-   metadataFits = dbOpen(credFile, dbName)
+    # Open a connection to the database.
+    metadataFits = dbOpen(credFile, dbName)
 
-   # test a specific file
-   metadataFits.insertFile(problemFile)
-   log.info(metadataFits.showTables())
-   quit()
-
-   #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
-   root = '/lsst/home/jgates/test_metadata'
-   directoryCrawl(root, metadataFits)
-   metadataFits.close()
+    #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
+    log.debug(rootDir)
+    if rootDir.startswith('~'):
+        rootDir = os.path.expanduser(rootDir)
+    log.debug(rootDir)
+    directoryCrawl(rootDir, metadataFits)
+    metadataFits.close()
 
 
 if __name__ == "__main__":
     log.setLevel("", log.DEBUG)
-    test()
+    if len(sys.argv) > 1:
+        test(sys.argv[1])
+    else:
+        test()
 
 
 
