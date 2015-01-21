@@ -42,8 +42,8 @@ CREATE TABLE FitsFiles
 (
     fitsFileId BIGINT       NOT NULL AUTO_INCREMENT,
     fileName   VARCHAR(255) NOT NULL,
-    hduCount       TINYINT      NOT NULL,
-    PRIMARY KEY (fitsFileId)
+    hduCount   TINYINT      NOT NULL,
+    PRIMARY KEY(fitsFileId)
 ) ENGINE=InnoDB;
 
 CREATE TABLE FitsKeyValues
@@ -57,8 +57,8 @@ CREATE TABLE FitsKeyValues
     doubleValue DOUBLE,
     lineNum     INTEGER,
     comment     VARCHAR(90),
-    INDEX IDX_fitsKeyVal_fitsFileId (fitsFileId),
-    INDEX IDX_fitsKeyVal_fitsKey (fitsKey)
+    INDEX IDX_fitsKeyVal_fitsFileId(fitsFileId),
+    INDEX IDX_fitsKeyVal_fitsKey(fitsKey)
 ) ENGINE=InnoDB;
 
 
@@ -72,17 +72,17 @@ CREATE TABLE FitsPositions
     pRa        DOUBLE,
     rotAng     DOUBLE,
     pDate      TIMESTAMP,
-    INDEX IDX_fitsPos_fitsFileId (fitsFileId),
-    INDEX IDX_fitsPos_date (pDate),
-    INDEX IDX_fitsPos_ra (pRa),
-    INDEX IDX_fitsPos_dec (pDec)
+    INDEX IDX_fitsPos_fitsFileId(fitsFileId),
+    INDEX IDX_fitsPos_date(pDate),
+    INDEX IDX_fitsPos_ra(pRa),
+    INDEX IDX_fitsPos_dec(pDec)
 ) ENGINE=InnoDB;
 
 
 ALTER TABLE FitsKeyValues ADD CONSTRAINT FK_fitsKeyVal_fitsFileId
-    FOREIGN KEY (fitsFileId) REFERENCES FitsFiles (fitsFileId);
+    FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId);
 
 ALTER TABLE FitsPositions ADD CONSTRAINT FK_fitsPos_fitsFileId
-    FOREIGN KEY (fitsFileId) REFERENCES FitsFiles (fitsFileId);
+    FOREIGN KEY (fitsFileId) REFERENCES FitsFiles(fitsFileId);
 
 
