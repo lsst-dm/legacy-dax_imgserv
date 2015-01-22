@@ -26,17 +26,17 @@
 # and insert their header information into the metadata database.
 
 
-
-import os
-import time
-import logging
-
 import gzip
 import MySQLdb
+import os
+import sys
+import time
+
 
 import lsst.afw
 import lsst.afw.image as afwImage
 import lsst.daf.base as dafBase
+import lsst.log as log
 
 from lsst.cat.dbSetup import DbSetup
 from lsst.db.utils import readCredentialFile
@@ -50,10 +50,36 @@ def isDateFormatValid(dt):
     except ValueError:
         return False
 
+def executeInsertList(cursor, table, columnValues, logger=log):
+    '''Insert the columnValues into 'table'
+    columnValue is a list of column name and value pairs.
+    Values are sanitized.
+    '''
+    if len(columnValues) < 1:
+        return
+    sql_1 = "INSERT INTO {} (".format(table)
+    colStr = ""
+    valStr = ""
+    values = []
+    first = True
+    for col, val in columnValues:
+        values.append(val)
+        if first:
+            first = False
+            colStr = "{}".format(col)
+            valStr = "%s"
+        else:
+            colStr += ", {}".format(col)
+            valStr += ", %s"
+    sql = sql_1 + colStr + ") Values (" + valStr + ")"
+    # '%s' in sql causes lsst.log to have problems, so we log its component pieces.
+    logger.debug("InsertList %s %s) VALUES (%s)" % (sql_1, colStr, values))
+    cursor.execute(sql, values)
+
 
 class ExpectedHduError(Exception):
     def __init__(self):
-        self.value = "Next HDU not found. This could be hiding a more serious C error."
+        self.value = "Next HDU not found, which is expected but could be hiding a more serious C error."
 
     def __str__(self):
         return repr(self.value)
@@ -61,21 +87,22 @@ class ExpectedHduError(Exception):
 
 class MetadataFits:
     '''Class for reading FITS headers and temporary storage of header values'''
-    def __init__(self, fileName):
+    def __init__(self, fileName, logger=log):
         self._fileName = fileName
         self._hdus = 1
         self._entries = {}
+        self._log = logger
 
     def scanFileAllHdus(self):
         hdu = 1
         while True:
             try:
-                print "Scanning ", self._fileName, hdu
+                self._log.info("Scanning %s %s" % (self._fileName, hdu))
                 self.scanFile(hdu)
                 self._hdus = hdu
                 hdu += 1
             except  ExpectedHduError as err:
-                print "exception while scanning ", hdu, err
+                self._log.info("exception while scanning %s %s" % (hdu, err))
                 break
 
     def getFileName(self):
@@ -86,9 +113,7 @@ class MetadataFits:
 
     def scanFile(self, hdu):
         # The only way to tell that the last HDU has been read is there is a C++ error.
-        # We catch all exceptions and assume it's the past end of file error and
-        # raise a specific exception. Catching everything later was horrifyingly good at
-        # hiding problems.
+        # We catch all exceptions and assume it's the 'past end of file' error.
         try:
             meta = afwImage.readMetadata(self._fileName, hdu)
         except:
@@ -107,6 +132,10 @@ class MetadataFits:
                  lineNum += len(data)
              else:
                  lineNum += 1
+        #try:
+        #    wcs = afwImage.makeWcs(metaPl)
+        #except:
+        #    pass
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
@@ -116,14 +145,16 @@ class MetadataFits:
 
 
 class MetadataPosition:
-    '''Insert the position information for the FITS file/hdu into the database.'''
-    def __init__(self, fileId, hdu, cursor, entries):
+    '''Insert the position information for the FITS file/hdu into the database.
+    '''
+    def __init__(self, fileId, hdu, cursor, entries, logger=log):
         self._fileId = fileId
         self._hdu = hdu
         self._cursor = cursor
         self._entries = entries
-        self._columnKeys = (("equinox","EQUINOX"), ("pra","PRA"), ("pdec","PDEC"), 
-                           ("rotang","ROTANG"), ("pdate","DATE"))
+        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"), ("pDec","PDEC"), 
+                           ("rotAng","ROTANG"), ("pDate","DATE"))
+        self._log = logger
 
     def _insert(self):
         # Figure out the date
@@ -162,28 +193,20 @@ class MetadataPosition:
                         pass
         # if any column values were successfully defined, insert the row into the table
         if len(columns) > 0:
-            sql_1 = "INSERT INTO FitsPositions (fitsFileId, hdu"
-            sql_2 = ") VALUES ({}, {}".format(self._fileId, self._hdu)
+            colVal = [("fitsFileId", self._fileId), ("hdu", self._hdu)]
             for col, val in columns.iteritems():
-                sql_1 += ", {}".format(col)
-                sql_2 += ", " + valueSql(val)
-            sql = sql_1 + sql_2 + ")"
-            self._cursor.execute(sql)
+                colVal.append((col, val))
+            executeInsertList(self._cursor, "FitsPositions", colVal, self._log)
 
 
-def valueSql(value):
-    '''Return a string encapsulated by single quotes for strings, otherwise just a returns
-       a string version of the value. This makes SQL happier.'''
-    if isinstance(value,  str):
-        return "'{}'".format(value)
-    return "{}".format(value)
 
 
 class MetadataFitsDb:
     '''This class is used to collect Metadata from FITS header information
        and place it in the database.
     '''
-    def __init__(self, dbHost, dbPort, dbUser, dbPasswd, dbName):
+    def __init__(self, dbHost, dbPort, dbUser, dbPasswd, dbName, logger=log):
+        self._log = logger
         self._connect = MySQLdb.connect(host=dbHost,
                       port=dbPort,
                       user=dbUser,
@@ -192,9 +215,10 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         sql = "SET time_zone = '+0:00'"
         try:
+            self._log.info(sql)
             cursor.execute(sql)
         except MySQLdb.Error as err:
-            print "ERROR MySQL {} --  {}".format(err, crt)
+            self._log.info("ERROR MySQL %s -- %s" % (err, crt))
         cursor.close()
 
     def close(self):
@@ -204,17 +228,20 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         cursor.execute("SHOW TABLES")
         ret = cursor.fetchall()
-        print ret
+        s = str(ret)
         for tbl in ret:
-            cursor.execute("SHOW COLUMNS from {}".format(tbl[0]))
-            print cursor.fetchall()
+            cursor.execute("SHOW COLUMNS from %s" % (tbl[0]))
+            s += str(cursor.fetchall())
         cursor.close()
+        return s
 
     def _insertFitsValue(self, cursor, fitsFileId, key, value, lineNum, comment):
         '''Insert a Fits row entry into the FitsKeyValues table
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
         '''
+        colVal = [("fitsFileId", fitsFileId), ("fitsKey", key[0]), ("hdu", key[1]),
+                  ("stringValue", value), ("lineNum", lineNum), ("comment", comment) ]
         intValue = 'NULL'
         doubleValue = 'NULL'
         try:
@@ -222,17 +249,15 @@ class MetadataFitsDb:
             # integer values in some cases, so it is avoided.
             if not isinstance(value, float):
                 intValue = int(value)
+                colVal.append(("intValue", intValue))
         except ValueError:
             pass
         try:
             doubleValue = float(value)
+            colVal.append(("doubleValue", doubleValue))
         except ValueError:
             pass
-        sql = ("INSERT INTO FitsKeyValues "
-               "(fitsFileId, fitsKey, hdu, stringValue, intValue, doubleValue, lineNum, comment) "
-               "VALUES ({}, '{}', {}, '{}', {}, {}, {}, '{}')".format(
-                fitsFileId, key[0], key[1], value, intValue, doubleValue, lineNum, comment))
-        cursor.execute(sql)
+        executeInsertList(cursor, "FitsKeyValues", colVal, self._log)
 
     def insertFile(self, fileName):
         '''Insert the header information for 'fileName' into the
@@ -242,7 +267,18 @@ class MetadataFitsDb:
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
             self.insertMetadataFits(mdFits)
-            # print mdFits.dump()
+
+    def isFileInDb(self, fileName):
+        '''Test if this filename in the database
+        '''
+        cursor = self._connect.cursor()
+        sql = ("SELECT 1 FROM FitsFiles WHERE "
+               "fileName = %s")
+        self._log.debug(sql % (fileName))
+        cursor.execute(sql, (fileName))
+        r = cursor.fetchall()
+        return len(r) >= 1
+
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
@@ -254,17 +290,18 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         try:
             sql = ("SELECT 1 FROM FitsFiles WHERE "
-                   "fileName = '{}'".format(fileName))
-            cursor.execute(sql)
+                   "fileName = %s")
+            self._log.debug(sql % (fileName))
+            cursor.execute(sql, (fileName))
             r = cursor.fetchall()
             # Nothing found, so it needs to be added.
             if len(r) < 1:
                 #If this fails for any reason, we do not want the database altered.
                 cursor.execute("START TRANSACTION")
                 cursor.execute("SET autocommit = 0")
-                sql = ("INSERT INTO FitsFiles (fileName, hduCount) "
-                       "VALUES ('{}', {})".format(fileName, hdus))
-                cursor.execute(sql)
+                # Insert the file into the file table.
+                colVal = [("fileName", fileName), ("hduCount", hdus)]
+                executeInsertList(cursor, "FitsFiles", colVal, self._log)
                 lastFitsFileId = cursor.lastrowid
                 for key, entry in entries.iteritems():
                     value   = entry[0]
@@ -286,31 +323,36 @@ class MetadataFitsDb:
                 cursor.execute("COMMIT")
         except MySQLdb.Error as err:
             cursor.execute("ROLLBACK")
-            print "ROLLBACK due to ERROR MySQLdb {} -- {}".format(err, sql)
+            self._log.warn( "ROLLBACK due to ERROR MySQLdb %s --%s" % (err, sql))
             quit() # TODO delete this line, for now it is good to stop and examine these.
         cursor.close()
 
-def dbOpen(credFileName, dbName):
-    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
-    port = int(creds['port'])
+def dbOpen(credFileName, dbName, portDb=3306, logger=log):
+    creds = readCredentialFile(credFileName, logger)
+    port = portDb
+    if 'port' in creds:
+        port = int(creds['port'])
     mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
                             dbUser=creds['user'], dbPasswd=creds['passwd'],
                             dbName=dbName)
     return mdFits
 
-def dbTestDestroyCreate(credFileName, userDb, code):
-    '''Open the test database, delete tables, then re-create them.
+def dbDestroyCreate(credFileName, userDb, code, logger=log):
+    '''Open the database userDb, delete tables, then re-create them.
     '''
-    creds = readCredentialFile(credFileName, logging.getLogger("lsst.imgserv.metadatafits"))
-    port = int(creds['port'])
+    creds = readCredentialFile(credFileName, logger)
+    port = 3306
+    if 'port' in creds:
+        port = int(creds['port'])
     if (code == "DELETE"):
-        print "DbSetup attempting to delete and then create", userDb
+        logger.info("DbSetup attempting to delete and then create %s" % userDb)
         db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
                      dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
         scripts = ["fitsMetadataSchema.sql"]
         db.setupDb(scripts)
+        logger.info("DbSetup done")
     else:
-        print "code not supplied, database un-altered.", userDb
+        logger.warn("code not supplied, database un-altered. %s" % userDb)
 
 def isFitsExt(fileName):
     '''Return True if the file extension is reasonable for a FITS file.
@@ -336,20 +378,19 @@ def isFits(fileName):
     else:
         f = open(fileName, 'r')
     line = f.read(9)
-    s = line
-    if s == 'SIMPLE  =':
+    if line == 'SIMPLE  =':
         return True
 
 def directoryCrawl(rootDir, metaDb):
     '''Crawl throught the directory tree looking for FITS files.
        Parse the FITS headers for each FITS file found and put them in the database.
     '''
+    logger = metaDb._log
     for dirName, subdirList, fileList in os.walk(rootDir):
-        print('Found directory: %s' % dirName)
+        logger.info('Found directory: %s' % dirName)
         for fname in fileList:
-            print('\t%s' % fname)
             fullName = dirName+'/'+fname
-            print('\t\t%s'%  fullName)
+            logger.info('\t%s'%  fullName)
             metaDb.insertFile(fullName)
 
 def insertFile(fileName, metaDb):
@@ -361,43 +402,34 @@ def insertFile(fileName, metaDb):
         mdFits.scanFileAllHdus()
         metaDb.insertMetadataFits(mdFits)
 
-def test():
-   credFile = "~/.mysqlAuthLSST"
-   creds = readCredentialFile(credFile, logging.getLogger("lsst.imgserv.metadatafits"))
-   dbName = "{}_fitsTest".format(creds['user'])
-   testFile = ("/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000/R01/"
-               "eimage_886946741_R01_S00_E000.fits.gz")
-   problemFile = ("/lsst/home/jgates/test_metadata/lsst3/DC3/data/obs/ImSim/pt1_2/"
-                  "replaced/raw/v886258731-fr/E000/R33/S21/"
-                  "imsim_886258731_R33_S21_C12_E000.fits.gz")
-   assert isFitsExt('stuf.fits') == True
-   assert isFitsExt('thing.txt') == False
-   assert isFitsExt('item.tx.gz') == False
-   assert isFitsExt(testFile) == True
-   assert isFits(testFile) == True
+def test(rootDir="~/test_metadata"):
+    '''This test only works on specific servers and uses a large dataset.
+    '''
+    credFile = "~/.mysqlAuthLSST"
+    creds = readCredentialFile(credFile, log)
+    dbName = "{}_fitsTest".format(creds['user'])
 
-   # Destroy existing tables and re-create them
-   dbTestDestroyCreate(credFile, dbName, "DELETE")
+    # Destroy existing tables and re-create them
+    dbDestroyCreate(credFile, dbName, "DELETE")
 
-   # Open a connection to the database.
-   metadataFits = dbOpen(credFile, dbName)
+    # Open a connection to the database.
+    metadataFits = dbOpen(credFile, dbName)
 
-   # test a specific file
-   metadataFits.insertFile(problemFile)
-   quit()
-
-   #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
-   root = '/lsst/home/jgates/test_metadata'
-   directoryCrawl(root, metadataFits)
-   metadataFits.close()
+    #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
+    log.debug(rootDir)
+    if rootDir.startswith('~'):
+        rootDir = os.path.expanduser(rootDir)
+    log.debug(rootDir)
+    directoryCrawl(rootDir, metadataFits)
+    metadataFits.close()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(
-        format='%(asctime)s %(name)s %(levelname)s: %(message)s', 
-        datefmt='%m/%d/%Y %I:%M:%S', 
-        level=logging.DEBUG)
-    test()
+    log.setLevel("", log.DEBUG)
+    if len(sys.argv) > 1:
+        test(sys.argv[1])
+    else:
+        test()
 
 
 
