@@ -25,7 +25,7 @@ from lsst.db.utils import readCredentialFile
 from lsst.imgserv.MetadataFitsDb import MetadataFitsDb, dbOpen
 
 WATCH_FOLDER = '/LSST'
-WATCH_SITE = 'NCSA'
+WATCH_SITE = 'SLAC'
 
 class Crawler:
 
@@ -61,7 +61,7 @@ class Crawler:
         credFileName = "~/.mysqlAuthLSST"
         creds = readCredentialFile(credFileName, log)
         dbName = "{}_fitsTest".format(creds['user'])
-        metadataFits = dbOpen(credFileName, dbName)
+        metaDb = dbOpen(credFileName, dbName)
 
         resp = None
         try:
@@ -107,11 +107,13 @@ class Crawler:
                 scan_result["versionMetadata"] = md
 
             try:
+                print "patch_resp", file_path
                 patch_resp = self.client.patch_dataset(dataset_path, scan_result,
                                                        versionId=dataset.versionId, site=WATCH_SITE)
-                # metaDb.insertFile(fullName) # include link to data cat metadata
-            except DcException as error:
-                print("Encountered error while updating dataset")
+                print "Inserting", file_path
+                metaDb.insertFile(file_path) # include link to data cat metadata
+            except DcException as err:
+                print("Encountered error while updating dataset {}".format(err))
 
 
 
