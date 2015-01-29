@@ -9,6 +9,9 @@ This crawler only scans one folder at a time, retrieving up to 1000 results at a
 
 It searches for datasets which are unscanned for a particular location.
 
+Added code to write FITS header and file information to foreign tables and
+supply DataCat metadata with the foreign table fileId.  - jgates 
+
 """
 
 import sys
@@ -69,14 +72,14 @@ class Crawler:
                                       query="scanStatus = 'UNSCANNED'", max_num=1000)
         except DcException as error:
             if hasattr(error, "message"):
-                print("Error occurred:\nMessage: %s" %(error.message))
+                log.warn("Error occurred:\nMessage: %s", error.message)
                 if hasattr(error, "type"):
-                    print("Type: %s" %(error.type))
+                    log.warn("Type: %s", error.type)
                 if hasattr(error, "cause"):
-                    print("Cause: %s" %(error.cause))
+                    log.warn("Cause: %s", error.cause)
             else:
                 # Should have content
-                print(error.content)
+                log.warn(error.content)
             sys.exit(1)
 
         results = unpack(resp.content)
@@ -107,17 +110,24 @@ class Crawler:
                 scan_result["versionMetadata"] = md
 
             try:
-                print "patch_resp", file_path
+                log.debug("patch_resp %s", str(file_path))
                 patch_resp = self.client.patch_dataset(dataset_path, scan_result,
                                                        versionId=dataset.versionId, site=WATCH_SITE)
-                print "Inserting", file_path
-                metaDb.insertFile(file_path) # include link to data cat metadata
+                log.debug("Inserting %s", str(file_path))
+                fileId = metaDb.insertFile(file_path)
+                metadata = {"fileId":fileId}
+                md_patch = {}
+                md_patch["versionMetadata"] = metadata
+                md_patch_resp = self.client.patch_dataset(dataset_path, md_patch,
+                                                          versionId=dataset.versionId)
+                log.info("Inserted %d %s", fileId, str(file_path))
             except DcException as err:
-                print("Encountered error while updating dataset {}".format(err))
+                log.warn("Encountered error while updating dataset %s", str(file_path), err)
 
 
 
 def main():
+    log.setLevel("", log.DEBUG)
     c = Crawler()
     c.start()
 
