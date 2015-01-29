@@ -73,7 +73,7 @@ def executeInsertList(cursor, table, columnValues, logger=log):
             valStr += ", %s"
     sql = sql_1 + colStr + ") Values (" + valStr + ")"
     # '%s' in sql causes lsst.log to have problems, so we log its component pieces.
-    logger.debug("InsertList %s %s) VALUES (%s)" % (sql_1, colStr, values))
+    logger.debug("InsertList %s %s) VALUES (%s)", sql_1, colStr, values)
     cursor.execute(sql, values)
 
 
@@ -262,11 +262,15 @@ class MetadataFitsDb:
     def insertFile(self, fileName):
         '''Insert the header information for 'fileName' into the
         MetadataDatabase metaDb, but only if it is a FITS file.
+        It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
+        was added.
         '''
+        returnVal = -1
         if isFits(fileName):
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
-            self.insertMetadataFits(mdFits)
+            returnVal = self.insertMetadataFits(mdFits)
+        return returnVal
 
     def isFileInDb(self, fileName):
         '''Test if this filename in the database
@@ -282,10 +286,13 @@ class MetadataFitsDb:
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
+        It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
+        was added.
         '''
         fileName = metadata.getFileName()
         hdus     = metadata.getHdus()
         entries  = metadata._entries
+        lastFitsFileId = -1
         # Check if the file is in the database, and if not add it
         cursor = self._connect.cursor()
         try:
@@ -326,6 +333,7 @@ class MetadataFitsDb:
             self._log.warn( "ROLLBACK due to ERROR MySQLdb %s --%s", err, sql)
             quit() # TODO delete this line, for now it is good to stop and examine these
         cursor.close()
+        return lastFitsFileId
 
 def dbOpen(credFileName, dbName, portDb=3306, logger=log):
     creds = readCredentialFile(credFileName, logger)
@@ -393,14 +401,6 @@ def directoryCrawl(rootDir, metaDb):
             logger.info('\t%s', fullName)
             metaDb.insertFile(fullName)
 
-def insertFile(fileName, metaDb):
-    '''Insert the header information for 'fileName' into the
-    MetadataDatabase metaDb, but only if it is a FITS file.
-    '''
-    if isFits(fileName):
-        mdFits = MetadataFits(fileName)
-        mdFits.scanFileAllHdus()
-        metaDb.insertMetadataFits(mdFits)
 
 def test(rootDir="~/test_metadata"):
     '''This test only works on specific servers and uses a large dataset.
