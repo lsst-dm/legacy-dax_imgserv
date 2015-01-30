@@ -2,7 +2,7 @@
 
 #
 # LSST Data Management System
-# Copyright 2014 LSST Corporation.
+# Copyright 2014-2015 LSST/AURA.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -73,7 +73,7 @@ def executeInsertList(cursor, table, columnValues, logger=log):
             valStr += ", %s"
     sql = sql_1 + colStr + ") Values (" + valStr + ")"
     # '%s' in sql causes lsst.log to have problems, so we log its component pieces.
-    logger.debug("InsertList %s %s) VALUES (%s)" % (sql_1, colStr, values))
+    logger.debug("InsertList %s %s) VALUES (%s)", sql_1, colStr, values)
     cursor.execute(sql, values)
 
 
@@ -97,12 +97,12 @@ class MetadataFits:
         hdu = 1
         while True:
             try:
-                self._log.info("Scanning %s %s" % (self._fileName, hdu))
+                self._log.info("Scanning %s %d", str(self._fileName), hdu)
                 self.scanFile(hdu)
                 self._hdus = hdu
                 hdu += 1
             except  ExpectedHduError as err:
-                self._log.info("exception while scanning %s %s" % (hdu, err))
+                self._log.info("exception while scanning %d %s", hdu, err)
                 break
 
     def getFileName(self):
@@ -218,7 +218,7 @@ class MetadataFitsDb:
             self._log.info(sql)
             cursor.execute(sql)
         except MySQLdb.Error as err:
-            self._log.info("ERROR MySQL %s -- %s" % (err, crt))
+            self._log.info("ERROR MySQL %s", err)
         cursor.close()
 
     def close(self):
@@ -262,11 +262,15 @@ class MetadataFitsDb:
     def insertFile(self, fileName):
         '''Insert the header information for 'fileName' into the
         MetadataDatabase metaDb, but only if it is a FITS file.
+        It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
+        was added.
         '''
+        returnVal = -1
         if isFits(fileName):
             mdFits = MetadataFits(fileName)
             mdFits.scanFileAllHdus()
-            self.insertMetadataFits(mdFits)
+            returnVal = self.insertMetadataFits(mdFits)
+        return returnVal
 
     def isFileInDb(self, fileName):
         '''Test if this filename in the database
@@ -274,25 +278,28 @@ class MetadataFitsDb:
         cursor = self._connect.cursor()
         sql = ("SELECT 1 FROM FitsFiles WHERE "
                "fileName = %s")
-        self._log.debug(sql % (fileName))
-        cursor.execute(sql, (fileName))
+        self._log.debug(sql, fileName)
+        cursor.execute(sql, fileName)
         r = cursor.fetchall()
         return len(r) >= 1
 
 
     def insertMetadataFits(self, metadata):
         '''Insert this FITS file's and its key:value pairs into the database.
+        It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
+        was added.
         '''
         fileName = metadata.getFileName()
         hdus     = metadata.getHdus()
         entries  = metadata._entries
+        lastFitsFileId = -1
         # Check if the file is in the database, and if not add it
         cursor = self._connect.cursor()
         try:
             sql = ("SELECT 1 FROM FitsFiles WHERE "
                    "fileName = %s")
-            self._log.debug(sql % (fileName))
-            cursor.execute(sql, (fileName))
+            self._log.debug(sql, str(fileName))
+            cursor.execute(sql, fileName)
             r = cursor.fetchall()
             # Nothing found, so it needs to be added.
             if len(r) < 1:
@@ -323,9 +330,10 @@ class MetadataFitsDb:
                 cursor.execute("COMMIT")
         except MySQLdb.Error as err:
             cursor.execute("ROLLBACK")
-            self._log.warn( "ROLLBACK due to ERROR MySQLdb %s --%s" % (err, sql))
-            quit() # TODO delete this line, for now it is good to stop and examine these.
+            self._log.warn( "ROLLBACK due to ERROR MySQLdb %s --%s", err, sql)
+            quit() # TODO delete this line, for now it is good to stop and examine these
         cursor.close()
+        return lastFitsFileId
 
 def dbOpen(credFileName, dbName, portDb=3306, logger=log):
     creds = readCredentialFile(credFileName, logger)
@@ -345,14 +353,14 @@ def dbDestroyCreate(credFileName, userDb, code, logger=log):
     if 'port' in creds:
         port = int(creds['port'])
     if (code == "DELETE"):
-        logger.info("DbSetup attempting to delete and then create %s" % userDb)
+        logger.info("DbSetup attempting to delete and then create %s", userDb)
         db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
                      dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
         scripts = ["fitsMetadataSchema.sql"]
         db.setupDb(scripts)
         logger.info("DbSetup done")
     else:
-        logger.warn("code not supplied, database un-altered. %s" % userDb)
+        logger.warn("code not supplied, database un-altered. %s", userDb)
 
 def isFitsExt(fileName):
     '''Return True if the file extension is reasonable for a FITS file.
@@ -387,20 +395,12 @@ def directoryCrawl(rootDir, metaDb):
     '''
     logger = metaDb._log
     for dirName, subdirList, fileList in os.walk(rootDir):
-        logger.info('Found directory: %s' % dirName)
+        logger.info('Found directory: %s', dirName)
         for fname in fileList:
             fullName = dirName+'/'+fname
-            logger.info('\t%s'%  fullName)
+            logger.info('\t%s', fullName)
             metaDb.insertFile(fullName)
 
-def insertFile(fileName, metaDb):
-    '''Insert the header information for 'fileName' into the
-    MetadataDatabase metaDb, but only if it is a FITS file.
-    '''
-    if isFits(fileName):
-        mdFits = MetadataFits(fileName)
-        mdFits.scanFileAllHdus()
-        metaDb.insertMetadataFits(mdFits)
 
 def test(rootDir="~/test_metadata"):
     '''This test only works on specific servers and uses a large dataset.
@@ -423,11 +423,20 @@ def test(rootDir="~/test_metadata"):
     directoryCrawl(rootDir, metadataFits)
     metadataFits.close()
 
+def deleteTestDb():
+    credFile = "~/.mysqlAuthLSST"
+    creds = readCredentialFile(credFile, log)
+    dbName = "{}_fitsTest".format(creds['user'])
+    # Destroy existing tables and re-create them
+    dbDestroyCreate(credFile, dbName, "DELETE")
 
 if __name__ == "__main__":
     log.setLevel("", log.DEBUG)
     if len(sys.argv) > 1:
-        test(sys.argv[1])
+        if (sys.argv[1] == "-DELETE"):
+            deleteTestDb()
+        else:
+            test(sys.argv[1])
     else:
         test()
 
