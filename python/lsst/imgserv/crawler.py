@@ -1,17 +1,37 @@
 #!/usr/bin/env python
 
+#
+# LSST Data Management System
+# Copyright 2014-2015 LSST/AURA.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+
+
 __author__ = 'bvan'
 
 """
 A Simple single-threaded crawler-like application.
-
-This crawler only scans one folder at a time, retrieving up to 1000 results at a time.
-
+This crawler only scans one folder at a time, retrieving up to 1000 results at 
+a time.
 It searches for datasets which are unscanned for a particular location.
-
 Added code to write FITS header and file information to foreign tables and
-supply DataCat metadata with the foreign table fileId.  - jgates 
-
+supply DataCat metadata with the foreign table fileId.
 """
 
 import sys
@@ -26,6 +46,7 @@ from datetime import datetime
 import lsst.log as log
 from lsst.db.utils import readCredentialFile
 from lsst.imgserv.MetadataFitsDb import MetadataFitsDb, dbOpen
+from lsst.imgserv.dataCatUtil import DataCatCfg
 
 WATCH_FOLDER = '/LSST'
 WATCH_SITE = 'SLAC'
@@ -34,8 +55,9 @@ class Crawler:
 
     RERUN_SECONDS = 5
 
-    def __init__(self):
-        self.client = Client("http://lsst-db2.slac.stanford.edu:8180/rest-datacat-v1/r")
+    def __init__(self, dataCatCfg):
+        self._dataCatCfg = dataCatCfg
+        self.client = Client(self._dataCatCfg.getRestUrl())
         self.sched = sched.scheduler(time.time, time.sleep)
         self._run()
 
@@ -125,10 +147,10 @@ class Crawler:
                 log.warn("Encountered error while updating dataset %s", str(file_path), err)
 
 
-
 def main():
     log.setLevel("", log.DEBUG)
-    c = Crawler()
+    dataCatCfg = DataCatCfg()
+    c = Crawler(dataCatCfg)
     c.start()
 
 if __name__ == '__main__':

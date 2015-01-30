@@ -1,5 +1,26 @@
+#
+# LSST Data Management System
+# Copyright 2014-2015 LSST/AURA.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
 
-
+import ConfigParser
 import getopt
 import sys
 import os
@@ -14,11 +35,37 @@ from datetime import datetime
 from lsst.imgserv.MetadataFitsDb import isFits
 import lsst.log as log
 
+class DataCatCfg():
+    '''Class to load and stor configuration information for DataCat
+    '''
+    def __init__(self, cfgFile="~/.datacat.cfg", logger=log):
+        '''Set default values if cfgFile is not found.
+        '''
+        self._log = logger
+        if cfgFile.startswith('~'):
+            cfgFile = os.path.expanduser(cfgFile)
+        self._cfgFile = expandDir(cfgFile)
+        self._config = ConfigParser.ConfigParser()
+        self._restUrl = ("http://lsst-db2.slac.stanford.edu:8180/"
+                         "rest-datacat-v1/r")
+        self.read()
+
+    def read(self):
+        self._config.read(self._cfgFile)
+        try:
+            self._restUrl = self._config.get("DataCat", "restUrl")
+        except (ConfigParser.NoSectionError, ConfigParser.NoOptionError) as exc:
+            self._log.warn("DataCatCfg {}".format(exc))
+
+    def getRestUrl(self):
+        return self._restUrl
+
 class DataCatUtil:
     '''Simple class to work with DataCat
     '''
-    def __init__(self, logger=log):
-        self._client = Client("http://lsst-db2.slac.stanford.edu:8180/rest-datacat-v1/r")
+    def __init__(self, dataCatCfg, logger=log):
+        self._dataCatCfg = dataCatCfg
+        self._client = Client(self._dataCatCfg.getRestUrl())
         self._log = logger
         self._site = "SLAC"
         self._path = "/LSST"
@@ -37,10 +84,10 @@ class DataCatUtil:
                                         versionId=self._versionId, site=self._site,
                                         resource=fileName)
             fullName = path+"/"+fileName
-            print "Registering:", path, fileName, fullName
+            self._log.info("Registering:", path, fileName, fullName)
             resp = self._client.path(fullName, versionId="current")
             ds = unpack(resp.content)
-            print(ds.__dict__)
+            self._log.info(ds.__dict__)
         except DcException as e:
             self._log.warn("create_dataset exception %s %s" % (e, datasetName))
 
@@ -75,20 +122,20 @@ class DataCatUtil:
                                                     versionId=self._versionId, site=self._site,
                                                     resource=fullName)
                         c += 1
-                        print "Registering:{} as {} c={}".format(fullName, datasetName, c)
+                        self._log.info("Registering:%s as %s", fullName, datasetName)
                         dsNames.append(datasetName)
-                        #resp = self._client.path(fullName, versionId="current")
-                        #ds = unpack(resp.content)
-                        #print(ds.__dict__)
+                        resp = self._client.path(fullName, versionId="current")
+                        ds = unpack(resp.content)
+                        self._log.info("response %s", ds.__dict__)
                     except DcException as e:
-                        self._log.warn("create_dataset exception %s %s" % (e, datasetName))
-        print "count = ", c
+                        self._log.warn("create_dataset exception %s %s", e, datasetName)
+        return c
 
     def directoryCrawlDelete(self, rootDir, prefix):
         '''Crawl throught the directory tree looking for FITS files and
         delete them from dataCat
         '''
-        print "directoryCrawlDelete", rootDir, prefix
+        self._log.info("directoryCrawlDelete %s %s", rootDir, prefix)
         c = 0
         dsNames = []
         for dirName, subdirList, fileList in os.walk(rootDir):
@@ -99,13 +146,18 @@ class DataCatUtil:
                 if isFits(fullName):
                     parts = fullName.split('/')
                     datasetName = prefix + self._slashSub.join(parts)
-                    self._log.info('\t\t%s is a FITS file %s' %  (fullName, datasetName))
                     fullDsName = self._path + "/" + datasetName
-                    print ' deleting {}'.format(fullDsName)
+                    self._log.info(' deleting {}'.format(fullDsName))
                     try:
                         self._client.delete_dataset(fullDsName)
+                        c += 1
                     except DcException as e:
-                        self._log.warn("delete dataset exception %s %s" % (e, fullDsName))
+                        self._log.warn("delete dataset exception %s %s", e,
+                                       str(fullDsName))
+        return c
+
+
+
 
 def helpMsg():
     print ' --DEL --ds <dataset>                  // delete the dataset from DataCat'
@@ -119,12 +171,11 @@ def helpMsg():
 
 def expandDir(directory):
     '''Make the directory an absolute path'''
-    #if directory.startswith('~'):
-    #    directory = os.path.expanduser(directory)
     return os.path.abspath(directory)
 
 def main(argv):
-    dcu = DataCatUtil()
+    dataCatCfg = DataCatCfg()
+    dcu = DataCatUtil(dataCatCfg)
     aVals = { "fileName":"", "dirName":"", "datasetName":"", "command":"" }
     try:
         opts, args = getopt.getopt(argv,"h",["DEL","regf=","regd=","ds=","DEL_dir="])
@@ -150,8 +201,6 @@ def main(argv):
             aVals["dirName"] = expandDir(arg)
         elif opt in ("--ds"):
             aVals["datasetName"] = arg
-    print aVals
-    client = Client("http://lsst-db2.slac.stanford.edu:8180/rest-datacat-v1/r")
     cmd = aVals["command"]
     if cmd == "regf":
         print 'regf {} {}'.format(aVals["fileName"], aVals["datasetName"])
@@ -162,7 +211,8 @@ def main(argv):
     elif cmd == "regd":
         print 'regd {}'.format(aVals["dirName"])
         if aVals["dirName"] != "":
-            dcu.directoryCrawlRegister(aVals["dirName"], aVals["datasetName"])
+            count = dcu.directoryCrawlRegister(aVals["dirName"], aVals["datasetName"])
+            print "Registered {} files".format(count)
         else:
             helpMsg()
     elif cmd == "DEL":
@@ -171,16 +221,13 @@ def main(argv):
     elif cmd == "DEL_dir":
         print 'DEL_dir {} {}'.format(aVals["dirName"], aVals["datasetName"])
         if aVals["dirName"] != "":
-            dcu.directoryCrawlDelete(aVals["dirName"], aVals["datasetName"])
+            count = dcu.directoryCrawlDelete(aVals["dirName"], aVals["datasetName"])
+            print "Deleted from DataCat {} files".format(count)
         else:
             helpMsg()
     else:
         helpMsg()
-    print "Fini"
-
-
-
-
+    print "Done"
 
 if __name__ == '__main__':
     main(sys.argv[1:])
