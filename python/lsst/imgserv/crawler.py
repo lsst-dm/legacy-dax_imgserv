@@ -1,14 +1,37 @@
 #!/usr/bin/env python
 
+#
+# LSST Data Management System
+# Copyright 2014-2015 LSST/AURA.
+#
+# This product includes software developed by the
+# LSST Project (http://www.lsst.org/).
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the LSST License Statement and
+# the GNU General Public License along with this program.  If not,
+# see <http://www.lsstcorp.org/LegalNotices/>.
+#
+
+
 __author__ = 'bvan'
 
 """
 A Simple single-threaded crawler-like application.
-
-This crawler only scans one folder at a time, retrieving up to 1000 results at a time.
-
+This crawler only scans one folder at a time, retrieving up to 1000 results at 
+a time.
 It searches for datasets which are unscanned for a particular location.
-
+Added code to write FITS header and file information to foreign tables and
+supply DataCat metadata with the foreign table fileId.
 """
 
 import sys
@@ -23,16 +46,18 @@ from datetime import datetime
 import lsst.log as log
 from lsst.db.utils import readCredentialFile
 from lsst.imgserv.MetadataFitsDb import MetadataFitsDb, dbOpen
+from lsst.imgserv.dataCatUtil import DataCatCfg
 
 WATCH_FOLDER = '/LSST'
-WATCH_SITE = 'NCSA'
+WATCH_SITE = 'SLAC'
 
 class Crawler:
 
     RERUN_SECONDS = 5
 
-    def __init__(self):
-        self.client = Client("http://lsst-db2.slac.stanford.edu:8180/rest-datacat-v1/r")
+    def __init__(self, dataCatCfg):
+        self._dataCatCfg = dataCatCfg
+        self.client = Client(self._dataCatCfg.getRestUrl())
         self.sched = sched.scheduler(time.time, time.sleep)
         self._run()
 
@@ -61,7 +86,7 @@ class Crawler:
         credFileName = "~/.mysqlAuthLSST"
         creds = readCredentialFile(credFileName, log)
         dbName = "{}_fitsTest".format(creds['user'])
-        metadataFits = dbOpen(credFileName, dbName)
+        metaDb = dbOpen(credFileName, dbName)
 
         resp = None
         try:
@@ -69,14 +94,14 @@ class Crawler:
                                       query="scanStatus = 'UNSCANNED'", max_num=1000)
         except DcException as error:
             if hasattr(error, "message"):
-                print("Error occurred:\nMessage: %s" %(error.message))
+                log.warn("Error occurred:\nMessage: %s", error.message)
                 if hasattr(error, "type"):
-                    print("Type: %s" %(error.type))
+                    log.warn("Type: %s", error.type)
                 if hasattr(error, "cause"):
-                    print("Cause: %s" %(error.cause))
+                    log.warn("Cause: %s", error.cause)
             else:
                 # Should have content
-                print(error.content)
+                log.warn(error.content)
             sys.exit(1)
 
         results = unpack(resp.content)
@@ -107,16 +132,25 @@ class Crawler:
                 scan_result["versionMetadata"] = md
 
             try:
+                log.debug("patch_resp %s", str(file_path))
                 patch_resp = self.client.patch_dataset(dataset_path, scan_result,
                                                        versionId=dataset.versionId, site=WATCH_SITE)
-                # metaDb.insertFile(fullName) # include link to data cat metadata
-            except DcException as error:
-                print("Encountered error while updating dataset")
-
+                log.debug("Inserting %s", str(file_path))
+                fileId = metaDb.insertFile(file_path)
+                metadata = {"fileId":fileId}
+                md_patch = {}
+                md_patch["versionMetadata"] = metadata
+                md_patch_resp = self.client.patch_dataset(dataset_path, md_patch,
+                                                          versionId=dataset.versionId)
+                log.info("Inserted %d %s", fileId, str(file_path))
+            except DcException as err:
+                log.warn("Encountered error while updating dataset %s", str(file_path), err)
 
 
 def main():
-    c = Crawler()
+    log.setLevel("", log.DEBUG)
+    dataCatCfg = DataCatCfg()
+    c = Crawler(dataCatCfg)
     c.start()
 
 if __name__ == '__main__':
