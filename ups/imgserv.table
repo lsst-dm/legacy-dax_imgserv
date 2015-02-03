@@ -4,6 +4,7 @@ setupRequired(boost)
 setupRequired(cat)
 setupRequired(daf_base)
 setupRequired(db)
+setupRequired(flask)
 setupRequired(log)
 setupRequired(mysqlpython)
 
