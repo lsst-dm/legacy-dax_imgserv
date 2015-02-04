@@ -19,6 +19,11 @@
 # the GNU General Public License along with this program.  If not,
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
+#
+# This code is used to to select an image or a cutout of an image
+# that has its center closest to the specified RA and Dec. The 
+# image is retrieved using the Data Butler.
+# Author: JGates
 
 import gzip
 import math
@@ -26,7 +31,6 @@ import MySQLdb
 import os
 import sys
 import time
-
 
 import lsst.afw
 import lsst.afw.coord as afwCoord
@@ -79,26 +83,18 @@ class W13RawDb:
             self._log.info("ERROR MySQL %s -- %s" % (err, crt))
         cursor.close()
 
-    def close(self):
+    def closeConnection(self):
         self._connect.close()
-
-    def showTables(self):
-        cursor = self._connect.cursor()
-        cursor.execute("SHOW TABLES")
-        ret = cursor.fetchall()
-        s = str(ret)
-        for tbl in ret:
-            cursor.execute("SHOW COLUMNS from %s" % (tbl[0]))
-            s += str(cursor.fetchall())
-        cursor.close()
-        return s
 
     def getImageFull(self, ra, dec):
         '''Return an image containing ra and dec.
+        Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        arcW = arcsecToDeg(10)
-        arcH = arcsecToDeg(10)
+        # The SQL UDF scisql_s2PtInBox requires a box, not a point.
+        # 10 arcseconds is a small arbitrary box that seems to work.
+        arcW = _arcsecToDeg(10)
+        arcH = _arcsecToDeg(10)
         minRa = ra - arcW
         maxRa = ra + arcW
         minDec = dec - arcH
@@ -118,16 +114,32 @@ class W13RawDb:
     def getImage(self, ra, dec, width, height):
         '''Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcseconds).
+        Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
+        Sequence of events:
+         - Map ra, dec, width, and height to a box.
+         - Use the box to find an image from the database.
+         - Use the run, camcol, field and filterName from the database to
+             get an image and metadata from the Butler
+         - Determine approximate pixels per arcsecond in the image by
+             calculating the length of line from the upper right corner of
+             the image to the lower left corner in pixels and arcseconds.
+             (This will fail at or very near the pole.)
+         - Use that to define a box for the cutout.
+         - Trim the box so it is entirely within the source image.
+         - Make and return the cutout.
         '''
-        self._log.debug("getImage %f %f %f %f", ra, dec, height, width)
-        arcW = arcsecToDeg(width)/2.0
-        arcH = arcsecToDeg(height)/2.0
+        self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
+        # Map the box into RA and Dec coordinates
+        arcW = _arcsecToDeg(width)/2.0
+        arcH = _arcsecToDeg(height)/2.0
         minRa = ra - arcW
         maxRa = ra + arcW
         minDec = dec - arcH
         maxDec = dec + arcH
+        # Find the nearest image to ra and dec containing at least part of the box.
         res = self._findNearestImageContaining(ra, dec, minRa, minDec, maxRa, maxDec)
+        # This will return on the first result.
         for ln in res:
             run = ln[2]
             camcol = ln[3]
@@ -146,24 +158,25 @@ class W13RawDb:
                                        ra * afwGeom.degrees,
                                        dec * afwGeom.degrees)
             xyCenter = wcs.skyToPixel(raDec)
-            # Determine pixels per arcsec - find image corners RA and Dec
-            raDec_ul = wcs.pixelToSky(afwGeom.Point2D(0, 0))
-            raDec_lr = wcs.pixelToSky(afwGeom.Point2D(imgW - 1, imgH - 1))
-            self._log.debug("raDec_ul 0=%f 1=%f", raDec_ul[0].asDegrees(), raDec_ul[1].asDegrees())
-            self._log.debug("raDec_lr 0=%f 1=%f", raDec_lr[0].asDegrees(), raDec_lr[1].asDegrees())
-            #Approximate pixels per arcsecond
-            cosDec = math.cos(dec*afwGeom.degrees)
-            # length of a line from upper left to lower right
-            decDist = raDec_ul[1].asArcseconds() - raDec_lr[1].asArcseconds()
-            raLR = keepWithin180(raDec_ul[0].asDegrees(), raDec_lr[0].asDegrees())
+            # Determine approximate pixels per arcsec - find image corners in RA and Dec
+            # and compare that distance with the number of pixels.
+            raDecUL = wcs.pixelToSky(afwGeom.Point2D(0, 0))
+            raDecLR = wcs.pixelToSky(afwGeom.Point2D(imgW - 1, imgH - 1))
+            self._log.debug("raDecUL 0=%f 1=%f", raDecUL[0].asDegrees(), raDecUL[1].asDegrees())
+            self._log.debug("raDecLR 0=%f 1=%f", raDecLR[0].asDegrees(), raDecLR[1].asDegrees())
+            # length of a line from upper left (UL) to lower right (LR)
+            decDist = raDecUL[1].asArcseconds() - raDecLR[1].asArcseconds()
+            raLR = _keepWithin180(raDecUL[0].asDegrees(), raDecLR[0].asDegrees())
             raLR *= 3600.0 # convert degrees to arcseconds
-            raDist = cosDec * (raDec_ul[0].asArcseconds() - raLR)
+            #Correct distance in RA for the declination
+            cosDec = math.cos(dec*afwGeom.degrees)
+            raDist = cosDec * (raDecUL[0].asArcseconds() - raLR)
             raDecDist = math.sqrt(math.pow(decDist, 2.0) + math.pow(raDist, 2.0))
             self._log.debug("raDecDist=%f", raDecDist)
             pixelDist = math.sqrt(math.pow(imgW, 2.0) + math.pow(imgH, 2.0))
             pixelPerArcsec = pixelDist/raDecDist
             self._log.debug("pixelPerArcsec=%f", pixelPerArcsec)
-            # need minimum point and dimensions for Box2I
+            # Need Upper Left corner and dimensions for Box2I
             pixW = width*pixelPerArcsec
             pixH = height*pixelPerArcsec
             pixULX = xyCenter.getX() - pixW/2.0
@@ -178,7 +191,7 @@ class W13RawDb:
                 pixULY = 0
             self._log.debug("pixULX={} pixULY={} offsetX={} offsetY={}".format(pixULX, pixULY,
                                                                                offsetX, offsetY))
-            # Reduce the size if it went over the edge (offsets are <= 0)
+            # Reduce the size of the box if it goes over the edge of the image (offsets are <= 0)
             pixW += offsetX
             pixH += offsetY
             if pixW > imgW:
@@ -192,17 +205,21 @@ class W13RawDb:
             self._log.debug("pixULX=%d pixULY=%d pixW=%d pixH=%d", pixULX, pixULY, pixW, pixH)
             #bbox = afwGeom.Box2I(afwGeom.Point2I(pixULX, pixULY),
             #                    afwGeom.Extent2I(pixW, pixH))
-            #img = butler.get("fpC", run=run, camcol=camcol,
+            #img = butler.get("fpC_sub", run=run, camcol=camcol,
             #                 field=field, filter=filterName, bbox=bbox)
             pixEndX = pixULX + pixW
             pixEndY = pixULY + pixH
             self._log.debug("pixULX=%d pixEndX=%d, pixULY=%d pixEndY=%d",
                       pixULX, pixEndX, pixULY, pixEndY)
-            # See https://lsst-web.ncsa.illinois.edu/doxygen/x_masterDoxyDoc/afw_sec_py_image.html
+            # Cut the sub image out of the image. See -
+            # https://lsst-web.ncsa.illinois.edu/doxygen/x_masterDoxyDoc/afw_sec_py_image.html
             imgSub = img[pixULX:pixEndX, pixULY:pixEndY].clone()
             return imgSub
 
     def _findNearestImageContaining(self, ra, dec, minRa, minDec, maxRa, maxDec):
+        '''Use the ra, dec, and box coordinates to find the image with its
+        center nearest ra and dec. Ite returns the result of the SQL query.
+        '''
         cursor = self._connect.cursor()
         cols = [ "ra", "decl" ]
         for s in self._columns:
@@ -223,8 +240,18 @@ class W13RawDb:
         res = cursor.fetchall()
         return res
 
-def arcsecToDeg(arcsecs):
+def _arcsecToDeg(arcsecs):
     return float(arcsecs/3600.0)
+
+def _keepWithin180(target, val):
+    '''Return a value that is equivalent to val on circle
+    within 180 degrees of target.
+    '''
+    while val > (target + 180.0):
+        val -= 360.0
+    while val < (target - 180.0):
+        val += 360.0
+    return val
 
 def dbOpen(credFileName, portDb=3306, logger=log):
     creds = readCredentialFile(credFileName, logger)
@@ -235,45 +262,3 @@ def dbOpen(credFileName, portDb=3306, logger=log):
                       dbUser=creds['user'], dbPasswd=creds['passwd'])
     return w13Raw
 
-def keepWithin180(target, val):
-    '''Return a value that is equivalent to val on circle
-    within 180 degrees of target.
-    '''
-    while val > (target + 180.0):
-        val -= 360.0
-    while val < (target - 180.0):
-        val += 360.0
-    return val
-
-def test():
-    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10")
-    imgFull = w13Raw.getImageFull(359.195, -0.1055)
-    print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
-    print "Writing imgFull.fits", imgFull
-    imgFull.writeFits("imgFull.fits")
-    img = w13Raw.getImage(359.195, -0.1055, 30.0, 60.0)
-    print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
-    print "Writing img.fits", img
-    img.writeFits("img.fits")
-
-def test(argv):
-    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10")
-    ra = float(argv[1])
-    dec = float(argv[2])
-    w = float(argv[3])
-    h = float(argv[4])
-    imgFull = w13Raw.getImageFull(ra, dec)
-    print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
-    print "Writing imgFull.fits", imgFull
-    imgFull.writeFits("imgFull.fits")
-    img = w13Raw.getImage(ra, dec, w, h)
-    print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
-    print "Writing img.fits", img
-    img.writeFits("img.fits")
-
-if __name__ == "__main__":
-    log.setLevel("", log.DEBUG)
-    if len(sys.argv) > 1:
-        test(sys.argv)
-    else:
-        test()
