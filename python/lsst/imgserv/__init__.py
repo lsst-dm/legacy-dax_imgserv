@@ -20,5 +20,4 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-from imgservLib import *
 from .version import *
