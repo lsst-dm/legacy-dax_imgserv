@@ -405,7 +405,7 @@ def directoryCrawl(rootDir, metaDb):
 def test(rootDir="~/test_metadata"):
     '''This test only works on specific servers and uses a large dataset.
     '''
-    credFile = "~/.mysqlAuthLSST"
+    credFile = "~/.lsst/dbAuth-dbServ.txt"
     creds = readCredentialFile(credFile, log)
     dbName = "{}_fitsTest".format(creds['user'])
 
@@ -424,7 +424,7 @@ def test(rootDir="~/test_metadata"):
     metadataFits.close()
 
 def deleteTestDb():
-    credFile = "~/.mysqlAuthLSST"
+    credFile = "~/.lsst/dbAuth-dbServ.txt"
     creds = readCredentialFile(credFile, log)
     dbName = "{}_fitsTest".format(creds['user'])
     # Destroy existing tables and re-create them

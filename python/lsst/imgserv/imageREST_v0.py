@@ -26,8 +26,12 @@ Corresponding URI: /image
 
 @author  Jacek Becla, SLAC
 """
+import os
+import uuid
 
-from flask import Blueprint, Flask, request
+from flask import Blueprint, Flask, make_response, request
+
+from lsst.imgserv.locateImage import dbOpen
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
 
@@ -35,7 +39,7 @@ imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
 @imageREST.route('/')
 def index():
     return """
-LSST Image Cutout Service v0 here. Try something like:<br />
+Hello, LSST Image Cutout Service here. Try something like:<br />
 /image/v0/raw?ra=1&dec=1&filter=r<br />
 /image/v0/raw/cutout?ra=1&dec=1&filter=r&width=12&height=12
 """
@@ -50,22 +54,52 @@ def getRaw():
     filter = request.args.get('filter', 'r')
 
     # fetch the image here
-
-    return "the raw image for a given ra/dec/filter"
+    # TODO - check inputs are valid.
+    ra = float(ra)
+    dec = float(dec)
+    print "raw ra={} dec={} filter={}".format(ra, dec, filter)
+    # fetch the image here
+    w13Raw = dbOpen("~/.lsst/dbAuth-dbServ.txt")
+    imgFull = w13Raw.getImageFull(ra, dec)
+    print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
+    fileName = str(uuid.uuid4())
+    imgFull.writeFits(fileName)
+    w13Raw.closeConnection()
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    return resp
 
 # this will handle something like:
 # GET /image/v0/raw/cutout?ra=1&dec=1&filter=r&width=12&height=12
 @imageREST.route('/raw/cutout', methods=['GET'])
 def getIRawCutout():
     print request.args
-    ra = request.args.get('ra', '1')
-    print "I got ra!: %s" % (ra)
-    dec = request.args.get('dec', '1')
+    ra = float(request.args.get('ra', '1'))
+    dec = float(request.args.get('dec', '1'))
     filter = request.args.get('filter', 'r')
-    width = request.args.get('width', '10')
-    height = request.args.get('height', '10')
+    width = float(request.args.get('width', '10'))
+    height = float(request.args.get('height', '10'))
+    print "raw cutout ra={} dec={} filter={} width={} height={}".format(
+        ra, dec, filter, width, height)
 
     # fetch the image here
+    w13Raw = dbOpen("~/.lsst/dbAuth-dbServ.txt")
+    img = w13Raw.getImage(ra, dec, width, height)
+    print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
+    fileName = str(uuid.uuid4())
+    img.writeFits(fileName)
+    w13Raw.closeConnection()
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    return resp
 
-    return "the cutout of raw image for ra=%s, dec=%s, filter=%s" % \
-        (ra, dec, filter)
+def responseFile(fileName):
+    # It would be nice to just write to 'data' instead of making a file.
+    # writeFits defined in afw/python/lsst/afw/math/background.py
+    response = "/image/raw  failed"
+    with open(fileName, 'r') as f:
+        data = f.read()
+        f.close()
+        response = make_response(data)
+        response.headers["Content-Disposition"] = "attachment; filename=image.fits"
+    return response
