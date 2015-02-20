@@ -83,7 +83,7 @@ class Crawler:
 
 
     def run(self):
-        credFileName = "~/.mysqlAuthLSST"
+        credFileName = "~/.lsst/dbAuth-dbServ.txt"
         creds = readCredentialFile(credFileName, log)
         dbName = "{}_fitsTest".format(creds['user'])
         metaDb = dbOpen(credFileName, dbName)
