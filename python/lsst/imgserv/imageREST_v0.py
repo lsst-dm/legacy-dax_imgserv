@@ -29,7 +29,7 @@ Corresponding URI: /image
 import os
 import uuid
 
-from flask import Blueprint, Flask, make_response, request
+from flask import Blueprint, make_response, request
 
 from lsst.imgserv.locateImage import dbOpen
 
