@@ -36,4 +36,8 @@ app = Flask(__name__)
 app.register_blueprint(imageREST_v0.imageREST, url_prefix='/image')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    try:
+        app.run(debug=True)
+    except Exception, e:
+        print "Problem starting the server.", str(e)
+        sys.exit(1)
