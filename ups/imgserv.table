@@ -6,7 +6,7 @@ setupRequired(daf_base)
 setupRequired(db)
 setupRequired(flask)
 setupRequired(log)
-#setupRequired(obs_sdss)
+setupRequired(obs_sdss)
 setupRequired(mysqlpython)
 
 envPrepend(LD_LIBRARY_PATH, ${PRODUCT_DIR}/lib)
