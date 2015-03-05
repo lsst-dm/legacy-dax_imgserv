@@ -82,11 +82,20 @@ class W13Db:
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
+        img, metadata = self.getImageFullWithMetadata(ra, dec)
+        return img
+
+    def getImageFullWithMetadata(self, ra, dec):
+        '''Return an image containing ra and dec.
+        Returns None if no image is found.
+        This function assumes the entire image is valid. (no overscan, etc.)
+        '''
         # The SQL UDF scisql_s2PtInBox requires a box, not a point.
         # 5 arcseconds is a small arbitrary box that seems to work.
         res = self._findNearestImageContaining(ra, dec, 5, 5)
         img, butler = self._getImageButler(res)
-        return img
+        metadata = self._getMetadata(butler, res)
+        return img, metadata
 
     def getImage(self, ra, dec, width, height, cutoutType="arcsecond"):
         '''Return an image centered on ra and dec (in degrees) with dimensions
