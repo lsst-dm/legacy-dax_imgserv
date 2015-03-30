@@ -86,7 +86,7 @@ class W13Db:
         return img
 
     def getImageFullWithMetadata(self, ra, dec):
-        '''Return an image containing ra and dec.
+        '''Return an image containing ra and dec with corresponding metadata.
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''

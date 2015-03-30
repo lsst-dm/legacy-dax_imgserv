@@ -26,17 +26,16 @@ This is an example of stiching images together.
 @author  John Gates, SLAC
 """
 
-#input specifications are:
-
-# See also obs_lsstSim policy/LsstSimMapper.paf to see all 
+# See also obs_lsstSim policy/LsstSimMapper.paf to see all
 # available data products and the dataID keys used to obtain them.
+
+import logging as log
 
 import lsst.afw
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.coadd.utils as coaddUtils
-import lsst.log as log
 import lsst.pex.config as pexConfig
 
 from lsst.imgserv.locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
@@ -88,31 +87,6 @@ def stitchTestDeepCoadd():
     stitchedExpo.writeFits("stitched.fits")
     return
 
-#def stitchExposures(destWcs, destBBox, expoList, configCoadd, warper):
-#    ''' Return an exposure matching the destWcs and destBBox that is composed of
-#    pixels from the exposures in expoList. The order of Exposures in expoList
-#    matters as valid pixels in the final image will not be overwrtten.
-#    pixels will be copied from expoList
-#    All exposures need valid WCS.
-#    '''
-#    coadd = coaddUtils.Coadd.fromConfig(
-#        bbox = destBBox,
-#        wcs = destWcs,
-#        config = configCoadd)
-#    j = 0
-#    for expo in expoList:
-#        warpedExposure = warper.warpExposure(
-#            destWcs = coadd.getWcs(),
-#            srcExposure = expo,
-#            maxBBox = coadd.getBBox())
-#        log.info("warp{}".format(j))
-#        warpedExposure.writeFits("warp{}.fits".format(j))
-#        j += 1
-#        coadd.addExposure(warpedExposure)
-#
-#    coaddExpo = coadd.getCoadd()
-#    return coadd.getCoadd()
-
 if __name__ == "__main__":
-    log.setLevel("", log.DEBUG)
+    #log.setLevel("", log.DEBUG)
     stitchTestDeepCoadd()

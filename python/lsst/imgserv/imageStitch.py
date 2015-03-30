@@ -26,12 +26,13 @@ Prototype image stitching code.
 @author  John Gates, SLAC
 """
 
+import logging as log
+
 import lsst.afw
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.coadd.utils as coaddUtils
-import lsst.log as log
 import lsst.pex.config as pexConfig
 
 class CoaddConfig(pexConfig.Config):
@@ -62,17 +63,19 @@ class CoaddConfig(pexConfig.Config):
 
 def stitchExposures(destWcs, destBBox, expoList, configCoadd, warper):
     ''' Return an exposure matching the destWcs and destBBox that is composed of
-    pixels from the exposures in expoList. The order of Exposures in expoList
-    matters as valid pixels in the final image will not be overwrtten with pixels
-    from source images.
+    pixels from the exposures in expoList.
+    destWcs     - WCS object for the destination exposure.
+    destBBox    - Bounding box for the destination exposure.
+    expoList    - List of exposures to combine to form dextination exposure.
+    configCoadd - configuration for Coadd
+    warper      - Warper to use when warping images.
     All exposures need valid WCS.
     '''
     coadd = coaddUtils.Coadd.fromConfig(
         bbox = destBBox,
         wcs = destWcs,
         config = configCoadd)
-    j = 0
-    for expo in expoList:
+    for j, expo in enumerate(expoList):
         warpedExposure = warper.warpExposure(
             destWcs = coadd.getWcs(),
             srcExposure = expo,
@@ -82,5 +85,4 @@ def stitchExposures(destWcs, destBBox, expoList, configCoadd, warper):
         j += 1
         coadd.addExposure(warpedExposure)
 
-    coaddExpo = coadd.getCoadd()
     return coadd.getCoadd()
