@@ -28,7 +28,7 @@ from lsst.imgserv.locateImage import dbOpen
 import lsst.log as log
 
 def testDefault():
-    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10")
+    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10", W13Raw)
     # file format:
     # [mysql]
     #  user = <username>
@@ -39,14 +39,14 @@ def testDefault():
     print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
     print "Writing imgFull.fits", imgFull
     imgFull.writeFits("imgFull.fits")
-    img = w13Raw.getImage(359.195, -0.1055, 30.0, 60.0)
+    img = w13Raw.getImage(359.195, -0.1055, 30.0, 60.0, "arcsecond")
     print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
     print "Writing img.fits", img
     img.writeFits("img.fits")
     w13Raw.closeConnection()
 
 def test(argv):
-    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10")
+    w13Raw = dbOpen("~/.mysqlAuthLSST.lsst10", W13Raw)
     ra = float(argv[1])
     dec = float(argv[2])
     w = float(argv[3])
