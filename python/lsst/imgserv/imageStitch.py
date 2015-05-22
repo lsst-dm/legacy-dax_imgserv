@@ -63,7 +63,7 @@ class CoaddConfig(pexConfig.Config):
 
 def stitchExposures(destWcs, destBBox, expoList, configCoadd, warper):
     ''' Return an exposure matching the destWcs and destBBox that is composed of
-    pixels from the exposures in expoList.
+    pixels from the exposures in expoList. Uses coadd_utils.Coadd.
     destWcs     - WCS object for the destination exposure.
     destBBox    - Bounding box for the destination exposure.
     expoList    - List of exposures to combine to form dextination exposure.
@@ -81,8 +81,35 @@ def stitchExposures(destWcs, destBBox, expoList, configCoadd, warper):
             srcExposure = expo,
             maxBBox = coadd.getBBox())
         log.info("warp{}".format(j))
-        warpedExposure.writeFits("warp{}.fits".format(j))
+        #warpedExposure.writeFits("warp{}.fits".format(j))
         j += 1
         coadd.addExposure(warpedExposure)
 
     return coadd.getCoadd()
+
+def stitchExposuresGoodPixelCopy(destWcs, destBBox, expoList, warper,
+    badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE"])):
+    ''' Return an exposure matching the destWcs and destBBox that is composed of
+    pixels from the exposures in expoList. Uses coadd_utils.goodPixelCopy
+    destWcs     - WCS object for the destination exposure.
+    destBBox    - Bounding box for the destination exposure.
+    expoList    - List of exposures to combine to form dextination exposure.
+    warper      - Warper to use when warping images.
+    All exposures need valid WCS.
+    '''
+    destExpo = afwImage.ExposureF(destBBox, destWcs)
+    #badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE", "SAT"])
+    badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE"])
+    for j, expo in enumerate(expoList):
+        warpedExposure = warper.warpExposure(
+            destWcs = destExpo.getWcs(),
+            srcExposure = expo,
+            maxBBox = destExpo.getBBox())
+        wn = "warpGPP{}.fits".format(j)
+        log.info(wn)
+        #warpedExposure.writeFits(wn)
+        j += 1
+        srcMaskedImage = expo.getMaskedImage()
+        destMaskedImage = destExpo.getMaskedImage()
+        coaddUtils.copyGoodPixels(destMaskedImage, srcMaskedImage, badPixelMask)
+    return destExpo
