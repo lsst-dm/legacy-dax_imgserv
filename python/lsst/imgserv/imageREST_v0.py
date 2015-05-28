@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # LSST Data Management System
 # Copyright 2015 AURA/LSST.
@@ -32,9 +32,12 @@ import uuid
 
 from flask import Blueprint, make_response, request
 
+import lsst.afw.coord as afwCoord
+import lsst.afw.geom as afwGeom
 import lsst.log as log
 
 from lsst.imgserv.locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
+from lsst.imgserv.skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
 
@@ -180,6 +183,56 @@ def _getICutout(request, W13db, units):
     os.removedirs(tmpPath)
     return resp
 
+# this will handle something like:
+# GET /image/v0/skymap/deepCoadd/cutoutPixel?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
+@imageREST.route('/skymap/deepCoadd/cutoutPixel', methods=['GET'])
+def getISkyMapDeepCoaddCutout():
+    '''Get a stitched together a deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
+    '''
+    source = "/lsst7/releaseW13EP"
+    mapType = "deepCoadd_skyMap"
+    patchType = "deepCoadd"
+
+    raIn = request.args.get('ra')
+    decIn = request.args.get('dec')
+    filt = request.args.get('filter')
+    widthIn = request.args.get('width')
+    heightIn = request.args.get('height')
+    # check inputs
+    valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('irg'))
+    if not valid:
+        # TODO: use HTTP errors DM-1980
+        resp = "INVALID_INPUT {}".format(msg)
+        return resp
+    try:
+        width = float(widthIn)
+        height = float(heightIn)
+        # The butler isn't fond of unicode in this case.
+        filt = filt.encode('ascii')
+    except ValueError as e:
+        # TODO: use HTTP errors DM-1980, DM-2537
+        resp = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
+        return resp
+    log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
+            ra, dec, filt, width, height))
+    print "filt=", filt
+    # fetch the image here
+    raA = afwGeom.Angle(ra, afwGeom.degrees)
+    decA = afwGeom.Angle(dec, afwGeom.degrees)
+    ctrCoord = afwCoord.Coord(raA, decA, 2000.0)
+    expo = getSkyMap(ctrCoord, int(width), int(height), filt, source, mapType, patchType)
+    if expo == None:
+        # TODO: use HTTP errors DM-1980
+        return "image not found"
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "cutout.fits")
+    log.info("temporary fileName=%s", fileName)
+    expo.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
+
 def responseFile(fileName):
     # It would be nice to just write to 'data' instead of making a file.
     # writeFits defined in afw/python/lsst/afw/math/background.py
@@ -194,6 +247,6 @@ def responseFile(fileName):
             response.headers["Content-Disposition"] = "attachment; filename=image.fits"
             response.headers["Content-Type"] = "image/fits"
     except IOError as e:
-        # TODO: use HTTP errors DM-1980
+        # TODO: use HTTP errors DM-1980, DM-2537
         response = "system_error {}".format(e)
     return response
