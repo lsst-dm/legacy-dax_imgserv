@@ -184,10 +184,25 @@ def _getICutout(request, W13db, units):
     return resp
 
 # this will handle something like:
+# GET /image/v0/skymap/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
+@imageREST.route('/skymap/deepCoadd/cutout', methods=['GET'])
+def getISkyMapDeepCoaddCutout():
+    '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
+    where width and height are in arcseconds.
+    '''
+    return _getISkyMapDeepCoaddCutout(request, 'arcsecond')
+
+# this will handle something like:
 # GET /image/v0/skymap/deepCoadd/cutoutPixel?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
 @imageREST.route('/skymap/deepCoadd/cutoutPixel', methods=['GET'])
-def getISkyMapDeepCoaddCutout():
-    '''Get a stitched together a deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
+def getISkyMapDeepCoaddCutoutPixel():
+    '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
+    where width and height are in pixels.
+    '''
+    return _getISkyMapDeepCoaddCutout(request, 'pixel')
+
+def _getISkyMapDeepCoaddCutout(request, units):
+    '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     '''
     source = "/lsst7/releaseW13EP"
     mapType = "deepCoadd_skyMap"
@@ -201,7 +216,7 @@ def getISkyMapDeepCoaddCutout():
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('irg'))
     if not valid:
-        # TODO: use HTTP errors DM-1980
+        # TODO: use HTTP errors DM-1980, DM-2537
         resp = "INVALID_INPUT {}".format(msg)
         return resp
     try:
@@ -220,7 +235,7 @@ def getISkyMapDeepCoaddCutout():
     raA = afwGeom.Angle(ra, afwGeom.degrees)
     decA = afwGeom.Angle(dec, afwGeom.degrees)
     ctrCoord = afwCoord.Coord(raA, decA, 2000.0)
-    expo = getSkyMap(ctrCoord, int(width), int(height), filt, source, mapType, patchType)
+    expo = getSkyMap(ctrCoord, int(width), int(height), filt, units, source, mapType, patchType)
     if expo == None:
         # TODO: use HTTP errors DM-1980
         return "image not found"

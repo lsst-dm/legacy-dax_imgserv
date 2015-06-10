@@ -35,6 +35,8 @@ import lsst.afw.math as afwMath
 import lsst.coadd.utils as coaddUtils
 import lsst.pex.config as pexConfig
 
+import matplotlib.pyplot as plt
+
 class CoaddConfig(pexConfig.Config):
     saveDebugImages = pexConfig.Field(
         doc = "Save intermediate images?",
@@ -91,25 +93,32 @@ def stitchExposuresGoodPixelCopy(destWcs, destBBox, expoList, warper,
     badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE"])):
     ''' Return an exposure matching the destWcs and destBBox that is composed of
     pixels from the exposures in expoList. Uses coadd_utils.goodPixelCopy
-    destWcs     - WCS object for the destination exposure.
-    destBBox    - Bounding box for the destination exposure.
-    expoList    - List of exposures to combine to form dextination exposure.
-    warper      - Warper to use when warping images.
+    @ destWcs: WCS object for the destination exposure.
+    @ destBBox: Bounding box for the destination exposure.
+    @ expoList: List of exposures to combine to form dextination exposure.
+    @ warper: Warper to use when warping images.
+    @ badPixelMask: mask for pixels that should not be copied.
     All exposures need valid WCS.
     '''
     destExpo = afwImage.ExposureF(destBBox, destWcs)
-    #badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE", "SAT"])
-    badPixelMask = afwImage.MaskU.getPlaneBitMask(["EDGE"])
     for j, expo in enumerate(expoList):
         warpedExposure = warper.warpExposure(
             destWcs = destExpo.getWcs(),
             srcExposure = expo,
             maxBBox = destExpo.getBBox())
-        wn = "warpGPP{}.fits".format(j)
-        log.info(wn)
-        #warpedExposure.writeFits(wn)
-        j += 1
-        srcMaskedImage = expo.getMaskedImage()
+        srcMaskedImage = warpedExposure.getMaskedImage()
         destMaskedImage = destExpo.getMaskedImage()
         coaddUtils.copyGoodPixels(destMaskedImage, srcMaskedImage, badPixelMask)
     return destExpo
+
+
+def strExpoCornersRaDec(expo):
+    wcs = expo.getWcs()
+    x0 = expo.getX0()
+    y0 = expo.getY0()
+    w = expo.getWidth()
+    h = expo.getHeight()
+    llCorner = wcs.pixelToSky(x0, y0)
+    urCorner = wcs.pixelToSky(x0+w, y0+h)
+    s = "llCorner={} urCorner={}".format(llCorner, urCorner)
+    return s
