@@ -32,7 +32,7 @@ from datacat.client import DcException
 
 from datetime import datetime
 
-from lsst.imgserv.MetadataFitsDb import isFits
+from .MetadataFitsDb import isFits
 import lsst.log as log
 
 class DataCatCfg():

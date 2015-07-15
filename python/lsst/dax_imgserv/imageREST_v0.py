@@ -36,8 +36,8 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.log as log
 
-from lsst.imgserv.locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
-from lsst.imgserv.skymapStitch import getSkyMap
+from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
+from .skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
 

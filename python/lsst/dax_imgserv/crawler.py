@@ -45,8 +45,8 @@ from datetime import datetime
 
 import lsst.log as log
 from lsst.db.utils import readCredentialFile
-from lsst.imgserv.MetadataFitsDb import MetadataFitsDb, dbOpen
-from lsst.imgserv.dataCatUtil import DataCatCfg
+from .MetadataFitsDb import MetadataFitsDb, dbOpen
+from .dataCatUtil import DataCatCfg
 
 WATCH_FOLDER = '/LSST'
 WATCH_SITE = 'SLAC'

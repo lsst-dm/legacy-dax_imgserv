@@ -35,7 +35,7 @@ import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 
-from lsst.imgserv.imageStitch import stitchExposuresGoodPixelCopy
+from .imageStitch import stitchExposuresGoodPixelCopy
 
 def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
     '''Merge multiple patches from a SkyMap into a single image.
