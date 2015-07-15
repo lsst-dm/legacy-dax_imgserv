@@ -1,3 +1,3 @@
 # -*- python -*-
 from lsst.sconsUtils import scripts
-scripts.BasicSConstruct("imgserv")
+scripts.BasicSConstruct("dax_imgserv")
