@@ -28,12 +28,12 @@
 import os
 import unittest
 
-from lsst.dax_imgserv.MetadataFitsDb import dbDestroyCreate
-from lsst.dax_imgserv.MetadataFitsDb import dbOpen
-from lsst.dax_imgserv.MetadataFitsDb import directoryCrawl
-from lsst.dax_imgserv.MetadataFitsDb import isFits
-from lsst.dax_imgserv.MetadataFitsDb import isFitsExt
-from lsst.dax_imgserv.MetadataFitsDb import MetadataFitsDb
+from lsst.dax.imgserv.MetadataFitsDb import dbDestroyCreate
+from lsst.dax.imgserv.MetadataFitsDb import dbOpen
+from lsst.dax.imgserv.MetadataFitsDb import directoryCrawl
+from lsst.dax.imgserv.MetadataFitsDb import isFits
+from lsst.dax.imgserv.MetadataFitsDb import isFitsExt
+from lsst.dax.imgserv.MetadataFitsDb import MetadataFitsDb
 
 from lsst.cat.dbSetup import DbSetup
 from lsst.db.utils import readCredentialFile
