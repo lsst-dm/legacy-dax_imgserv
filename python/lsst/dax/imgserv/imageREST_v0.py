@@ -36,6 +36,7 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.log as log
 
+from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR
 from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
 from .skymapStitch import getSkyMap
 
@@ -56,7 +57,6 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
       ra and dec are the floating point equivalants of raIn and decIn.
       msg is and error message if valid is false, otherwise blank.
     '''
-    # @todo throw exception instead of return valid DM-1980
     ra = 0.0
     dec = 0.0
     valid = True
@@ -127,8 +127,7 @@ def _getIFull(request, W13db):
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.txt", W13db)
     imgFull = w13db.getImageFull(ra, dec)
     if imgFull == None:
-        # TODO: use HTTP errors DM-1980
-        return "image not found"
+        return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
     tmpPath = tempfile.mkdtemp()
     fileName = os.path.join(tmpPath, "fullImage.fits")
@@ -153,16 +152,13 @@ def _getICutout(request, W13db, units):
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('i', 'r', 'g'))
     if not valid:
-        # TODO: use HTTP errors DM-1980
-        resp = "INVALID_INPUT {}".format(msg)
-        return resp
+        return _error(ValueError.__name__, msg, BAD_REQUEST)
     try:
         width = float(widthIn)
         height = float(heightIn)
     except ValueError as e:
-        # TODO: use HTTP errors DM-1980
-        resp = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
-        return resp
+        msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
+        return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
 
@@ -170,8 +166,7 @@ def _getICutout(request, W13db, units):
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.txt", W13db)
     img = w13db.getImage(ra, dec, width, height, units)
     if img == None:
-        # TODO: use HTTP errors DM-1980
-        return "image not found"
+        return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
     tmpPath = tempfile.mkdtemp()
     fileName = os.path.join(tmpPath, "cutout.fits")
@@ -216,18 +211,16 @@ def _getISkyMapDeepCoaddCutout(request, units):
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('irg'))
     if not valid:
-        # TODO: use HTTP errors DM-1980, DM-2537
-        resp = "INVALID_INPUT {}".format(msg)
-        return resp
+        msg = "INVALID_INPUT {}".format(msg)
+        return _error(ValueError.__name__, msg, BAD_REQUEST)
     try:
         width = float(widthIn)
         height = float(heightIn)
         # The butler isn't fond of unicode in this case.
         filt = filt.encode('ascii')
     except ValueError as e:
-        # TODO: use HTTP errors DM-1980, DM-2537
-        resp = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
-        return resp
+        msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
+        return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
     print "filt=", filt
@@ -237,8 +230,7 @@ def _getISkyMapDeepCoaddCutout(request, units):
     ctrCoord = afwCoord.Coord(raA, decA, 2000.0)
     expo = getSkyMap(ctrCoord, int(width), int(height), filt, units, source, mapType, patchType)
     if expo == None:
-        # TODO: use HTTP errors DM-1980
-        return "image not found"
+        return _imageNotFound()
     tmpPath = tempfile.mkdtemp()
     fileName = os.path.join(tmpPath, "cutout.fits")
     log.info("temporary fileName=%s", fileName)
@@ -247,6 +239,12 @@ def _getISkyMapDeepCoaddCutout(request, units):
     os.remove(fileName)
     os.removedirs(tmpPath)
     return resp
+
+def _imageNotFound():  # FIXME: Not sure what error this should be, 400, 404, 500?
+    return _error("ImageNotFound", "Image Not Found", INTERNAL_SERVER_ERROR)
+
+def _error(exception, message, status_code):
+    return make_response({"exception": exception, "message": message}, status_code)
 
 def responseFile(fileName):
     # It would be nice to just write to 'data' instead of making a file.
@@ -262,6 +260,5 @@ def responseFile(fileName):
             response.headers["Content-Disposition"] = "attachment; filename=image.fits"
             response.headers["Content-Type"] = "image/fits"
     except IOError as e:
-        # TODO: use HTTP errors DM-1980, DM-2537
-        response = "system_error {}".format(e)
+        return _error(IOError.__name__, e.message, INTERNAL_SERVER_ERROR)
     return response
