@@ -199,7 +199,8 @@ def getISkyMapDeepCoaddCutoutPixel():
 def _getISkyMapDeepCoaddCutout(request, units):
     '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     '''
-    source = "/lsst7/releaseW13EP"
+    #source = "/lsst7/releaseW13EP"
+    source = "/raid/lauren/rerun/LSST/STRIPE82L/v2/"
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
 
@@ -262,3 +263,4 @@ def responseFile(fileName):
     except IOError as e:
         return _error(IOError.__name__, e.message, INTERNAL_SERVER_ERROR)
     return response
+
