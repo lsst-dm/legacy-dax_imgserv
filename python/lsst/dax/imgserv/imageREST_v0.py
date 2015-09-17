@@ -57,6 +57,21 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
       ra and dec are the floating point equivalants of raIn and decIn.
       msg is and error message if valid is false, otherwise blank.
     '''
+    # @todo throw exception instead of return valid DM-1980
+    valid = true
+    valid, ra, dec, msg = checkRaDec(raIn, decIn)
+    if filt not in validFilters:
+        msg = "Invalid filter {}. valid filters are {}.".format(filt, validFilters)
+        valid = False
+    return valid, ra, dec, filt, msg
+
+def checkRaDec(raIn, decIn):
+    '''Returns: valid, ra, dec, msg  where:
+      valid is true if the inputs were accetpable.
+      ra and dec are the floating point equivalants of raIn and decIn.
+      msg is and error message if valid is false, otherwise blank.
+    '''
+    # @todo throw exception instead of return valid DM-1980
     ra = 0.0
     dec = 0.0
     valid = True
@@ -67,10 +82,7 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
     except ValueError as e:
         msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(raIn, decIn)
         valid = False
-    if filt not in validFilters:
-        msg = "Invalid filter {}. valid filters are {}.".format(filt, validFilters)
-        valid = False
-    return valid, ra, dec, filt, msg
+    return valid, ra, dec, msg
 
 # this will handle something like:
 # GET /image/v0/raw?ra=359.195&dec=-0.1055&filter=r
@@ -150,7 +162,7 @@ def _getICutout(request, W13db, units):
     widthIn = request.args.get('width')
     heightIn = request.args.get('height')
     # check inputs
-    valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('i', 'r', 'g'))
+    valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, 'irg')
     if not valid:
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     try:
@@ -196,11 +208,11 @@ def getISkyMapDeepCoaddCutoutPixel():
     '''
     return _getISkyMapDeepCoaddCutout(request, 'pixel')
 
-def _getISkyMapDeepCoaddCutout(request, units):
+def _getISkyMapDeepCoaddCutout(request, units, source="/lsst7/releaseW13EP"):
     '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     '''
-    #source = "/lsst7/releaseW13EP"
-    source = "/raid/lauren/rerun/LSST/STRIPE82L/v2/"
+    # Following is temporary for pipeline tests TODO DM-3571
+    #source = "/raid/lauren/rerun/LSST/STRIPE82L/v2/"
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
 
@@ -209,8 +221,8 @@ def _getISkyMapDeepCoaddCutout(request, units):
     filt = request.args.get('filter')
     widthIn = request.args.get('width')
     heightIn = request.args.get('height')
-    # check inputs
-    valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, ('irg'))
+    # check inputs - Many valid filter names are unknown and can't be checked.
+    valid, ra, dec, msg = checkRaDec(raIn, decIn)
     if not valid:
         msg = "INVALID_INPUT {}".format(msg)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
