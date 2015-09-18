@@ -21,15 +21,16 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This is a program for running RESTful LSST Image Cutout Server (only). 
-Use it for tests. It is really meant to run as part of the central 
+This is a program for running RESTful LSST Image Cutout Server (only).
+Use it for tests. It is really meant to run as part of the central
 Web Service, e.g., through webserv/bin/server.py
 
 @author  Jacek Becla, SLAC
 """
 
+import sys
 from flask import Flask
-from lsst.imgserv import imageREST_v0
+from lsst.dax.imgserv import imageREST_v0
 
 app = Flask(__name__)
 
