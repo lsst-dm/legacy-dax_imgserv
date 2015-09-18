@@ -27,21 +27,19 @@
 
 
 import gzip
-import MySQLdb
 import os
 import sys
 import time
 
+from sqlalchemy.exc import SQLAlchemyError
 
 import lsst.afw
 import lsst.afw.image as afwImage
 import lsst.daf.base as dafBase
 import lsst.log as log
-
-from lsst.cat.dbSetup import DbSetup
-from lsst.db.utils import readCredentialFile
-
-
+from lsst.db import utils
+from lsst.db.engineFactory import getEngineFromFile
+from lsst.dax.imgserv.fitsMetadataSchema import schemaToCreate
 
 def isDateFormatValid(dt):
     try:
@@ -50,13 +48,15 @@ def isDateFormatValid(dt):
     except ValueError:
         return False
 
-def executeInsertList(cursor, table, columnValues, logger=log):
+def executeInsertList(conn, table, columnValues, logger=log):
     '''Insert the columnValues into 'table'
     columnValue is a list of column name and value pairs.
     Values are sanitized.
+
+    Returns lastrowid or None
     '''
     if len(columnValues) < 1:
-        return
+        return None
     sql_1 = "INSERT INTO {} (".format(table)
     colStr = ""
     valStr = ""
@@ -74,8 +74,8 @@ def executeInsertList(cursor, table, columnValues, logger=log):
     sql = sql_1 + colStr + ") Values (" + valStr + ")"
     # '%s' in sql causes lsst.log to have problems, so we log its component pieces.
     logger.debug("InsertList %s %s) VALUES (%s)", sql_1, colStr, values)
-    cursor.execute(sql, values)
-
+    results = conn.execute(sql, values)
+    return results.lastrowid
 
 class ExpectedHduError(Exception):
     def __init__(self):
@@ -147,12 +147,12 @@ class MetadataFits:
 class MetadataPosition:
     '''Insert the position information for the FITS file/hdu into the database.
     '''
-    def __init__(self, fileId, hdu, cursor, entries, logger=log):
+    def __init__(self, fileId, hdu, conn, entries, logger=log):
         self._fileId = fileId
         self._hdu = hdu
-        self._cursor = cursor
+        self._conn = conn
         self._entries = entries
-        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"), ("pDec","PDEC"), 
+        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"), ("pDec","PDEC"),
                            ("rotAng","ROTANG"), ("pDate","DATE"))
         self._log = logger
 
@@ -196,7 +196,7 @@ class MetadataPosition:
             colVal = [("fitsFileId", self._fileId), ("hdu", self._hdu)]
             for col, val in columns.iteritems():
                 colVal.append((col, val))
-            executeInsertList(self._cursor, "FitsPositions", colVal, self._log)
+            executeInsertList(self._conn, "FitsPositions", colVal, self._log)
 
 
 
@@ -205,37 +205,28 @@ class MetadataFitsDb:
     '''This class is used to collect Metadata from FITS header information
        and place it in the database.
     '''
-    def __init__(self, dbHost, dbPort, dbUser, dbPasswd, dbName, logger=log):
+    def __init__(self, credFileName, logger=log):
         self._log = logger
-        self._connect = MySQLdb.connect(host=dbHost,
-                      port=dbPort,
-                      user=dbUser,
-                      passwd=dbPasswd,
-                      db=dbName)
-        cursor = self._connect.cursor()
+        engine = getEngineFromFile(credFileName)
+        dbName = "{}_fitsTest".format(engine.url.username)
+        self._conn = getEngineFromFile(credFileName, database=dbName).connect()
+
         sql = "SET time_zone = '+0:00'"
         try:
             self._log.info(sql)
-            cursor.execute(sql)
-        except MySQLdb.Error as err:
-            self._log.info("ERROR MySQL %s", err)
-        cursor.close()
+            self._conn.execute(sql)
+        except SQLAlchemyError as e:
+            self._log.info("Db engine error %s", e)
 
-    def close(self):
-        self._connect.close()
-
-    def showTables(self):
-        cursor = self._connect.cursor()
-        cursor.execute("SHOW TABLES")
-        ret = cursor.fetchall()
-        s = str(ret)
-        for tbl in ret:
-            cursor.execute("SHOW COLUMNS from %s" % (tbl[0]))
-            s += str(cursor.fetchall())
-        cursor.close()
+    def showColumnsInTables(self):
+        tables = utils.listTables(self._conn)
+        s = str(tables)
+        for tbl in tables:
+            ret = self._conn.execute("SHOW COLUMNS from %s" % tbl)
+            s += str(ret.fetchall())
         return s
 
-    def _insertFitsValue(self, cursor, fitsFileId, key, value, lineNum, comment):
+    def _insertFitsValue(self, fitsFileId, key, value, lineNum, comment):
         '''Insert a Fits row entry into the FitsKeyValues table
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
@@ -257,7 +248,7 @@ class MetadataFitsDb:
             colVal.append(("doubleValue", doubleValue))
         except ValueError:
             pass
-        executeInsertList(cursor, "FitsKeyValues", colVal, self._log)
+        executeInsertList(self._conn, "FitsKeyValues", colVal, self._log)
 
     def insertFile(self, fileName):
         '''Insert the header information for 'fileName' into the
@@ -275,12 +266,11 @@ class MetadataFitsDb:
     def isFileInDb(self, fileName):
         '''Test if this filename in the database
         '''
-        cursor = self._connect.cursor()
         sql = ("SELECT 1 FROM FitsFiles WHERE "
                "fileName = %s")
         self._log.debug(sql, fileName)
-        cursor.execute(sql, fileName)
-        r = cursor.fetchall()
+        results = self._conn.execute(sql, fileName)
+        r = results.fetchall()
         return len(r) >= 1
 
 
@@ -294,73 +284,58 @@ class MetadataFitsDb:
         entries  = metadata._entries
         lastFitsFileId = -1
         # Check if the file is in the database, and if not add it
-        cursor = self._connect.cursor()
         try:
-            sql = ("SELECT 1 FROM FitsFiles WHERE "
-                   "fileName = %s")
-            self._log.debug(sql, str(fileName))
-            cursor.execute(sql, fileName)
-            r = cursor.fetchall()
-            # Nothing found, so it needs to be added.
-            if len(r) < 1:
-                #If this fails for any reason, we do not want the database altered.
-                cursor.execute("START TRANSACTION")
-                cursor.execute("SET autocommit = 0")
-                # Insert the file into the file table.
-                colVal = [("fileName", fileName), ("hduCount", hdus)]
-                executeInsertList(cursor, "FitsFiles", colVal, self._log)
-                lastFitsFileId = cursor.lastrowid
-                for key, entry in entries.iteritems():
-                    value   = entry[0]
-                    lineNum = entry[1]
-                    comment = entry[2]
-                    # Put in one entry for each element of the tuple
-                    if isinstance(value, tuple):
-                        num = lineNum
-                        for v in value:
-                            # scanFile should be skipping line numbers when it sees a tuple,
-                            # so that there are no duplicates.
-                            self._insertFitsValue(cursor, lastFitsFileId, key, v, num, comment)
-                            num += 1
-                    else:
-                        self._insertFitsValue(cursor, lastFitsFileId, key, value, lineNum, comment)
-                for hdu in range(1,hdus+1):
-                    metadataPosition = MetadataPosition(lastFitsFileId, hdu, cursor, entries)
-                    metadataPosition._insert()
-                cursor.execute("COMMIT")
-        except MySQLdb.Error as err:
-            cursor.execute("ROLLBACK")
-            self._log.warn( "ROLLBACK due to ERROR MySQLdb %s --%s", err, sql)
-            quit() # TODO delete this line, for now it is good to stop and examine these
-        cursor.close()
+            with self._conn.begin() as trans:
+                sql = ("SELECT 1 FROM FitsFiles WHERE "
+                       "fileName = %s")
+                self._log.debug(sql, str(fileName))
+                results = self._conn.execute(sql, fileName)
+                r = results.fetchall()
+                # Nothing found, so it needs to be added.
+                if len(r) < 1:
+                    #If this fails for any reason, we do not want the database altered.
+                    # Insert the file into the file table.
+                    colVal = [("fileName", fileName), ("hduCount", hdus)]
+                    lastFitsFileId = executeInsertList(self._conn, "FitsFiles", colVal, self._log)
+                    for key, entry in entries.iteritems():
+                        value   = entry[0]
+                        lineNum = entry[1]
+                        comment = entry[2]
+                        # Put in one entry for each element of the tuple
+                        if isinstance(value, tuple):
+                            num = lineNum
+                            for v in value:
+                                # scanFile should be skipping line numbers when it sees a tuple,
+                                # so that there are no duplicates.
+                                self._insertFitsValue(lastFitsFileId, key, v, num, comment)
+                                num += 1
+                        else:
+                            self._insertFitsValue(lastFitsFileId, key, value, lineNum, comment)
+                    for hdu in range(1,hdus+1):
+                        metadataPosition = MetadataPosition(lastFitsFileId, hdu, self._conn, entries)
+                        metadataPosition._insert()
+        except SQLAlchemyError as e:
+            self._log.error( "Insert not done due to db ERROR %s -- %s", e, sql)
         return lastFitsFileId
 
-def dbOpen(credFileName, dbName, portDb=3306, logger=log):
-    creds = readCredentialFile(credFileName, logger)
-    port = portDb
-    if 'port' in creds:
-        port = int(creds['port'])
-    mdFits = MetadataFitsDb(dbHost=creds['host'], dbPort=port,
-                            dbUser=creds['user'], dbPasswd=creds['passwd'],
-                            dbName=dbName)
-    return mdFits
-
-def dbDestroyCreate(credFileName, userDb, code, logger=log):
+def dbDestroyCreate(credFile, code, logger=log):
     '''Open the database userDb, delete tables, then re-create them.
+       Returns dbName (or None if code was not passed)
     '''
-    creds = readCredentialFile(credFileName, logger)
-    port = 3306
-    if 'port' in creds:
-        port = int(creds['port'])
+
+    conn = getEngineFromFile(credFile).connect()
+    dbName = "{}_fitsTest".format(conn.engine.url.username)
+
     if (code == "DELETE"):
-        logger.info("DbSetup attempting to delete and then create %s", userDb)
-        db = DbSetup(creds['host'], port, creds['user'], creds['passwd'],
-                     dirEnviron="IMGSERV_DIR", subDir="sql", userDb=userDb)
-        scripts = ["fitsMetadataSchema.sql"]
-        db.setupDb(scripts)
-        logger.info("DbSetup done")
-    else:
-        logger.warn("code not supplied, database un-altered. %s", userDb)
+        utils.dropDb(conn, dbName, mustExist=False)
+
+    utils.createDb(conn, dbName)
+    conn = getEngineFromFile(credFile, database=dbName).connect()
+    for q in schemaToCreate:
+        logger.info(q)
+        conn.execute(q)
+    logger.info("DbSetup done")
+
 
 def isFitsExt(fileName):
     '''Return True if the file extension is reasonable for a FITS file.
@@ -405,15 +380,13 @@ def directoryCrawl(rootDir, metaDb):
 def test(rootDir="~/test_metadata"):
     '''This test only works on specific servers and uses a large dataset.
     '''
-    credFile = "~/.lsst/dbAuth-dbServ.txt"
-    creds = readCredentialFile(credFile, log)
-    dbName = "{}_fitsTest".format(creds['user'])
+    credFile = "~/.lsst/dbAuth-dbServ.ini"
 
     # Destroy existing tables and re-create them
-    dbDestroyCreate(credFile, dbName, "DELETE")
+    dbDestroyCreate(credFile, "DELETE")
 
     # Open a connection to the database.
-    metadataFits = dbOpen(credFile, dbName)
+    metadataFits = MetadataFitsDb(credFile)
 
     #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
     log.debug(rootDir)
@@ -421,14 +394,11 @@ def test(rootDir="~/test_metadata"):
         rootDir = os.path.expanduser(rootDir)
     log.debug(rootDir)
     directoryCrawl(rootDir, metadataFits)
-    metadataFits.close()
 
 def deleteTestDb():
-    credFile = "~/.lsst/dbAuth-dbServ.txt"
-    creds = readCredentialFile(credFile, log)
-    dbName = "{}_fitsTest".format(creds['user'])
+    credFile = "~/.lsst/dbAuth-dbServ.ini"
     # Destroy existing tables and re-create them
-    dbDestroyCreate(credFile, dbName, "DELETE")
+    dbDestroyCreate(credFile, "DELETE")
 
 if __name__ == "__main__":
     log.setLevel("", log.DEBUG)

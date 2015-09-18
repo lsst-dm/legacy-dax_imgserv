@@ -29,14 +29,13 @@ import os
 import unittest
 
 from lsst.dax.imgserv.MetadataFitsDb import dbDestroyCreate
-from lsst.dax.imgserv.MetadataFitsDb import dbOpen
 from lsst.dax.imgserv.MetadataFitsDb import directoryCrawl
 from lsst.dax.imgserv.MetadataFitsDb import isFits
 from lsst.dax.imgserv.MetadataFitsDb import isFitsExt
 from lsst.dax.imgserv.MetadataFitsDb import MetadataFitsDb
 
 from lsst.cat.dbSetup import DbSetup
-from lsst.db.utils import readCredentialFile
+from lsst.db.testHelper import readCredentialFile
 import lsst.log as log
 
 
@@ -53,13 +52,7 @@ class MetaDataFitsTest(unittest.TestCase):
 
     def test_readInFits(self):
         credFile = '~/.mysqlAuthLSST'
-        try:
-            creds = readCredentialFile(credFile, log)
-        except Exception as e:
-            print e
-            return
-        dbName = "{}_fitsTest".format(creds['user'])
-        testFile = ("./testData/imsim_886258731_R33_S21_C12_E000.fits.gz")
+        testFile = ("./tests/testData/imsim_886258731_R33_S21_C12_E000.fits.gz")
         self.assertTrue(isFitsExt('stuf.fits'))
         self.assertFalse(isFitsExt('thing.txt'))
         self.assertFalse(isFitsExt('item.tx.gz'))
@@ -67,15 +60,15 @@ class MetaDataFitsTest(unittest.TestCase):
         self.assertTrue(isFits(testFile))
 
         # Destroy existing tables and re-create them
-        dbDestroyCreate(credFile, dbName, "DELETE")
+        dbDestroyCreate(credFile, "DELETE")
 
         # Open a connection to the database.
-        metadataFits = dbOpen(credFile, dbName)
+        metadataFits = MetadataFitsDb(credFile)
 
         # test a specific file
         self.assertFalse(metadataFits.isFileInDb(testFile))
         metadataFits.insertFile(testFile)
-        log.info(metadataFits.showTables())
+        log.info(metadataFits.showColumnsInTables())
         self.assertTrue(metadataFits.isFileInDb(testFile))
 
         # test crawler
@@ -83,12 +76,10 @@ class MetaDataFitsTest(unittest.TestCase):
         if rootDir.startswith('~'):
             rootDir = os.path.expanduser(rootDir)
         if not os.path.exists(rootDir):
-            print "Data directory {} is required".format(rootDir)
-            metadataFits.close()
+            log.error("Data directory {} is required".format(rootDir))
             return
         directoryCrawl(rootDir, metadataFits)
 
-        metadataFits.close()
 
 def main():
     global _options

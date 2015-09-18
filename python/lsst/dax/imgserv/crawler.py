@@ -27,7 +27,7 @@ __author__ = 'bvan'
 
 """
 A Simple single-threaded crawler-like application.
-This crawler only scans one folder at a time, retrieving up to 1000 results at 
+This crawler only scans one folder at a time, retrieving up to 1000 results at
 a time.
 It searches for datasets which are unscanned for a particular location.
 Added code to write FITS header and file information to foreign tables and
@@ -44,8 +44,8 @@ from datacat.client import DcException
 from datetime import datetime
 
 import lsst.log as log
-from lsst.db.utils import readCredentialFile
-from .MetadataFitsDb import MetadataFitsDb, dbOpen
+from lsst.db.engineFactory import getEngineFromFile
+from .MetadataFitsDb import MetadataFitsDb
 from .dataCatUtil import DataCatCfg
 
 WATCH_FOLDER = '/LSST'
@@ -83,10 +83,10 @@ class Crawler:
 
 
     def run(self):
-        credFileName = "~/.lsst/dbAuth-dbServ.txt"
-        creds = readCredentialFile(credFileName, log)
-        dbName = "{}_fitsTest".format(creds['user'])
-        metaDb = dbOpen(credFileName, dbName)
+        credFileName = "~/.lsst/dbAuth-dbServ.ini"
+        engine = getEngineFromFile(credFileName)
+        dbName = "{}_fitsTest".format(engine.url.username)
+        metaDb = MetadataFitsDb(credFileName)
 
         resp = None
         try:
