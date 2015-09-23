@@ -97,7 +97,7 @@ class MetadataFits:
         hdu = 1
         while True:
             try:
-                self._log.info("Scanning %s %d", str(self._fileName), hdu)
+                self._log.info("Scanning %s %d", self._fileName, hdu)
                 self.scanFile(hdu)
                 self._hdus = hdu
                 hdu += 1
@@ -286,9 +286,8 @@ class MetadataFitsDb:
         # Check if the file is in the database, and if not add it
         try:
             with self._conn.begin() as trans:
-                sql = ("SELECT 1 FROM FitsFiles WHERE "
-                       "fileName = %s")
-                self._log.debug(sql, str(fileName))
+                sql = "SELECT 1 FROM FitsFiles WHERE fileName = %s")
+                self._log.debug(sql, fileName)
                 results = self._conn.execute(sql, fileName)
                 r = results.fetchall()
                 # Nothing found, so it needs to be added.
@@ -298,9 +297,7 @@ class MetadataFitsDb:
                     colVal = [("fileName", fileName), ("hduCount", hdus)]
                     lastFitsFileId = executeInsertList(self._conn, "FitsFiles", colVal, self._log)
                     for key, entry in entries.iteritems():
-                        value   = entry[0]
-                        lineNum = entry[1]
-                        comment = entry[2]
+                        value, lineNum, comment = entry
                         # Put in one entry for each element of the tuple
                         if isinstance(value, tuple):
                             num = lineNum
