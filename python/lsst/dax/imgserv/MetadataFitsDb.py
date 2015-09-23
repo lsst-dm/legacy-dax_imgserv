@@ -286,7 +286,7 @@ class MetadataFitsDb:
         # Check if the file is in the database, and if not add it
         try:
             with self._conn.begin() as trans:
-                sql = "SELECT 1 FROM FitsFiles WHERE fileName = %s")
+                sql = "SELECT 1 FROM FitsFiles WHERE fileName = %s"
                 self._log.debug(sql, fileName)
                 results = self._conn.execute(sql, fileName)
                 r = results.fetchall()

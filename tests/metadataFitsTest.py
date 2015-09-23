@@ -51,7 +51,11 @@ class MetaDataFitsTest(unittest.TestCase):
         pass
 
     def test_readInFits(self):
-        credFile = '~/.mysqlAuthLSST'
+        credFile = os.path.expanduser('~/.mysqlAuthLSST')
+        if not os.path.isfile(credFile):
+            log.warn("Required file with credentials '%s' not found.", credFile)
+            return
+
         testFile = ("./tests/testData/imsim_886258731_R33_S21_C12_E000.fits.gz")
         self.assertTrue(isFitsExt('stuf.fits'))
         self.assertFalse(isFitsExt('thing.txt'))
