@@ -32,10 +32,11 @@ This module is used to locate and retrieve variolus image types.
 
 import gzip
 import math
-import MySQLdb
 import os
 import sys
 import time
+
+from sqlalchemy.exc import SQLAlchemyError
 
 import lsst.afw
 import lsst.afw.coord as afwCoord
@@ -43,39 +44,27 @@ import lsst.afw.display as afwDisplay
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 import lsst.daf.base as dafBase
-import lsst.log as log
-
-from lsst.cat.dbSetup import DbSetup
-from lsst.db.utils import readCredentialFile
-
 import lsst.daf.persistence as dafPersist
+import lsst.log as log
+from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
 
 class W13Db:
     '''Base class for examining DC_W13_Stripe82 data
     '''
-    def __init__(self, dbHost, dbPort, dbUser, dbPasswd,
-                 database, table, columns, dataRoot, logger):
+    def __init__(self, credFileName, database, table, columns, dataRoot, logger):
         self._log = logger
-        self._database = database
         self._table = table
         self._columns = columns
-        self._connect = MySQLdb.connect(host=dbHost, port=dbPort,
-                                        user=dbUser, passwd=dbPasswd,
-                                        db=self._database)
+        self._conn = getEngineFromFile(credFileName, database=database).connect()
         self._dataRoot = dataRoot
-        cursor = self._connect.cursor()
         sql = "SET time_zone = '+0:00'"
         try:
             self._log.info(sql)
-            cursor.execute(sql)
-        except MySQLdb.Error as err:
-            self._log.info("ERROR MySQL %s -- %s" % (err, crt))
-        cursor.close()
-
-    def closeConnection(self):
-        self._connect.close()
+            self._conn.execute(sql)
+        except SQLAlchemyError as e:
+            self._log.error("Db engine error %s" % e)
 
     def getImageFull(self, ra, dec):
         '''Return an image containing ra and dec.
@@ -142,7 +131,7 @@ class W13Db:
             imgSub = _cutoutBoxPixels(img, xyCenter, width, height, self._log)
             return imgSub
 
-        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, dec, 
+        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, dec,
                        xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter.getX(), xyCenter.getY())
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
         # and compare that distance with the number of pixels.
@@ -178,7 +167,6 @@ class W13Db:
         maxRa = ra + arcW
         minDec = dec - arcH
         maxDec = dec + arcH
-        cursor = self._connect.cursor()
         cols = [ "ra", "decl" ]
         for s in self._columns:
             cols.append(s)
@@ -194,9 +182,7 @@ class W13Db:
             "scisql_s2PtInBox(ra, decl, {}, {}, {}, {}) = 1 order by distance LIMIT 1").format(
             col_str, self._table, minRa, minDec, maxRa, maxDec)
         self._log.info(sql)
-        cursor.execute(sql)
-        res = cursor.fetchall()
-        return res
+        return self._conn.execute(sql).fetchall()
 
 class W13RawDb(W13Db):
     '''This class is used to connect to the DC_W13_Stripe82 Raw database.
@@ -208,9 +194,10 @@ class W13RawDb(W13Db):
     Table columns: run, camcol, field, filterName
     butler.get("raw", run=run, camcol=camcol, field=field, filter=filterName)
     '''
-    def __init__(self, dbHost, dbPort, dbUser, dbPasswd, logger=log):
+    def __init__(self, credFileName, logger=log):
         # @todo The names needed for the data butler need to come from a central location.
-        W13Db.__init__(self,dbHost, dbPort, dbUser, dbPasswd,
+        W13Db.__init__(self,
+                       credFileName,
                        database="DC_W13_Stripe82",
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
@@ -248,9 +235,10 @@ class W13DeepCoaddDb(W13Db):
     Table columns: tract, patch, filterName
     butler.get("deepCoadd", filter=filterName, tract=tract, patch=patch)
     '''
-    def __init__(self, dbHost, dbPort, dbUser, dbPasswd, logger=log):
+    def __init__(self, credFileName, logger=log):
         # @todo The names needed for the data butler need to come from a central location.
-        W13Db.__init__(self, dbHost, dbPort, dbUser, dbPasswd,
+        W13Db.__init__(self,
+                       credFileName,
                        database="DC_W13_Stripe82",
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
@@ -342,15 +330,8 @@ def _keepWithin180(target, val):
         val += 360.0
     return val
 
-def dbOpen(credFileName, W13db, portDb=3306, logger=log):
+def dbOpen(credFileName, W13db, logger=log):
     '''Open a database connection and return an instance of the
     class indicated by W13db.
     '''
-    creds = readCredentialFile(credFileName, logger)
-    port = portDb
-    if 'port' in creds:
-        port = int(creds['port'])
-    w13db = W13db(dbHost=creds['host'], dbPort=port,
-                  dbUser=creds['user'], dbPasswd=creds['passwd'])
-    return w13db
-
+    return W13db(credFileName)

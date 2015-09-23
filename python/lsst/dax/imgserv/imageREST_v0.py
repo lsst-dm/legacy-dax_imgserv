@@ -136,7 +136,7 @@ def _getIFull(request, W13db):
         return resp
     log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.txt", W13db)
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     imgFull = w13db.getImageFull(ra, dec)
     if imgFull == None:
         return _imageNotFound()
@@ -175,7 +175,7 @@ def _getICutout(request, W13db, units):
             ra, dec, filt, width, height))
 
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.txt", W13db)
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     img = w13db.getImage(ra, dec, width, height, units)
     if img == None:
         return _imageNotFound()
