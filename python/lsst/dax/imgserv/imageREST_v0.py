@@ -26,6 +26,7 @@ Corresponding URI: /image
 
 @author  Jacek Becla, SLAC; John Gates, SLAC
 """
+from __future__ import print_function
 import os
 import tempfile
 import uuid
@@ -236,7 +237,7 @@ def _getISkyMapDeepCoaddCutout(request, units, source="/lsst7/releaseW13EP"):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
-    print "filt=", filt
+    print("filt=", filt)
     # fetch the image here
     raA = afwGeom.Angle(ra, afwGeom.degrees)
     decA = afwGeom.Angle(dec, afwGeom.degrees)
