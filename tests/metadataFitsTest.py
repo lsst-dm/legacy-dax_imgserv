@@ -77,8 +77,7 @@ class MetaDataFitsTest(unittest.TestCase):
 
         # test crawler
         rootDir = '~/test_md'
-        if rootDir.startswith('~'):
-            rootDir = os.path.expanduser(rootDir)
+        rootDir = os.path.expanduser(rootDir)
         if not os.path.exists(rootDir):
             log.error("Data directory {} is required".format(rootDir))
             return

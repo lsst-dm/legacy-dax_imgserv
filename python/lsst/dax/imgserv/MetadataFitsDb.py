@@ -387,8 +387,7 @@ def test(rootDir="~/test_metadata"):
 
     #root = '/lsst3/DC3/data/obs/ImSim/pt1_2/eimage/v886946741-fi/E000'
     log.debug(rootDir)
-    if rootDir.startswith('~'):
-        rootDir = os.path.expanduser(rootDir)
+    rootDir = os.path.expanduser(rootDir)
     log.debug(rootDir)
     directoryCrawl(rootDir, metadataFits)
 
