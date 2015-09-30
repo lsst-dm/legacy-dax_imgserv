@@ -26,11 +26,11 @@ Corresponding URI: /image
 
 @author  Jacek Becla, SLAC; John Gates, SLAC
 """
+
 import os
 import tempfile
-import uuid
 
-from flask import Blueprint, make_response, request
+from flask import Blueprint, make_response, request, current_app
 
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
@@ -42,6 +42,7 @@ from .skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
 
+
 # this will eventually print list of supported versions
 @imageREST.route('/')
 def index():
@@ -51,6 +52,7 @@ Hello, LSST Image Cutout Service here. Try something like:<br />
 /image/v0/raw/cutout?ra=1&dec=1&filter=r&width=12&height=12
 """
 
+
 def checkRaDecFilter(raIn, decIn, filt, validFilters):
     '''Returns: valid, ra, dec, filt, msg  where:
       valid is true if the inputs were accetpable.
@@ -58,12 +60,12 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
       msg is and error message if valid is false, otherwise blank.
     '''
     # @todo throw exception instead of return valid DM-1980
-    valid = true
     valid, ra, dec, msg = checkRaDec(raIn, decIn)
     if filt not in validFilters:
         msg = "Invalid filter {}. valid filters are {}.".format(filt, validFilters)
         valid = False
     return valid, ra, dec, filt, msg
+
 
 def checkRaDec(raIn, decIn):
     '''Returns: valid, ra, dec, msg  where:
@@ -79,10 +81,11 @@ def checkRaDec(raIn, decIn):
     try:
         ra = float(raIn)
         dec = float(decIn)
-    except ValueError as e:
+    except ValueError:
         msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(raIn, decIn)
         valid = False
     return valid, ra, dec, msg
+
 
 # this will handle something like:
 # GET /image/v0/raw?ra=359.195&dec=-0.1055&filter=r
@@ -90,11 +93,13 @@ def checkRaDec(raIn, decIn):
 def getRaw():
     return _getIFull(request, W13RawDb)
 
+
 # this will handle something like:
 # GET /image/v0/raw/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutout', methods=['GET'])
 def getIRawCutout():
     return _getICutout(request, W13RawDb, 'arcsecond')
+
 
 # this will handle something like:
 # GET /image/v0/raw/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
@@ -102,11 +107,13 @@ def getIRawCutout():
 def getIRawCutoutPixel():
     return _getICutout(request, W13RawDb, 'pixel')
 
+
 # this will handle something like:
 # GET /image/v0/deepCoadd?ra=19.36995&dec=-0.3146&filter=r
 @imageREST.route('/deepCoadd', methods=['GET'])
 def getDeepCoadd():
     return _getIFull(request, W13DeepCoaddDb)
+
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
@@ -114,19 +121,21 @@ def getDeepCoadd():
 def getIDeepCoaddCutout():
     return _getICutout(request, W13DeepCoaddDb, 'arcsecond')
 
+
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutoutPixel?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
 @imageREST.route('/deepCoadd/cutoutPixel', methods=['GET'])
 def getIDeepCoaddCutoutPixel():
     return _getICutout(request, W13DeepCoaddDb, 'pixel')
 
-def _getIFull(request, W13db):
+
+def _getIFull(_request, W13db):
     ''' Get a full image from the input paramters.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
-    raIn = request.args.get('ra')
-    decIn = request.args.get('dec')
-    filt = request.args.get('filter')
+    raIn = _request.args.get('ra')
+    decIn = _request.args.get('dec')
+    filt = _request.args.get('filter')
 
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, 'irg')
@@ -138,7 +147,7 @@ def _getIFull(request, W13db):
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     imgFull = w13db.getImageFull(ra, dec)
-    if imgFull == None:
+    if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
     tmpPath = tempfile.mkdtemp()
@@ -151,16 +160,17 @@ def _getIFull(request, W13db):
     os.removedirs(tmpPath)
     return resp
 
-def _getICutout(request, W13db, units):
+
+def _getICutout(_request, W13db, units):
     '''Get a raw image from based on imput parameters.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     units should be 'pixel' or 'arcsecond'
     '''
-    raIn = request.args.get('ra')
-    decIn = request.args.get('dec')
-    filt = request.args.get('filter')
-    widthIn = request.args.get('width')
-    heightIn = request.args.get('height')
+    raIn = _request.args.get('ra')
+    decIn = _request.args.get('dec')
+    filt = _request.args.get('filter')
+    widthIn = _request.args.get('width')
+    heightIn = _request.args.get('height')
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, 'irg')
     if not valid:
@@ -168,7 +178,7 @@ def _getICutout(request, W13db, units):
     try:
         width = float(widthIn)
         height = float(heightIn)
-    except ValueError as e:
+    except ValueError:
         msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
@@ -177,7 +187,7 @@ def _getICutout(request, W13db, units):
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     img = w13db.getImage(ra, dec, width, height, units)
-    if img == None:
+    if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
     tmpPath = tempfile.mkdtemp()
@@ -190,14 +200,22 @@ def _getICutout(request, W13db, units):
     os.removedirs(tmpPath)
     return resp
 
+
 # this will handle something like:
 # GET /image/v0/skymap/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
 @imageREST.route('/skymap/deepCoadd/cutout', methods=['GET'])
 def getISkyMapDeepCoaddCutout():
     '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     where width and height are in arcseconds.
+    :query float ra: ra
+    :query float dec: dec
+    :query string filter: Filter
+    :query integer width: Width
+    :query integer height: Height
+    :query string source: Optional filesystem path to provide imgserv
     '''
     return _getISkyMapDeepCoaddCutout(request, 'arcsecond')
+
 
 # this will handle something like:
 # GET /image/v0/skymap/deepCoadd/cutoutPixel?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
@@ -205,22 +223,36 @@ def getISkyMapDeepCoaddCutout():
 def getISkyMapDeepCoaddCutoutPixel():
     '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     where width and height are in pixels.
+    :query float ra: ra
+    :query float dec: dec
+    :query string filter: Filter
+    :query integer width: Width
+    :query integer height: Height
+    :query string source: Optional filesystem path to provide imgserv
     '''
     return _getISkyMapDeepCoaddCutout(request, 'pixel')
 
-def _getISkyMapDeepCoaddCutout(request, units, source="/lsst7/releaseW13EP"):
+
+def _getISkyMapDeepCoaddCutout(_request, units):
     '''Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     '''
-    # Following is temporary for pipeline tests TODO DM-3571
-    #source = "/raid/lauren/rerun/LSST/STRIPE82L/v2/"
+    source = _request.args.get("source", None)
+    if not source:
+        # Use a default
+        source = current_app.config["dax.imgserv.default_source"]
+
+    # Be safe and encode source to utf8, just in case
+    source = source.encode('utf8')
+    log.debug("Using filesystem source: " + source)
+
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
 
-    raIn = request.args.get('ra')
-    decIn = request.args.get('dec')
-    filt = request.args.get('filter')
-    widthIn = request.args.get('width')
-    heightIn = request.args.get('height')
+    raIn = _request.args.get('ra')
+    decIn = _request.args.get('dec')
+    filt = _request.args.get('filter')
+    widthIn = _request.args.get('width')
+    heightIn = _request.args.get('height')
     # check inputs - Many valid filter names are unknown and can't be checked.
     valid, ra, dec, msg = checkRaDec(raIn, decIn)
     if not valid:
@@ -231,18 +263,20 @@ def _getISkyMapDeepCoaddCutout(request, units, source="/lsst7/releaseW13EP"):
         height = float(heightIn)
         # The butler isn't fond of unicode in this case.
         filt = filt.encode('ascii')
-    except ValueError as e:
+    except ValueError:
         msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
-    print "filt=", filt
     # fetch the image here
     raA = afwGeom.Angle(ra, afwGeom.degrees)
     decA = afwGeom.Angle(dec, afwGeom.degrees)
     ctrCoord = afwCoord.Coord(raA, decA, 2000.0)
-    expo = getSkyMap(ctrCoord, int(width), int(height), filt, units, source, mapType, patchType)
-    if expo == None:
+    try:
+        expo = getSkyMap(ctrCoord, int(width), int(height), filt, units, source, mapType, patchType)
+    except RuntimeError as e:
+        return _error("RuntimeError", e.message, INTERNAL_SERVER_ERROR)
+    if expo is None:
         return _imageNotFound()
     tmpPath = tempfile.mkdtemp()
     fileName = os.path.join(tmpPath, "cutout.fits")
@@ -253,18 +287,20 @@ def _getISkyMapDeepCoaddCutout(request, units, source="/lsst7/releaseW13EP"):
     os.removedirs(tmpPath)
     return resp
 
+
 def _imageNotFound():  # FIXME: Not sure what error this should be, 400, 404, 500?
     return _error("ImageNotFound", "Image Not Found", INTERNAL_SERVER_ERROR)
 
+
 def _error(exception, message, status_code):
     return make_response({"exception": exception, "message": message}, status_code)
+
 
 def responseFile(fileName):
     # It would be nice to just write to 'data' instead of making a file.
     # writeFits defined in afw/python/lsst/afw/math/background.py
     # Using a cache of files might be desirable. We would need consistent and
     # unique identifiers for the files.
-    response = ""
     try:
         with open(fileName, 'r') as f:
             data = f.read()
@@ -272,7 +308,6 @@ def responseFile(fileName):
             response = make_response(data)
             response.headers["Content-Disposition"] = "attachment; filename=image.fits"
             response.headers["Content-Type"] = "image/fits"
+        return response
     except IOError as e:
         return _error(IOError.__name__, e.message, INTERNAL_SERVER_ERROR)
-    return response
-
