@@ -42,8 +42,7 @@ class DataCatCfg():
         '''Set default values if cfgFile is not found.
         '''
         self._log = logger
-        if cfgFile.startswith('~'):
-            cfgFile = os.path.expanduser(cfgFile)
+        cfgFile = os.path.expanduser(cfgFile)
         self._cfgFile = expandDir(cfgFile)
         self._config = ConfigParser.ConfigParser()
         self._restUrl = ("http://lsst-db2.slac.stanford.edu:8180/"
