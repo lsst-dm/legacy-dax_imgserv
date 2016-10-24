@@ -201,7 +201,7 @@ class W13RawDb(W13Db):
                        database="DC_W13_Stripe82",
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/lsst7/stripe82/dr7/runs",
+                       dataRoot="/datasets/stripe82/dr7/runs",
                        logger=logger)
 
     def _getImageButler(self, qResults):
@@ -225,6 +225,52 @@ class W13RawDb(W13Db):
             return butler.get("fpC_md", run=run, camcol=camcol,
                               field=field, filter=filterName)
 
+
+class W13CalebDb(W13RawDb):
+    '''This class is used to connect to the DC_W13_Stripe82 Calibration Exposures.
+    Calibration Exposures look to be very similar to retrieving Raw exposres. Once 
+    this is shown to work, W13CalebDb and W13RawDb should be refactored to have a
+    commnon base class and add a field for policy "fpC" or "calexp".
+    ----------
+    Repository path: /datasets/gapon/data/DC_2013/calexps/
+    Butler keys: run, camcol, field, filter
+    MySQL table: DC_W13_Stripe82.Science_Ccd_Exposure
+    Table columns: run, camcol, field, filterName
+    butler.get("raw", run=run, camcol=camcol, field=field, filter=filterName)
+    '''
+    def __init__(self, credFileName, logger=log):
+        # @todo The names needed for the data butler need to come from a central location.
+        W13Db.__init__(self,
+                       credFileName,
+                       database="DC_W13_Stripe82",
+                       table="Science_Ccd_Exposure",
+                       columns=["run", "camcol", "field", "filterName"],
+                       dataRoot="/datasets/gapon/data/DC_2013/calexps/",
+                       logger=logger)
+
+    def _getImageButler(self, qResults):
+        '''Retrieve the image and butler for this image type using the query results in 'qResults'
+        The retrieval process varies for different image types.
+        '''
+        # This will return on the first result.
+        for ln in qResults:
+            run, camcol, field, filterName = ln[2:6]
+            butler = lsst.daf.persistence.Butler(self._dataRoot)
+            img = butler.get("calexp", run=run, camcol=camcol,
+                             field=field, filter=filterName)
+            return img, butler
+        return None, None
+
+    def _getMetadata(self, butler, qResults):
+        '''Return the metadata for the query results in qResults and a butler.
+        '''
+        for ln in qResults:
+            run, camcol, field, filterName = ln[2:6]
+            return butler.get("calexp_md", run=run, camcol=camcol,
+                              field=field, filter=filterName)
+
+
+
 class W13DeepCoaddDb(W13Db):
     '''This class is used to connect to the DC_W13_Stripe82 Coadd database.
     Coadd images
@@ -242,7 +288,7 @@ class W13DeepCoaddDb(W13Db):
                        database="DC_W13_Stripe82",
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
-                       dataRoot="/lsst7/releaseW13EP",
+                       dataRoot="/datasets/gapon/data/DC_2013/coadd/",
                        logger=logger)
 
     def _getImageButler(self, qResults):
