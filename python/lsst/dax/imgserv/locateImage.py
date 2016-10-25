@@ -66,6 +66,7 @@ class W13Db:
         except SQLAlchemyError as e:
             self._log.error("Db engine error %s" % e)
 
+
     def getImageFull(self, ra, dec):
         '''Return an image containing ra and dec.
         Returns None if no image is found.
@@ -226,7 +227,7 @@ class W13RawDb(W13Db):
                               field=field, filter=filterName)
 
 
-class W13CalebDb(W13RawDb):
+class W13CalexpDb(W13RawDb):
     '''This class is used to connect to the DC_W13_Stripe82 Calibration Exposures.
     Calibration Exposures look to be very similar to retrieving Raw exposres. Once 
     this is shown to work, W13CalebDb and W13RawDb should be refactored to have a

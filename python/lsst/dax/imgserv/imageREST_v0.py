@@ -109,6 +109,27 @@ def getIRawCutoutPixel():
 
 
 # this will handle something like:
+# GET /image/v0/calexp?ra=359.195&dec=-0.1055&filter=r
+@imageREST.route('/calexp', methods=['GET'])
+def getRaw():
+    return _getIFull(request, W13CalexpDb)
+
+
+# this will handle something like:
+# GET /image/v0/calexp/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
+@imageREST.route('/calexp/cutout', methods=['GET'])
+def getIRawCutout():
+    return _getICutout(request, W13CalexpDb, 'arcsecond')
+
+
+# this will handle something like:
+# GET /image/v0/calexp/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
+@imageREST.route('/calexp/cutoutPixel', methods=['GET'])
+def getIRawCutoutPixel():
+    return _getICutout(request, W13CalexpDb, 'pixel')
+
+
+# this will handle something like:
 # GET /image/v0/deepCoadd?ra=19.36995&dec=-0.3146&filter=r
 @imageREST.route('/deepCoadd', methods=['GET'])
 def getDeepCoadd():
@@ -154,7 +175,6 @@ def _getIFull(_request, W13db):
     fileName = os.path.join(tmpPath, "fullImage.fits")
     log.info("temporary fileName=%s", fileName)
     imgFull.writeFits(fileName)
-    w13db.closeConnection()
     resp = responseFile(fileName)
     os.remove(fileName)
     os.removedirs(tmpPath)
@@ -194,7 +214,6 @@ def _getICutout(_request, W13db, units):
     fileName = os.path.join(tmpPath, "cutout.fits")
     log.info("temporary fileName=%s", fileName)
     img.writeFits(fileName)
-    w13db.closeConnection()
     resp = responseFile(fileName)
     os.remove(fileName)
     os.removedirs(tmpPath)
