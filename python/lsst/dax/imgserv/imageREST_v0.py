@@ -37,7 +37,7 @@ import lsst.afw.geom as afwGeom
 import lsst.log as log
 
 from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR
-from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
+from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
@@ -111,21 +111,21 @@ def getIRawCutoutPixel():
 # this will handle something like:
 # GET /image/v0/calexp?ra=359.195&dec=-0.1055&filter=r
 @imageREST.route('/calexp', methods=['GET'])
-def getRaw():
+def getCalexp():
     return _getIFull(request, W13CalexpDb)
 
 
 # this will handle something like:
 # GET /image/v0/calexp/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutout', methods=['GET'])
-def getIRawCutout():
+def getICalexpCutout():
     return _getICutout(request, W13CalexpDb, 'arcsecond')
 
 
 # this will handle something like:
 # GET /image/v0/calexp/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutoutPixel', methods=['GET'])
-def getIRawCutoutPixel():
+def getICalexpCutoutPixel():
     return _getICutout(request, W13CalexpDb, 'pixel')
 
 
