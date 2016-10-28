@@ -35,7 +35,7 @@ from lsst.dax.imgserv import imageREST_v0
 app = Flask(__name__)
 
 app.register_blueprint(imageREST_v0.imageREST, url_prefix='/image')
-app.config["dax.imgserv.default_source"] = "/lsst7/releaseW13EP"
+app.config["dax.imgserv.default_source"] = "/datasets/gapon/data/DC_2013/coadd"
 
 if __name__ == '__main__':
     try:
