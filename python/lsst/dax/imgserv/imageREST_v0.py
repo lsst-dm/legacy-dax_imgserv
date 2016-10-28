@@ -203,10 +203,13 @@ def _getICutout(_request, W13db, units):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
+    print("&&& raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
+            ra, dec, filt, width, height))
 
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     img = w13db.getImage(ra, dec, width, height, units)
+    print("&&& img={}".format(img))
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -259,10 +262,12 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     if not source:
         # Use a default
         source = current_app.config["dax.imgserv.default_source"]
+        source = "/datasets/gapon/data/DC_2013/coadd" #&&&
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
+    print("&&& Using filesystem source: " + source)
 
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
@@ -286,6 +291,8 @@ def _getISkyMapDeepCoaddCutout(_request, units):
         msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
+            ra, dec, filt, width, height))
+    print("&&& skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
     # fetch the image here
     raA = afwGeom.Angle(ra, afwGeom.degrees)

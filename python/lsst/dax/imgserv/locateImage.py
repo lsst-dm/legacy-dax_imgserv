@@ -202,7 +202,7 @@ class W13RawDb(W13Db):
                        database="DC_W13_Stripe82",
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/datasets/stripe82/dr7/runs",
+                       dataRoot="/datasets/sdss/preprocessed/dr7/runs",
                        logger=logger)
 
     def _getImageButler(self, qResults):
@@ -210,12 +210,17 @@ class W13RawDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
+        print("&&& Raw_getImageButler qResults:{}".format(len(qResults)))
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
+            print("&&& Raw_getImageButler getting butler")
             butler = lsst.daf.persistence.Butler(self._dataRoot)
+            print("&&&  Raw_getImageButler getting image")
             img = butler.get("fpC", run=run, camcol=camcol,
                              field=field, filter=filterName)
+            print("&&& Raw_getImageButler img={} butler={}".format(img, butler))
             return img, butler
+        print("&&& Raw_getImageButler None, None")
         return None, None
 
     def _getMetadata(self, butler, qResults):
@@ -297,13 +302,18 @@ class W13DeepCoaddDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
+        print("&&& deepCoadd_getImageButler qResults:{}".format(len(qResults)))
         for ln in qResults:
             tract = ln[2]
             patch = ln[3]
             filterName = ln[4]
+            print("&&& deepCoad_getImageButler getting butler tract={} patch={} filterName={}".format(tract, patch, filterName))
             butler=lsst.daf.persistence.Butler(self._dataRoot)
+            print("&&&  deepCoad_getImageButler getting image")
             img = butler.get("deepCoadd", tract=tract, patch=patch, filter=filterName)
+            print("&&& deepCoadd_getImageButler img={} butler={}".format(img, butler))
             return img, butler
+        print("&&& deepCoad_getImageButler None, None")
         return None, None
 
     def _getMetadata(self, butler, qResults):
