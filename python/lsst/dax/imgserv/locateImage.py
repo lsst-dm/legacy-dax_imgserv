@@ -80,9 +80,7 @@ class W13Db:
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        # The SQL UDF scisql_s2PtInBox requires a box, not a point.
-        # 5 arcseconds is a small arbitrary box that seems to work.
-        res = self._findNearestImageContaining(ra, dec, 5, 5)
+        res = self._findNearestImageContaining(ra, dec)
         img, butler = self._getImageButler(res)
         metadata = self._getMetadata(butler, res)
         return img, metadata
@@ -108,8 +106,8 @@ class W13Db:
          - Make and return the cutout.
         '''
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
-        # Find the nearest image to ra and dec containing at least part of the box.
-        qresult = self._findNearestImageContaining(ra, dec, width, height)
+        # Find the nearest image to ra and dec.
+        qresult = self._findNearestImageContaining(ra, dec)
         img, butler = self._getImageButler(qresult)
         if img == None:
             # @todo html error handling see DM-1980
@@ -158,43 +156,10 @@ class W13Db:
         imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
         return imgSub
 
-    def _findNearestImageContainingOld(self, ra, dec, width, height):
-        '''&&&Use the ra, dec, and box coordinates to find the image with its
-        center nearest ra and dec. It returns the result of the SQL query.
-        '''
-        arcW = _arcsecToDeg(width)/2.0
-        arcH = _arcsecToDeg(height)/2.0
-        minRa = ra - arcW
-        maxRa = ra + arcW
-        minDec = dec - arcH
-        maxDec = dec + arcH
-        cols = [ "ra", "decl" ]
-        for s in self._columns:
-            cols.append(s)
-        dist = "(power((ra - {}),2) + power((decl - {}),2)) as distance".format(ra, dec)
-        #More accurate distance calc on a sphere-if needed
-        #SELECT *, 2 * ASIN(SQRT(POWER(SIN((raA)*pi()/180/2),2)+
-        #  COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
-        # POWER(SIN((decB.lon)*pi()/180/2),2)) as distance
-        # FROM <table> order by distance ;
-        cols.append(dist)
-        col_str = ",".join(cols)
-        sql = ("SELECT {} FROM {} WHERE "
-            "scisql_s2PtInBox(ra, decl, {}, {}, {}, {}) = 1 order by distance LIMIT 1").format(
-            col_str, self._table, minRa, minDec, maxRa, maxDec)
-        self._log.info(sql)
-        return self._conn.execute(sql).fetchall()
-
-    def _findNearestImageContaining(self, ra, dec, width, height):
+    def _findNearestImageContaining(self, ra, dec):
         '''Use the ra, dec, and box coordinates to find the image with its
         center nearest ra and dec. It returns the result of the SQL query.
         '''
-        arcW = _arcsecToDeg(width)/2.0
-        arcH = _arcsecToDeg(height)/2.0
-        minRa = ra - arcW
-        maxRa = ra + arcW
-        minDec = dec - arcH
-        maxDec = dec + arcH
         cols = [ "ra", "decl" ]
         for s in self._columns:
             cols.append(s)
