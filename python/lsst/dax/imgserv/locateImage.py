@@ -158,8 +158,8 @@ class W13Db:
         imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
         return imgSub
 
-    def _findNearestImageContaining(self, ra, dec, width, height):
-        '''Use the ra, dec, and box coordinates to find the image with its
+    def _findNearestImageContainingOld(self, ra, dec, width, height):
+        '''&&&Use the ra, dec, and box coordinates to find the image with its
         center nearest ra and dec. It returns the result of the SQL query.
         '''
         arcW = _arcsecToDeg(width)/2.0
@@ -182,6 +182,33 @@ class W13Db:
         sql = ("SELECT {} FROM {} WHERE "
             "scisql_s2PtInBox(ra, decl, {}, {}, {}, {}) = 1 order by distance LIMIT 1").format(
             col_str, self._table, minRa, minDec, maxRa, maxDec)
+        self._log.info(sql)
+        return self._conn.execute(sql).fetchall()
+
+    def _findNearestImageContaining(self, ra, dec, width, height):
+        '''Use the ra, dec, and box coordinates to find the image with its
+        center nearest ra and dec. It returns the result of the SQL query.
+        '''
+        arcW = _arcsecToDeg(width)/2.0
+        arcH = _arcsecToDeg(height)/2.0
+        minRa = ra - arcW
+        maxRa = ra + arcW
+        minDec = dec - arcH
+        maxDec = dec + arcH
+        cols = [ "ra", "decl" ]
+        for s in self._columns:
+            cols.append(s)
+        dist = "(power((ra - {}),2) + power((decl - {}),2)) as distance".format(ra, dec)
+        #More accurate distance calc on a sphere-if needed
+        #SELECT *, 2 * ASIN(SQRT(POWER(SIN((raA)*pi()/180/2),2)+
+        #  COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
+        # POWER(SIN((decB.lon)*pi()/180/2),2)) as distance
+        # FROM <table> order by distance ;
+        cols.append(dist)
+        col_str = ",".join(cols)
+        sql = ("SELECT {} FROM {} WHERE "
+               "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
+               "order by distance LIMIT 1").format(col_str, self._table, ra, dec)
         self._log.info(sql)
         return self._conn.execute(sql).fetchall()
 
