@@ -53,12 +53,14 @@ from lsst.obs.sdss import sdssMapper
 class W13Db:
     '''Base class for examining DC_W13_Stripe82 data
     '''
-    def __init__(self, credFileName, database, table, columns, dataRoot, logger):
+    def __init__(self, credFileName, database, table, columns, dataRoot, butlerPolicy, butlerKeys, logger):
         self._log = logger
         self._table = table
         self._columns = columns
         self._conn = getEngineFromFile(credFileName, database=database).connect()
         self._dataRoot = dataRoot
+        self._butlerPolicy = butlerPolicy
+        self._butlerKeys = butlerKeys
         sql = "SET time_zone = '+0:00'"
         try:
             self._log.info(sql)
@@ -195,6 +197,8 @@ class W13RawDb(W13Db):
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
                        dataRoot="/datasets/sdss/preprocessed/dr7/runs",
+                       butlerPolicy="fpC",
+                       butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
 
     def _getImageButler(self, qResults):
@@ -234,7 +238,7 @@ class W13CalexpDb(W13RawDb):
     Butler keys: run, camcol, field, filter
     MySQL table: DC_W13_Stripe82.Science_Ccd_Exposure
     Table columns: run, camcol, field, filterName
-    butler.get("raw", run=run, camcol=camcol, field=field, filter=filterName)
+    butler.get("calexp", run=run, camcol=camcol, field=field, filter=filterName)
     '''
     def __init__(self, credFileName, logger=log):
         # @todo The names needed for the data butler need to come from a central location.
@@ -244,6 +248,8 @@ class W13CalexpDb(W13RawDb):
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
                        dataRoot="/datasets/gapon/data/DC_2013/calexps/",
+                       butlerPolicy="calexp",
+                       butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
 
     def _getImageButler(self, qResults):
@@ -254,10 +260,31 @@ class W13CalexpDb(W13RawDb):
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get("calexp", run=run, camcol=camcol,
+            img = butler.get(self._butlerPolicy, run=run, camcol=camcol,
                              field=field, filter=filterName)
             return img, butler
         return None, None
+
+    def getIdsFromRequest(self, request):
+        valid = True
+        ids = {}
+        for key in self._butlerKeys:
+            value = request.args.get(key)
+            if value == None:
+                valid = False
+            try:
+                value = int(value)
+            except:
+                value = str(value)
+            ids[key] = value
+        return ids, valid
+
+    def getImageByIds(self, ids):
+        '''Retrieve and image from the butler by the image id values in the dictionary ids
+        The needed values are specified in butlerKeys.'''
+        butler = lsst.daf.persistence.Butler(self._dataRoot)
+        img = butler.get(self._butlerPolicy, dataId=ids)
+        return img, butler
 
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
@@ -287,6 +314,8 @@ class W13DeepCoaddDb(W13Db):
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
                        dataRoot="/datasets/gapon/data/DC_2013/coadd/",
+                       butlerPolicy="deepCoad",
+                       butlerKeys=["tract","patch","filter"],
                        logger=logger)
 
     def _getImageButler(self, qResults):

@@ -109,21 +109,27 @@ def getIRawCutoutPixel():
 
 
 # this will handle something like:
-# GET /image/v0/calexp?ra=359.195&dec=-0.1055&filter=r
+# GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
 @imageREST.route('/calexp', methods=['GET'])
 def getCalexp():
     return _getIFull(request, W13CalexpDb)
 
+# this will handle something like:
+# GET /image/v0/calexp/ids?run=5646&camcol=4&field=694&filter=g
+@imageREST.route('/calexp/ids', methods=['GET'])
+def getICalexpId():
+    return _getIId(request, W13CalexpDb)
+
 
 # this will handle something like:
-# GET /image/v0/calexp/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
+# GET /image/v0/calexp/cutout?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutout', methods=['GET'])
 def getICalexpCutout():
     return _getICutout(request, W13CalexpDb, 'arcsecond')
 
 
 # this will handle something like:
-# GET /image/v0/calexp/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
+# GET /image/v0/calexp/cutoutPixel?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutoutPixel', methods=['GET'])
 def getICalexpCutoutPixel():
     return _getICutout(request, W13CalexpDb, 'pixel')
@@ -168,6 +174,32 @@ def _getIFull(_request, W13db):
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     imgFull = w13db.getImageFull(ra, dec)
+    if imgFull is None:
+        return _imageNotFound()
+    log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "fullImage.fits")
+    log.info("temporary fileName=%s", fileName)
+    imgFull.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
+
+def _getIId(_request, W13db):
+    ''' Get a full image from the field ids given.
+    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    '''
+    # fetch the image here
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    validIds = False
+    ids = {}
+    ids, validIds = w13db.getIdsFromRequest(_request)
+    log.info("valid={} id {}".format(validIds, ids))
+    if validIds == False:
+        resp = "INVALID_INPUT {}".format(ids)
+        return resp
+    imgFull, butler = w13db.getImageByIds(ids)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
