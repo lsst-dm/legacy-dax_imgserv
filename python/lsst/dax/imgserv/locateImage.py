@@ -68,6 +68,29 @@ class W13Db:
         except SQLAlchemyError as e:
             self._log.error("Db engine error %s" % e)
 
+    def getIdsFromRequest(self, request):
+        '''Returns a dictionary of key value pairs from the request with
+        valid being true if there were entries for everything in _butlerKeys.
+        '''
+        valid = True
+        ids = {}
+        for key in self._butlerKeys:
+            value = request.args.get(key)
+            if value == None:
+                valid = False
+            try:
+                value = int(value)
+            except:
+                value = str(value)
+            ids[key] = value
+        return ids, valid
+
+    def getImageByIds(self, ids):
+        '''Retrieve and image from the butler by the image id values in the dictionary ids
+        The needed values are specified in butlerKeys.'''
+        butler = lsst.daf.persistence.Butler(self._dataRoot)
+        img = butler.get(self._butlerPolicy, dataId=ids)
+        return img, butler
 
     def getImageFull(self, ra, dec, filterName):
         '''Return an image containing ra and dec with filterName (optional)
@@ -271,27 +294,6 @@ class W13CalexpDb(W13RawDb):
                              field=field, filter=filterName)
             return img, butler
         return None, None
-
-    def getIdsFromRequest(self, request):
-        valid = True
-        ids = {}
-        for key in self._butlerKeys:
-            value = request.args.get(key)
-            if value == None:
-                valid = False
-            try:
-                value = int(value)
-            except:
-                value = str(value)
-            ids[key] = value
-        return ids, valid
-
-    def getImageByIds(self, ids):
-        '''Retrieve and image from the butler by the image id values in the dictionary ids
-        The needed values are specified in butlerKeys.'''
-        butler = lsst.daf.persistence.Butler(self._dataRoot)
-        img = butler.get(self._butlerPolicy, dataId=ids)
-        return img, butler
 
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
