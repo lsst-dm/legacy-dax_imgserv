@@ -69,31 +69,33 @@ class W13Db:
             self._log.error("Db engine error %s" % e)
 
 
-    def getImageFull(self, ra, dec):
-        '''Return an image containing ra and dec.
+    def getImageFull(self, ra, dec, filterName):
+        '''Return an image containing ra and dec with filterName (optional)
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        img, metadata = self.getImageFullWithMetadata(ra, dec)
+        print("&&& getImageFull ra={} dec={} filterName={}".format(ra, dec, filterName))
+        img, metadata = self.getImageFullWithMetadata(ra, dec, filterName)
         return img
 
-    def getImageFullWithMetadata(self, ra, dec):
-        '''Return an image containing ra and dec with corresponding metadata.
+    def getImageFullWithMetadata(self, ra, dec, filterName):
+        '''Return an image containing ra, dec, and filterName (optional) with corresponding metadata.
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        res = self._findNearestImageContaining(ra, dec)
+        print("&&& getImageFullWithMetadata ra={} dec={} filterName={}".format(ra, dec, filterName))
+        res = self._findNearestImageContaining(ra, dec, filterName)
         img, butler = self._getImageButler(res)
         metadata = self._getMetadata(butler, res)
         return img, metadata
 
-    def getImage(self, ra, dec, width, height, cutoutType="arcsecond"):
+    def getImage(self, ra, dec, filterName, width, height, cutoutType="arcsecond"):
         '''Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcseconds).
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         Sequence of events:
-         - Use ra, dec, width, and height to find an image from the database.
+         - Use filterName, ra, dec, width, and height to find an image from the database.
          - Use the results of the query to get an image and metadata from the butler.
          - Map ra, dec, width, and height to a box.
          - If a pixel cutout, trim the dimesions to fit in the source image and return.
@@ -109,7 +111,7 @@ class W13Db:
         '''
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
         # Find the nearest image to ra and dec.
-        qresult = self._findNearestImageContaining(ra, dec)
+        qresult = self._findNearestImageContaining(ra, dec, filterName)
         img, butler = self._getImageButler(qresult)
         if img == None:
             # @todo html error handling see DM-1980
@@ -158,10 +160,11 @@ class W13Db:
         imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
         return imgSub
 
-    def _findNearestImageContaining(self, ra, dec):
-        '''Use the ra, dec, and box coordinates to find the image with its
+    def _findNearestImageContaining(self, ra, dec, filterName):
+        '''Use the ra, dec, and filterName (optional) to find the image with its
         center nearest ra and dec. It returns the result of the SQL query.
         '''
+        print("&&& findNearestImageContaining ra={} dec={} filterName={}".format(ra, dec, filterName))
         cols = [ "ra", "decl" ]
         for s in self._columns:
             cols.append(s)
@@ -171,12 +174,16 @@ class W13Db:
         #  COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
         # POWER(SIN((decB.lon)*pi()/180/2),2)) as distance
         # FROM <table> order by distance ;
+        filterSql = ""
+        if filterName:
+            filterSql = "filterName = '{}' AND".format(filterName)
         cols.append(dist)
         col_str = ",".join(cols)
-        sql = ("SELECT {} FROM {} WHERE "
+        sql = ("SELECT {} FROM {} WHERE {} "
                "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
-               "order by distance LIMIT 1").format(col_str, self._table, ra, dec)
+               "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
         self._log.info(sql)
+        print("&&& sql={}".format(sql))
         return self._conn.execute(sql).fetchall()
 
 class W13RawDb(W13Db):
