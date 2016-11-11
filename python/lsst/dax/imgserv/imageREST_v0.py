@@ -163,6 +163,7 @@ def _getIFull(_request, W13db):
     raIn = _request.args.get('ra')
     decIn = _request.args.get('dec')
     filt = _request.args.get('filter')
+    filt = filt.encode('ascii')
 
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, 'irg')
@@ -173,7 +174,7 @@ def _getIFull(_request, W13db):
     log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    imgFull = w13db.getImageFull(ra, dec)
+    imgFull = w13db.getImageFull(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
