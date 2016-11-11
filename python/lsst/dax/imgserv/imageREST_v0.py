@@ -93,6 +93,11 @@ def checkRaDec(raIn, decIn):
 def getRaw():
     return _getIFull(request, W13RawDb)
 
+# this will handle something like:
+# GET /image/v0/raw/ids?run=5646&camcol=4&field=694&filter=g
+@imageREST.route('/raw/ids', methods=['GET'])
+def getIRawIds():
+    return _getIIds(request, W13RawDb)
 
 # this will handle something like:
 # GET /image/v0/raw/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
@@ -117,8 +122,8 @@ def getCalexp():
 # this will handle something like:
 # GET /image/v0/calexp/ids?run=5646&camcol=4&field=694&filter=g
 @imageREST.route('/calexp/ids', methods=['GET'])
-def getICalexpId():
-    return _getIId(request, W13CalexpDb)
+def getICalexpIds():
+    return _getIIds(request, W13CalexpDb)
 
 
 # this will handle something like:
@@ -141,6 +146,11 @@ def getICalexpCutoutPixel():
 def getDeepCoadd():
     return _getIFull(request, W13DeepCoaddDb)
 
+# this will handle something like:
+# GET /image/v0/raw/ids?run=5646&camcol=4&field=694&filter=g
+@imageREST.route('/deepCoadd/ids', methods=['GET'])
+def getIDeepCoaddsIds():
+    return _getIIds(request, W13DeepCoaddDb)
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
@@ -187,7 +197,7 @@ def _getIFull(_request, W13db):
     os.removedirs(tmpPath)
     return resp
 
-def _getIId(_request, W13db):
+def _getIIds(_request, W13db):
     ''' Get a full image from the field ids given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
