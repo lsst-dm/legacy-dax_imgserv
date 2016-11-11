@@ -234,7 +234,7 @@ class W13CalexpDb(W13RawDb):
     this is shown to work, W13CalebDb and W13RawDb should be refactored to have a
     commnon base class and add a field for policy "fpC" or "calexp".
     ----------
-    Repository path: /datasets/gapon/data/DC_2013/calexps/
+    Repository path: /datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps/
     Butler keys: run, camcol, field, filter
     MySQL table: DC_W13_Stripe82.Science_Ccd_Exposure
     Table columns: run, camcol, field, filterName
@@ -247,7 +247,7 @@ class W13CalexpDb(W13RawDb):
                        database="DC_W13_Stripe82",
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/datasets/gapon/data/DC_2013/calexps/",
+                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps/",
                        butlerPolicy="calexp",
                        butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
@@ -300,7 +300,7 @@ class W13DeepCoaddDb(W13Db):
     '''This class is used to connect to the DC_W13_Stripe82 Coadd database.
     Coadd images
     ------------
-    Repository path: /lsst7/releaseW13EP
+    Repository path: "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"
     Butler keys: tract, patch, filter
     MySQL table: DC_W13_Stripe82.DeepCoadd
     Table columns: tract, patch, filterName
@@ -313,7 +313,7 @@ class W13DeepCoaddDb(W13Db):
                        database="DC_W13_Stripe82",
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
-                       dataRoot="/datasets/gapon/data/DC_2013/coadd/",
+                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/",
                        butlerPolicy="deepCoad",
                        butlerKeys=["tract","patch","filter"],
                        logger=logger)
