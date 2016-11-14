@@ -71,6 +71,7 @@ class W13Db:
     def getIdsFromRequest(self, request):
         '''Returns a dictionary of key value pairs from the request with
         valid being true if there were entries for everything in _butlerKeys.
+        This will not work for floating point values.
         '''
         valid = True
         ids = {}
@@ -82,6 +83,34 @@ class W13Db:
                 value = int(value)
             except:
                 value = str(value)
+            ids[key] = value
+        return ids, valid
+
+    def getImageIdsFromScienceId(self, scienceId):
+        '''Returns a dictionary of ids derived from scienceId.
+        The ids match the ids in _butlerKeys and valid is false
+        if at least one of the ids is missing.
+        '''
+        valid = True
+        ids = {}
+        scienceId = int(scienceId)
+        patchY = scienceId%(2**13)
+        patchX = (scienceId//(2*13))%(2*13)
+        possibleFields = {
+            "field" : scienceId % 10000,
+            "camcol" : (scienceId//10000)%10,
+            "filter" : "ugriz"[(scienceId//100000)%10],
+            "run" : scienceId//1000000,
+            "patchY" : patchY,
+            "patchX" : patchX,
+            "tract" : scienceId//(2**26),
+            "patch" : "%d,%d" % (patchX, patchY)
+        }
+
+        for key in self._butlerKeys:
+            value = possibleFields[key]
+            if value == None:
+                valid = false
             ids[key] = value
         return ids, valid
 
@@ -323,7 +352,7 @@ class W13DeepCoaddDb(W13Db):
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
                        dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/",
-                       butlerPolicy="deepCoad",
+                       butlerPolicy="deepCoadd",
                        butlerKeys=["tract","patch","filter"],
                        logger=logger)
 

@@ -100,18 +100,23 @@ def getIRawIds():
     return _getIIds(request, W13RawDb)
 
 # this will handle something like:
+# GET /image/v0/raw/id?id=3325410171
+# Which should translate to run=3325 camcol=1 field=171 filter=z
+@imageREST.route('/raw/id', methods=['GET'])
+def getIRawScienceId():
+    return _getIScienceId(request, W13RawDb)
+
+# this will handle something like:
 # GET /image/v0/raw/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutout', methods=['GET'])
 def getIRawCutout():
     return _getICutout(request, W13RawDb, 'arcsecond')
-
 
 # this will handle something like:
 # GET /image/v0/raw/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutoutPixel', methods=['GET'])
 def getIRawCutoutPixel():
     return _getICutout(request, W13RawDb, 'pixel')
-
 
 # this will handle something like:
 # GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
@@ -125,6 +130,12 @@ def getCalexp():
 def getICalexpIds():
     return _getIIds(request, W13CalexpDb)
 
+# this will handle something like:
+# GET /image/v0/calexp/id?id=3325410171
+# Which should translate to run=3325 camcol=1 field=171 filter=z
+@imageREST.route('/calexp/id', methods=['GET'])
+def getICalexpScienceId():
+    return _getIScienceId(request, W13CalexpDb)
 
 # this will handle something like:
 # GET /image/v0/calexp/cutout?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
@@ -147,10 +158,17 @@ def getDeepCoadd():
     return _getIFull(request, W13DeepCoaddDb)
 
 # this will handle something like:
-# GET /image/v0/raw/ids?run=5646&camcol=4&field=694&filter=g
+# GET /image/v0/deepCoadd/ids?tract= &patch= &filter='r'   &&& need values
 @imageREST.route('/deepCoadd/ids', methods=['GET'])
 def getIDeepCoaddsIds():
     return _getIIds(request, W13DeepCoaddDb)
+
+# this will handle something like:
+# GET /image/v0/deepCoadd/id?id=   &&& need values
+# Which should translate to tract= patch=1 filter=
+@imageREST.route('/deepCoadd/id', methods=['GET'])
+def getIDeepCoaddScienceId():
+    return _getIScienceId(request, W13DeepCoaddDb)
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
@@ -207,7 +225,7 @@ def _getIIds(_request, W13db):
     ids = {}
     ids, validIds = w13db.getIdsFromRequest(_request)
     log.info("valid={} id {}".format(validIds, ids))
-    if validIds == False:
+    if not validIds:
         resp = "INVALID_INPUT {}".format(ids)
         return resp
     imgFull, butler = w13db.getImageByIds(ids)
@@ -223,6 +241,33 @@ def _getIIds(_request, W13db):
     os.removedirs(tmpPath)
     return resp
 
+def _getIScienceId(_request, W13db):
+    ''' Get a full image from the id given.
+    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    '''
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    value = request.args.get("id")
+    if value == None:
+        resp = "INVALID_INPUT value={}".format(value)
+        return resp
+    ids, valid = w13db.getImageIdsFromScienceId(value)
+    log.info("valid={} value={} ids{}".format(valid, value, ids))
+    print("&&& valid={} value={} ids{}".format(valid, value, ids))
+    if not valid:
+        resp = "INVALID_INPUT value={} {}".format(value, ids)
+        return resp
+    imgFull, butler = w13db.getImageByIds(ids)
+    if imgFull is None:
+        return _imageNotFound()
+    log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "fullImage.fits")
+    log.info("temporary fileName=%s", fileName)
+    imgFull.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
 
 def _getICutout(_request, W13db, units):
     '''Get a raw image from based on imput parameters.
@@ -305,7 +350,8 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     if not source:
         # Use a default
         source = current_app.config["dax.imgserv.default_source"]
-        source = "/datasets/gapon/data/DC_2013/coadd" #&&&
+        # source = "/datasets/gapon/data/DC_2013/coadd" #&&&
+        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/" #&&&
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
