@@ -68,6 +68,11 @@ class W13Db:
         except SQLAlchemyError as e:
             self._log.error("Db engine error %s" % e)
 
+    def getMdPolicy(self):
+        '''Return the butler policy name to retrieve metadata
+        '''
+        return self._butlerPolicy + "_md"
+
     def getIdsFromRequest(self, request):
         '''Returns a dictionary of key value pairs from the request with
         valid being true if there were entries for everything in _butlerKeys.
@@ -94,17 +99,11 @@ class W13Db:
         valid = True
         ids = {}
         scienceId = int(scienceId)
-        patchY = scienceId%(2**13)
-        patchX = (scienceId//(2*13))%(2*13)
         possibleFields = {
             "field" : scienceId % 10000,
             "camcol" : (scienceId//10000)%10,
             "filter" : "ugriz"[(scienceId//100000)%10],
             "run" : scienceId//1000000,
-            "patchY" : patchY,
-            "patchX" : patchX,
-            "tract" : scienceId//(2**26),
-            "patch" : "%d,%d" % (patchX, patchY)
         }
 
         for key in self._butlerKeys:
@@ -126,20 +125,20 @@ class W13Db:
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        print("&&& getImageFull ra={} dec={} filterName={}".format(ra, dec, filterName))
         img, metadata = self.getImageFullWithMetadata(ra, dec, filterName)
         return img
+
 
     def getImageFullWithMetadata(self, ra, dec, filterName):
         '''Return an image containing ra, dec, and filterName (optional) with corresponding metadata.
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         '''
-        print("&&& getImageFullWithMetadata ra={} dec={} filterName={}".format(ra, dec, filterName))
         res = self._findNearestImageContaining(ra, dec, filterName)
         img, butler = self._getImageButler(res)
         metadata = self._getMetadata(butler, res)
         return img, metadata
+
 
     def getImage(self, ra, dec, filterName, width, height, cutoutType="arcsecond"):
         '''Return an image centered on ra and dec (in degrees) with dimensions
@@ -152,7 +151,7 @@ class W13Db:
          - Map ra, dec, width, and height to a box.
          - If a pixel cutout, trim the dimesions to fit in the source image and return.
          -     and return the cutout.
-         - Otherwise, the height and width are inarcseconds.
+         - Otherwise, the height and width are in arcseconds.
          - Determine approximate pixels per arcsecond in the image by
              calculating the length of line from the upper right corner of
              the image to the lower left corner in pixels and arcseconds.
@@ -212,11 +211,11 @@ class W13Db:
         imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
         return imgSub
 
+
     def _findNearestImageContaining(self, ra, dec, filterName):
         '''Use the ra, dec, and filterName (optional) to find the image with its
         center nearest ra and dec. It returns the result of the SQL query.
         '''
-        print("&&& findNearestImageContaining ra={} dec={} filterName={}".format(ra, dec, filterName))
         cols = [ "ra", "decl" ]
         for s in self._columns:
             cols.append(s)
@@ -235,14 +234,15 @@ class W13Db:
                "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
         self._log.info(sql)
-        print("&&& sql={}".format(sql))
+        log.info("findNearest sql={}".format(sql))
         return self._conn.execute(sql).fetchall()
+
 
 class W13RawDb(W13Db):
     '''This class is used to connect to the DC_W13_Stripe82 Raw database.
     Raw images
     ----------
-    Repository path: /lsst7/stripe82/dr7/runs
+    Repository path: /datasets/sdss/preprocessed/dr7/runs
     Butler keys: run, camcol, field, filter
     MySQL table: DC_W13_Stripe82.Science_Ccd_Exposure
     Table columns: run, camcol, field, filterName
@@ -265,17 +265,13 @@ class W13RawDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        print("&&& Raw_getImageButler qResults:{}".format(len(qResults)))
+        log.debug("Raw_getImageButler qResults:{}".format(qResults))
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
-            print("&&& Raw_getImageButler getting butler")
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            print("&&&  Raw_getImageButler getting image")
-            img = butler.get("fpC", run=run, camcol=camcol,
+            img = butler.get(self._butlerPolicy, run=run, camcol=camcol,
                              field=field, filter=filterName)
-            print("&&& Raw_getImageButler img={} butler={}".format(img, butler))
             return img, butler
-        print("&&& Raw_getImageButler None, None")
         return None, None
 
     def _getMetadata(self, butler, qResults):
@@ -283,7 +279,7 @@ class W13RawDb(W13Db):
         '''
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
-            return butler.get("fpC_md", run=run, camcol=camcol,
+            return butler.get(self.getMdPolicy(), run=run, camcol=camcol,
                               field=field, filter=filterName)
 
 
@@ -329,7 +325,7 @@ class W13CalexpDb(W13RawDb):
         '''
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
-            return butler.get("calexp_md", run=run, camcol=camcol,
+            return butler.get(self.getMdPolicy(), run=run, camcol=camcol,
                               field=field, filter=filterName)
 
 
@@ -356,23 +352,44 @@ class W13DeepCoaddDb(W13Db):
                        butlerKeys=["tract","patch","filter"],
                        logger=logger)
 
+    def getImageIdsFromScienceId(self, scienceId):
+        '''Returns a dictionary of ids derived from scienceId.
+        The ids match the ids in _butlerKeys and valid is false
+        if at least one of the ids is missing.
+        '''
+        valid = True
+        ids = {}
+        scienceId = int(scienceId)
+        patchY = (scienceId//8)%(2**13)
+        patchX = (scienceId//(2**16))%(2**13)
+        possibleFields = {
+            "filter" : "ugriz"[scienceId%8],
+            "tract" : scienceId//(2**29),
+            "patch" : "%d,%d" % (patchX, patchY)
+        }
+
+        for key in self._butlerKeys:
+            value = possibleFields[key]
+            if value == None:
+                valid = false
+            ids[key] = value
+        return ids, valid
+
     def _getImageButler(self, qResults):
         '''Retrieve the image and butler for this image type using the query results in 'qResults'
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        print("&&& deepCoadd_getImageButler qResults:{}".format(len(qResults)))
+        log.debug("deepCoadd _getImageButler qResults:{}".format(qResults))
         for ln in qResults:
             tract = ln[2]
             patch = ln[3]
             filterName = ln[4]
-            print("&&& deepCoad_getImageButler getting butler tract={} patch={} filterName={}".format(tract, patch, filterName))
+            log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
+                      tract, patch, filterName))
             butler=lsst.daf.persistence.Butler(self._dataRoot)
-            print("&&&  deepCoad_getImageButler getting image")
-            img = butler.get("deepCoadd", tract=tract, patch=patch, filter=filterName)
-            print("&&& deepCoadd_getImageButler img={} butler={}".format(img, butler))
+            img = butler.get(self._butlerPolicy, tract=tract, patch=patch, filter=filterName)
             return img, butler
-        print("&&& deepCoad_getImageButler None, None")
         return None, None
 
     def _getMetadata(self, butler, qResults):
@@ -382,7 +399,7 @@ class W13DeepCoaddDb(W13Db):
             tract = ln[2]
             patch = ln[3]
             filterName = ln[4]
-            metadata = butler.get("deepCoadd_md", tract=tract, patch=patch, filter=filterName)
+            metadata = butler.get(self.getMdPolicy(), tract=tract, patch=patch, filter=filterName)
             return metadata
 
 def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
