@@ -51,36 +51,24 @@ def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
     @patchType: patch type for butler to retrieve, such as "deepCoadd"
     '''
     # Get the basic SkyMap information
-    print("&&& getSkyMap source=" + source)
     butler = lsst.daf.persistence.Butler(source)
-    print("&&& butler")
     skyMap = butler.get(mapType)
-    print("&&& skymap")
     trInfo = skyMap.findTract(ctrCoord)
-    print("&&& trInfo")
     destWcs = trInfo.getWcs()
-    print("&&& destWcs")
     # Determine target area.
     if (units != 'arcsecond' and units != 'pixel'):
         units = 'pixel'
-    print("&&& units=" + units)
     destBBox = getBBoxForCoords(destWcs, ctrCoord, width, height, units)
-    print("&&& destBBox={}".format(destBBox))
     destCornerCoords = [destWcs.pixelToSky(pixPos) for pixPos in  afwGeom.Box2D(destBBox).getCorners()]
-    print("&&& destCornerCoords={}".format(destCornerCoords))
     # Collect patches of the SkyMap that are in the target region. Create source exposures from
     # the patches within each tract as all patches from a tract share a WCS.
     srcExposureList = []
     tractPatchList = skyMap.findTractPatchList(destCornerCoords)
-    print("&&& tractPatchList")
     for j, tractPatch in enumerate(tractPatchList):
-        print("&&& tractPatchList 1")
         tractInfo = tractPatch[0]
         patchList = tractPatch[1]
         log.info("tractInfo[{}]={}".format(j, tractInfo))
-        print("&&& tractInfo[{}]={}".format(j, tractInfo))
         log.info("patchList[{}]={}".format(j, patchList))
-        print("&&& patchList[{}]={}".format(j, patchList))
         srcWcs = tractInfo.getWcs()
         srcBBox = afwGeom.Box2I()
         for patchInfo in patchList:
@@ -90,30 +78,17 @@ def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
 
         # load srcExposures with patches
         tractId = tractInfo.getId()
-        print("&&& tractPatchList 2")
         for patchInfo in patchList:
             patchIndex = patchInfo.getIndex()
             pInd = ','.join(str(i) for i in patchIndex)
             log.info("butler.get dataId=filter:{}, tract:{}, patch:{}".format(filt, tractId, pInd))
-            print("&&& butler.get dataId=filter:{}, tract:{}, patch:{}".format(filt, tractId, pInd))
             patchExposure = butler.get("deepCoadd", dataId={"filter": filt, "tract": tractId, "patch": pInd})
-            print("&&& getting ExposureF={}".format(srcExposure))
-            print("&&& blah a")
-            print("&&& patchExposure={}".format(patchExposure))
-            print("&&& blah b")
-            print("&&& patchExposure.getBBox={}".format(patchExposure.getBBox()))
-            print("&&& blah c")
             srcView = afwImage.ExposureF(srcExposure, patchExposure.getBBox())
-            print("&&& got srcView")
             srcViewImg = srcView.getMaskedImage()
-            print("&&& got srcViewImg")
             patchImg = patchExposure.getMaskedImage()
-            print("&&& got patchImg")
             srcViewImg[:] = patchImg
-            print("&&& sliced")
 
     # Copy the pixels from the source exposures to the destination exposures.
-    print("&&& destExposureList")
     destExposureList = []
     for j, srcExpo in enumerate(srcExposureList):
         sImg = srcExpo.getMaskedImage()
@@ -137,7 +112,6 @@ def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
                 log.warn("getSkyMap negative Y for urCorner");
             dBBox = afwGeom.Box2I(llCorner, urCorner)
         log.info("j={} dBBox={} sBBox={}".format(j, dBBox, srcExpo.getBBox()))
-        print("&&& j={} dBBox={} sBBox={}".format(j, dBBox, srcExpo.getBBox()))
         dExpo = afwImage.ExposureF(dBBox, srcWcs)
         dImg = dExpo.getMaskedImage()
         beginX = dBBox.getBeginX() - sImg.getX0()
@@ -159,10 +133,7 @@ def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
             endY = sImgLenY
 
         log.debug("beginX={} endX={}".format(beginX, endX))
-        print("&&& beginX={} endX={}".format(beginX, endX))
         log.debug("newWidth{} = sBBox.EndX{} - sBBox.BeginX{}".format(
-            newWidth, srcExpo.getBBox().getEndX(), dBBox.getBeginX()))
-        print("&&& newWidth{} = sBBox.EndX{} - sBBox.BeginX{}".format(
             newWidth, srcExpo.getBBox().getEndX(), dBBox.getBeginX()))
         log.debug("beginY={} endY={}".format(beginY, endY))
         log.debug("newHeight{} = sBBox.EndY{} - sBBox.BeginY{}".format(
@@ -176,11 +147,9 @@ def getSkyMap(ctrCoord, width, height, filt, units, source, mapType, patchType):
 
     # Need to stitch together the multiple destination exposures.
     log.debug("getSkyMap stitching together multiple destExposures")
-    print("&&& getSkyMap stitching together multiple destExposures")
     warperConfig = afwMath.WarperConfig()
     warper = afwMath.Warper.fromConfig(warperConfig)
     stitchedExpo = stitchExposuresGoodPixelCopy(destWcs, destBBox, destExposureList, warper)
-    print("&&& getSkyMap end")
     return stitchedExpo
 
 

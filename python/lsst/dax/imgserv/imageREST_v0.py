@@ -158,13 +158,13 @@ def getDeepCoadd():
     return _getIFull(request, W13DeepCoaddDb)
 
 # this will handle something like:
-# GET /image/v0/deepCoadd/ids?tract= &patch= &filter='r'   &&& need values
+# GET /image/v0/deepCoadd/ids?tract=0&patch=225,1&filter='i'
 @imageREST.route('/deepCoadd/ids', methods=['GET'])
 def getIDeepCoaddsIds():
     return _getIIds(request, W13DeepCoaddDb)
 
 # this will handle something like:
-# GET /image/v0/deepCoadd/id?id=   &&& need values
+# GET /image/v0/deepCoadd/id?id=23986176
 # Which should translate to tract= patch=1 filter=
 @imageREST.route('/deepCoadd/id', methods=['GET'])
 def getIDeepCoaddScienceId():
@@ -252,7 +252,7 @@ def _getIScienceId(_request, W13db):
         return resp
     ids, valid = w13db.getImageIdsFromScienceId(value)
     log.info("valid={} value={} ids{}".format(valid, value, ids))
-    print("&&& valid={} value={} ids{}".format(valid, value, ids))
+    print("valid={} value={} ids{}".format(valid, value, ids))
     if not valid:
         resp = "INVALID_INPUT value={} {}".format(value, ids)
         return resp
@@ -291,13 +291,12 @@ def _getICutout(_request, W13db, units):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
-    print("&&& raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
+    print("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
 
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     img = w13db.getImage(ra, dec, width, height, units)
-    print("&&& img={}".format(img))
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -350,13 +349,11 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     if not source:
         # Use a default
         source = current_app.config["dax.imgserv.default_source"]
-        # source = "/datasets/gapon/data/DC_2013/coadd" #&&&
-        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/" #&&&
+        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/" #TODO
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
-    print("&&& Using filesystem source: " + source)
 
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
@@ -380,8 +377,6 @@ def _getISkyMapDeepCoaddCutout(_request, units):
         msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
-            ra, dec, filt, width, height))
-    print("&&& skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
     # fetch the image here
     raA = afwGeom.Angle(ra, afwGeom.degrees)
