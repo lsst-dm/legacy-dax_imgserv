@@ -291,8 +291,6 @@ def _getICutout(_request, W13db, units):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
             ra, dec, filt, width, height))
-    print("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
-            ra, dec, filt, width, height))
 
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
