@@ -59,7 +59,7 @@ class W13Db:
         self._columns = columns
         self._conn = getEngineFromFile(credFileName, database=database).connect()
         self._dataRoot = dataRoot
-        self._butlerPolicy = butlerPolicy
+        self._imageDatasetType = butlerPolicy
         self._butlerKeys = butlerKeys
         sql = "SET time_zone = '+0:00'"
         try:
@@ -68,10 +68,10 @@ class W13Db:
         except SQLAlchemyError as e:
             self._log.error("Db engine error %s" % e)
 
-    def getMdPolicy(self):
+    def getImageDatasetMd(self):
         '''Return the butler policy name to retrieve metadata
         '''
-        return self._butlerPolicy + "_md"
+        return self._imageDatasetType + "_md"
 
     def getIdsFromRequest(self, request):
         '''Returns a dictionary of key value pairs from the request with
@@ -117,7 +117,7 @@ class W13Db:
         '''Retrieve and image from the butler by the image id values in the dictionary ids
         The needed values are specified in butlerKeys.'''
         butler = lsst.daf.persistence.Butler(self._dataRoot)
-        img = butler.get(self._butlerPolicy, dataId=ids)
+        img = butler.get(self._imageDatasetType, dataId=ids)
         return img, butler
 
     def getImageFull(self, ra, dec, filterName):
@@ -269,7 +269,7 @@ class W13RawDb(W13Db):
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._butlerPolicy, run=run, camcol=camcol,
+            img = butler.get(self._imageDatasetType, run=run, camcol=camcol,
                              field=field, filter=filterName)
             return img, butler
         return None, None
@@ -279,7 +279,7 @@ class W13RawDb(W13Db):
         '''
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
-            return butler.get(self.getMdPolicy(), run=run, camcol=camcol,
+            return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
                               field=field, filter=filterName)
 
 
@@ -302,7 +302,7 @@ class W13CalexpDb(W13RawDb):
                        database="DC_W13_Stripe82",
                        table="Science_Ccd_Exposure",
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps/",
+                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps",
                        butlerPolicy="calexp",
                        butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
@@ -315,7 +315,7 @@ class W13CalexpDb(W13RawDb):
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._butlerPolicy, run=run, camcol=camcol,
+            img = butler.get(self._imageDatasetType, run=run, camcol=camcol,
                              field=field, filter=filterName)
             return img, butler
         return None, None
@@ -325,7 +325,7 @@ class W13CalexpDb(W13RawDb):
         '''
         for ln in qResults:
             run, camcol, field, filterName = ln[2:6]
-            return butler.get(self.getMdPolicy(), run=run, camcol=camcol,
+            return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
                               field=field, filter=filterName)
 
 
@@ -334,7 +334,7 @@ class W13DeepCoaddDb(W13Db):
     '''This class is used to connect to the DC_W13_Stripe82 Coadd database.
     Coadd images
     ------------
-    Repository path: "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"
+    Repository path: "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd"
     Butler keys: tract, patch, filter
     MySQL table: DC_W13_Stripe82.DeepCoadd
     Table columns: tract, patch, filterName
@@ -347,7 +347,7 @@ class W13DeepCoaddDb(W13Db):
                        database="DC_W13_Stripe82",
                        table="DeepCoadd",
                        columns=["tract", "patch", "filterName"],
-                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/",
+                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd",
                        butlerPolicy="deepCoadd",
                        butlerKeys=["tract","patch","filter"],
                        logger=logger)
@@ -388,7 +388,7 @@ class W13DeepCoaddDb(W13Db):
             log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
                       tract, patch, filterName))
             butler=lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._butlerPolicy, tract=tract, patch=patch, filter=filterName)
+            img = butler.get(self._imageDatasetType, tract=tract, patch=patch, filter=filterName)
             return img, butler
         return None, None
 
@@ -399,7 +399,7 @@ class W13DeepCoaddDb(W13Db):
             tract = ln[2]
             patch = ln[3]
             filterName = ln[4]
-            metadata = butler.get(self.getMdPolicy(), tract=tract, patch=patch, filter=filterName)
+            metadata = butler.get(self.getImageDatasetMd(), tract=tract, patch=patch, filter=filterName)
             return metadata
 
 def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):

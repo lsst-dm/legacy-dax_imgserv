@@ -48,7 +48,7 @@ def _getSubImg(imgSrc, box):
 
 def stitchTestDeepCoadd():
     w13Db = dbOpen("~/.mysqlAuthLSST.lsst10", W13DeepCoaddDb)
-    fullImg, metaFull = w13Db.getImageFullWithMetadata(19.36995, -0.3146, "")
+    fullImg, metaFull = w13Db.getImageFullWithMetadata(19.36995, -0.3146, 'r')
     if fullImg == None:
         print "No image found"
         exit()
