@@ -35,7 +35,7 @@ def testDefault():
     #  host = lsst10.ncsa.illinois.edu
     #  port = 3306
     #  password = <password>
-    imgFull = w13Raw.getImageFull(359.195, -0.1055)
+    imgFull = w13Raw.getImageFull(359.195, -0.1055, 'r')
     print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
     print "Writing imgFull.fits", imgFull
     imgFull.writeFits("imgFull.fits")
@@ -51,7 +51,7 @@ def test(argv):
     dec = float(argv[2])
     w = float(argv[3])
     h = float(argv[4])
-    imgFull = w13Raw.getImageFull(ra, dec)
+    imgFull = w13Raw.getImageFull(ra, dec, 'r')
     print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
     print "Writing imgFull.fits", imgFull
     imgFull.writeFits("imgFull.fits")

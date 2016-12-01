@@ -37,7 +37,7 @@ import lsst.afw.geom as afwGeom
 import lsst.log as log
 
 from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR
-from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb
+from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
@@ -93,6 +93,18 @@ def checkRaDec(raIn, decIn):
 def getRaw():
     return _getIFull(request, W13RawDb)
 
+# this will handle something like:
+# GET /image/v0/raw/ids?run=5646&camcol=4&field=694&filter=g
+@imageREST.route('/raw/ids', methods=['GET'])
+def getIRawIds():
+    return _getIIds(request, W13RawDb)
+
+# this will handle something like:
+# GET /image/v0/raw/id?id=3325410171
+# Which should translate to run=3325 camcol=1 field=171 filter=z
+@imageREST.route('/raw/id', methods=['GET'])
+def getIRawScienceId():
+    return _getIScienceId(request, W13RawDb)
 
 # this will handle something like:
 # GET /image/v0/raw/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
@@ -100,12 +112,43 @@ def getRaw():
 def getIRawCutout():
     return _getICutout(request, W13RawDb, 'arcsecond')
 
-
 # this will handle something like:
 # GET /image/v0/raw/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutoutPixel', methods=['GET'])
 def getIRawCutoutPixel():
     return _getICutout(request, W13RawDb, 'pixel')
+
+# this will handle something like:
+# GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
+@imageREST.route('/calexp', methods=['GET'])
+def getCalexp():
+    return _getIFull(request, W13CalexpDb)
+
+# this will handle something like:
+# GET /image/v0/calexp/ids?run=5646&camcol=4&field=694&filter=g
+@imageREST.route('/calexp/ids', methods=['GET'])
+def getICalexpIds():
+    return _getIIds(request, W13CalexpDb)
+
+# this will handle something like:
+# GET /image/v0/calexp/id?id=3325410171
+# Which should translate to run=3325 camcol=1 field=171 filter=z
+@imageREST.route('/calexp/id', methods=['GET'])
+def getICalexpScienceId():
+    return _getIScienceId(request, W13CalexpDb)
+
+# this will handle something like:
+# GET /image/v0/calexp/cutout?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
+@imageREST.route('/calexp/cutout', methods=['GET'])
+def getICalexpCutout():
+    return _getICutout(request, W13CalexpDb, 'arcsecond')
+
+
+# this will handle something like:
+# GET /image/v0/calexp/cutoutPixel?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
+@imageREST.route('/calexp/cutoutPixel', methods=['GET'])
+def getICalexpCutoutPixel():
+    return _getICutout(request, W13CalexpDb, 'pixel')
 
 
 # this will handle something like:
@@ -114,6 +157,18 @@ def getIRawCutoutPixel():
 def getDeepCoadd():
     return _getIFull(request, W13DeepCoaddDb)
 
+# this will handle something like:
+# GET /image/v0/deepCoadd/ids?tract=0&patch=225,1&filter='i'
+@imageREST.route('/deepCoadd/ids', methods=['GET'])
+def getIDeepCoaddsIds():
+    return _getIIds(request, W13DeepCoaddDb)
+
+# this will handle something like:
+# GET /image/v0/deepCoadd/id?id=23986176
+# Which should translate to tract= patch=1 filter=
+@imageREST.route('/deepCoadd/id', methods=['GET'])
+def getIDeepCoaddScienceId():
+    return _getIScienceId(request, W13DeepCoaddDb)
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
@@ -136,6 +191,7 @@ def _getIFull(_request, W13db):
     raIn = _request.args.get('ra')
     decIn = _request.args.get('dec')
     filt = _request.args.get('filter')
+    filt = filt.encode('ascii')
 
     # check inputs
     valid, ra, dec, filt, msg = checkRaDecFilter(raIn, decIn, filt, 'irg')
@@ -146,7 +202,7 @@ def _getIFull(_request, W13db):
     log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    imgFull = w13db.getImageFull(ra, dec)
+    imgFull = w13db.getImageFull(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -154,12 +210,64 @@ def _getIFull(_request, W13db):
     fileName = os.path.join(tmpPath, "fullImage.fits")
     log.info("temporary fileName=%s", fileName)
     imgFull.writeFits(fileName)
-    w13db.closeConnection()
     resp = responseFile(fileName)
     os.remove(fileName)
     os.removedirs(tmpPath)
     return resp
 
+def _getIIds(_request, W13db):
+    ''' Get a full image from the field ids given.
+    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    '''
+    # fetch the image here
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    validIds = False
+    ids = {}
+    ids, validIds = w13db.getIdsFromRequest(_request)
+    log.info("valid={} id {}".format(validIds, ids))
+    if not validIds:
+        resp = "INVALID_INPUT {}".format(ids)
+        return resp
+    imgFull, butler = w13db.getImageByIds(ids)
+    if imgFull is None:
+        return _imageNotFound()
+    log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "fullImage.fits")
+    log.info("temporary fileName=%s", fileName)
+    imgFull.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
+
+def _getIScienceId(_request, W13db):
+    ''' Get a full image from the id given.
+    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    '''
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    value = request.args.get("id")
+    if value == None:
+        resp = "INVALID_INPUT value={}".format(value)
+        return resp
+    ids, valid = w13db.getImageIdsFromScienceId(value)
+    log.info("valid={} value={} ids{}".format(valid, value, ids))
+    print("valid={} value={} ids{}".format(valid, value, ids))
+    if not valid:
+        resp = "INVALID_INPUT value={} {}".format(value, ids)
+        return resp
+    imgFull, butler = w13db.getImageByIds(ids)
+    if imgFull is None:
+        return _imageNotFound()
+    log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "fullImage.fits")
+    log.info("temporary fileName=%s", fileName)
+    imgFull.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
 
 def _getICutout(_request, W13db, units):
     '''Get a raw image from based on imput parameters.
@@ -194,7 +302,6 @@ def _getICutout(_request, W13db, units):
     fileName = os.path.join(tmpPath, "cutout.fits")
     log.info("temporary fileName=%s", fileName)
     img.writeFits(fileName)
-    w13db.closeConnection()
     resp = responseFile(fileName)
     os.remove(fileName)
     os.removedirs(tmpPath)
@@ -240,6 +347,7 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     if not source:
         # Use a default
         source = current_app.config["dax.imgserv.default_source"]
+        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/" #TODO
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
