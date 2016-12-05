@@ -1,7 +1,6 @@
 setupRequired(afw)
 setupRequired(base)
 setupRequired(boost)
-setupRequired(cat)
 setupRequired(daf_base)
 setupRequired(db)
 setupRequired(doxygen)
