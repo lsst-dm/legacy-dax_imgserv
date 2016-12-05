@@ -34,8 +34,6 @@ from lsst.dax.imgserv.MetadataFitsDb import isFits
 from lsst.dax.imgserv.MetadataFitsDb import isFitsExt
 from lsst.dax.imgserv.MetadataFitsDb import MetadataFitsDb
 
-from lsst.cat.dbSetup import DbSetup
-from lsst.db.testHelper import readCredentialFile
 import lsst.log as log
 
 
