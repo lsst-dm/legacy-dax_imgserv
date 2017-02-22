@@ -21,13 +21,13 @@
 #
 #
 # This code is used to to select an image or a cutout of an image
-# that has its center closest to the specified RA and Dec. The 
+# that has its center closest to the specified RA and Dec. The
 # image is retrieved using the Data Butler.
 
 '''
 This module is used to locate and retrieve variolus image types.
 
-@author: John Gates, SLAC
+@author: John Gates, SLAC; Kenny Lo, SLAC
 '''
 
 import gzip
@@ -82,7 +82,7 @@ class W13Db:
         ids = {}
         for key in self._butlerKeys:
             value = request.args.get(key)
-            if value == None:
+            if value is None:
                 valid = False
             try:
                 value = int(value)
@@ -100,16 +100,16 @@ class W13Db:
         ids = {}
         scienceId = int(scienceId)
         possibleFields = {
-            "field" : scienceId % 10000,
-            "camcol" : (scienceId//10000)%10,
-            "filter" : "ugriz"[(scienceId//100000)%10],
-            "run" : scienceId//1000000,
+            "field": scienceId % 10000,
+            "camcol": (scienceId//10000)%10,
+            "filter": "ugriz"[(scienceId//100000)%10],
+            "run": scienceId//1000000,
         }
 
         for key in self._butlerKeys:
             value = possibleFields[key]
-            if value == None:
-                valid = false
+            if value is None:
+                valid = False
             ids[key] = value
         return ids, valid
 
@@ -128,7 +128,6 @@ class W13Db:
         img, metadata = self.getImageFullWithMetadata(ra, dec, filterName)
         return img
 
-
     def getImageFullWithMetadata(self, ra, dec, filterName):
         '''Return an image containing ra, dec, and filterName (optional) with corresponding metadata.
         Returns None if no image is found.
@@ -139,40 +138,46 @@ class W13Db:
         metadata = self._getMetadata(butler, res)
         return img, metadata
 
-
     def getImage(self, ra, dec, filterName, width, height, cutoutType="arcsecond"):
+        '''Return an image centered on ra and dec (in degrees) with dimensions
+        height and width (in arcseconds).
+        - Use filterName, ra, dec, width, and height to find an image from the database.
+        '''
+         # Find the nearest image to ra and dec.
+        self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
+        qresult = self._findNearestImageContaining(ra, dec, filterName)
+        return self.getImageByDataId(ra, dec, width, height, qresult, cutoutType)
+
+    def getImageByDataId(self, ra, dec, width, height, qResults, cutoutType="arcsecond"):
         '''Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcseconds).
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
         Sequence of events:
-         - Use filterName, ra, dec, width, and height to find an image from the database.
-         - Use the results of the query to get an image and metadata from the butler.
-         - Map ra, dec, width, and height to a box.
-         - If a pixel cutout, trim the dimesions to fit in the source image and return.
-         -     and return the cutout.
-         - Otherwise, the height and width are in arcseconds.
-         - Determine approximate pixels per arcsecond in the image by
+        - dataId is the image id for the butler
+        - Use the results of the query to get an image and metadata from the butler.
+        - Map ra, dec, width, and height to a box.
+        - If a pixel cutout, trim the dimesions to fit in the source image and return.
+        -     and return the cutout.
+        - Otherwise, the height and width are in arcseconds.
+        - Determine approximate pixels per arcsecond in the image by
              calculating the length of line from the upper right corner of
              the image to the lower left corner in pixels and arcseconds.
              (This will fail at or very near the pole.)
-         - Use that to define a box for the cutout.
-         - Trim the box so it is entirely within the source image.
-         - Make and return the cutout.
+        - Use that to define a box for the cutout.
+        - Trim the box so it is entirely within the source image.
+        - Make and return the cutout.
         '''
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
-        # Find the nearest image to ra and dec.
-        qresult = self._findNearestImageContaining(ra, dec, filterName)
-        img, butler = self._getImageButler(qresult)
-        if img == None:
+        img, butler = self._getImageButler(qResults)
+        if img is None:
             # @todo html error handling see DM-1980
             return None
         imgW = img.getWidth()
         imgH = img.getHeight()
         self._log.debug("imgW=%d imgH=%d", imgW, imgH)
-
         # Get the metadata for the source image.
-        metadata = self._getMetadata(butler, qresult)
+        metadata = self._getMetadata(butler, qResults)
         wcs = lsst.afw.image.makeWcs(metadata, False)
         raDec = afwCoord.makeCoord(afwCoord.ICRS,
                                    ra * afwGeom.degrees,
@@ -184,7 +189,6 @@ class W13Db:
         if cutoutType == 'pixel':
             imgSub = _cutoutBoxPixels(img, xyCenter, width, height, self._log)
             return imgSub
-
         self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, dec,
                        xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter.getX(), xyCenter.getY())
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
@@ -196,8 +200,8 @@ class W13Db:
         # length of a line from upper left (UL) to lower right (LR)
         decDist = raDecUL[1].asArcseconds() - raDecLR[1].asArcseconds()
         raLR = _keepWithin180(raDecUL[0].asDegrees(), raDecLR[0].asDegrees())
-        raLR *= 3600.0 # convert degrees to arcseconds
-        #Correct distance in RA for the declination
+        raLR *= 3600.0  # convert degrees to arcseconds
+        # Correct distance in RA for the declination
         cosDec = math.cos(dec*afwGeom.degrees)
         raDist = cosDec * (raDecUL[0].asArcseconds() - raLR)
         raDecDist = math.sqrt(math.pow(decDist, 2.0) + math.pow(raDist, 2.0))
@@ -211,18 +215,17 @@ class W13Db:
         imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
         return imgSub
 
-
     def _findNearestImageContaining(self, ra, dec, filterName):
         '''Use the ra, dec, and filterName (optional) to find the image with its
         center nearest ra and dec. It returns the result of the SQL query.
         '''
-        cols = [ "ra", "decl" ]
+        cols = ["ra", "decl"]
         for s in self._columns:
             cols.append(s)
         dist = "(power((ra - {}),2) + power((decl - {}),2)) as distance".format(ra, dec)
-        #More accurate distance calc on a sphere-if needed
-        #SELECT *, 2 * ASIN(SQRT(POWER(SIN((raA)*pi()/180/2),2)+
-        #  COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
+        # More accurate distance calc on a sphere-if needed
+        # SELECT *, 2 * ASIN(SQRT(POWER(SIN((raA)*pi()/180/2),2)+
+        # COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
         # POWER(SIN((decB.lon)*pi()/180/2),2)) as distance
         # FROM <table> order by distance ;
         filterSql = ""
@@ -270,7 +273,7 @@ class W13RawDb(W13Db):
             run, camcol, field, filterName = ln[2:6]
             butler = lsst.daf.persistence.Butler(self._dataRoot)
             img = butler.get(self._imageDatasetType, run=run, camcol=camcol,
-                             field=field, filter=filterName)
+                    field=field, filter=filterName)
             return img, butler
         return None, None
 
@@ -285,7 +288,7 @@ class W13RawDb(W13Db):
 
 class W13CalexpDb(W13RawDb):
     '''This class is used to connect to the DC_W13_Stripe82 Calibration Exposures.
-    Calibration Exposures look to be very similar to retrieving Raw exposres. Once 
+    Calibration Exposures look to be very similar to retrieving Raw exposres. Once
     this is shown to work, W13CalebDb and W13RawDb should be refactored to have a
     commnon base class and add a field for policy "fpC" or "calexp".
     ----------
@@ -312,22 +315,39 @@ class W13CalexpDb(W13RawDb):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        for ln in qResults:
-            run, camcol, field, filterName = ln[2:6]
+        log.debug("Calexp_getImageButler qResults:{}".format(qResults))
+        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
+        if valid is True:
+            log.debug("Calexp_getImageButler run={} camcol={} field={} filter={}".format(run, 
+                camcol, field, filterName))
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._imageDatasetType, run=run, camcol=camcol,
-                             field=field, filter=filterName)
+            img = butler.get(self._imageDatasetType, run=run, camcol=camcol, field=field, filter=filterName)
             return img, butler
-        return None, None
-
+        else:
+            return None, None
+    
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
         '''
-        for ln in qResults:
-            run, camcol, field, filterName = ln[2:6]
-            return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
-                              field=field, filter=filterName)
+        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
+        return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol, 
+                field=field, filter=filterName)
 
+
+    def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
+        ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
+        Units (or cutoutType): "arcsecond", "pixel"
+        '''
+        # Get the corresponding image(data) id from the butler
+        dataId, valid = self.getImageIdsFromScienceId(scienceId)
+        log.debug("Calexp_getImageCutoutFromScienceId dataId:{}".format(dataId))
+        if valid is True:
+            # make id compatible with qResult type via custom wrapping
+            c_qr = ['CUSTOM_QR', dataId]
+            image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
+            return image
+        else:
+            return None
 
 
 class W13DeepCoaddDb(W13Db):
@@ -349,7 +369,7 @@ class W13DeepCoaddDb(W13Db):
                        columns=["tract", "patch", "filterName"],
                        dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd",
                        butlerPolicy="deepCoadd",
-                       butlerKeys=["tract","patch","filter"],
+                       butlerKeys=["tract", "patch", "filter"],
                        logger=logger)
 
     def getImageIdsFromScienceId(self, scienceId):
@@ -363,15 +383,15 @@ class W13DeepCoaddDb(W13Db):
         patchY = (scienceId//8)%(2**13)
         patchX = (scienceId//(2**16))%(2**13)
         possibleFields = {
-            "filter" : "ugriz"[scienceId%8],
-            "tract" : scienceId//(2**29),
-            "patch" : "%d,%d" % (patchX, patchY)
+            "filter": "ugriz"[scienceId%8],
+            "tract": scienceId//(2**29),
+            "patch": "%d,%d" % (patchX, patchY)
         }
 
         for key in self._butlerKeys:
             value = possibleFields[key]
-            if value == None:
-                valid = false
+            if value is None:
+                valid = False
             ids[key] = value
         return ids, valid
 
@@ -387,7 +407,7 @@ class W13DeepCoaddDb(W13Db):
             filterName = ln[4]
             log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
                       tract, patch, filterName))
-            butler=lsst.daf.persistence.Butler(self._dataRoot)
+            butler = lsst.daf.persistence.Butler(self._dataRoot)
             img = butler.get(self._imageDatasetType, tract=tract, patch=patch, filter=filterName)
             return img, butler
         return None, None
@@ -437,9 +457,9 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
     pixW = int(pixW)
     pixH = int(pixH)
     log.debug("pixULX=%d pixULY=%d pixW=%d pixH=%d", pixULX, pixULY, pixW, pixH)
-    #bbox = afwGeom.Box2I(afwGeom.Point2I(pixULX, pixULY),
+    # bbox = afwGeom.Box2I(afwGeom.Point2I(pixULX, pixULY),
     #                    afwGeom.Extent2I(pixW, pixH))
-    #img = butler.get("fpC_sub", run=run, camcol=camcol,
+    # img = butler.get("fpC_sub", run=run, camcol=camcol,
     #                 field=field, filter=filterName, bbox=bbox)
     pixEndX = pixULX + pixW
     pixEndY = pixULY + pixH
@@ -450,8 +470,35 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
     imgSub = srcImage[pixULX:pixEndX, pixULY:pixEndY].clone()
     return imgSub
 
+
+def _getKeysFromList(flist, fields):
+    '''flist assumed to be dictionary
+    '''
+    vals = []
+    for f in fields:
+        vals.append(flist.get(f))
+    return vals
+
+
+def _getKeysForButler(qResults):
+    valid, hm = False, False
+    for ln in qResults:
+        if ln == 'CUSTOM_QR':   # custom tag
+            hm = True
+            continue 
+        elif hm is True:
+            run, camcol, field, filterName = _getKeysFromList(ln,
+                    ['run', 'camcol', 'field', 'filter'])
+            valid = True
+        else:
+            run, camcol, field, filterName = ln[2:6]
+            valid = True
+    return valid, run, camcol, field, filterName
+
+
 def _arcsecToDeg(arcsecs):
     return float(arcsecs/3600.0)
+
 
 def _keepWithin180(target, val):
     '''Return a value that is equivalent to val on circle
@@ -463,8 +510,11 @@ def _keepWithin180(target, val):
         val += 360.0
     return val
 
+
 def dbOpen(credFileName, W13db, logger=log):
     '''Open a database connection and return an instance of the
     class indicated by W13db.
     '''
     return W13db(credFileName)
+
+

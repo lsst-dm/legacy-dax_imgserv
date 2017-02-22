@@ -24,7 +24,7 @@
 This module implements the RESTful interface for Image Cutout Service.
 Corresponding URI: /image
 
-@author  Jacek Becla, SLAC; John Gates, SLAC
+@author  Jacek Becla, SLAC; John Gates, SLAC; Kenny Lo, SLAC;
 """
 
 import os
@@ -62,7 +62,8 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
     # @todo throw exception instead of return valid DM-1980
     valid, ra, dec, msg = checkRaDec(raIn, decIn)
     if filt not in validFilters:
-        msg = "Invalid filter {}. valid filters are {}.".format(filt, validFilters)
+        msg = ("Invalid filter {}. valid filters are {}.".format(filt,
+               validFilters))
         valid = False
     return valid, ra, dec, filt, msg
 
@@ -85,6 +86,40 @@ def checkRaDec(raIn, decIn):
         msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(raIn, decIn)
         valid = False
     return valid, ra, dec, msg
+
+
+
+def checkParamsICutoutFromScienceId(scienceId, raIn, decIn,
+                                    width, height, units):
+    ''' Check and convert request parameters to numeric values.
+    '''
+    valid, ra, dec, msg = checkRaDec(raIn, decIn)
+    try:
+        if units == 'arcsecond':
+            width = float(width)
+            height = float(height)
+        elif units == 'pixel':
+            width = int(width)
+            height = int(height)
+        else:
+            msg = "No Units specified for cutout dimensions"
+            valid = False
+        scId = int(scienceId)
+    except ValueError:
+        msg = ("NEED_HTTP INVALID_INPUT scienceId={} width={} height={}"
+               .format(scienceId, width, height))
+        valid = False
+    return valid, scId, ra, dec, width, height, units, msg
+
+
+def getRequestParams(_request, params):
+    '''Returns the values of the specified parameters specified in the
+       params as string array.
+    '''
+    vals = []
+    for p in params:
+        vals.append(_request.args.get(p))
+    return vals
 
 
 # this will handle something like:
@@ -152,6 +187,14 @@ def getICalexpCutoutPixel():
 
 
 # this will handle something like:
+# GET /image/v0/calexp/5646240694/cutout?ra=37.6292&dec=-0.0658&widthAng=30.0&heightAng=45.0
+# GET /image/v0/calexp/5646240694/cutout?ra=37.6292&dec=-0.0658&widthPix=30&heightPix=45
+@imageREST.route('/calexp/<Id>/cutout', methods=['GET'])
+def getICalexpCutoutFromScienceId(Id):
+    return _getICutoutFromScienceId(request, W13CalexpDb, Id)
+
+
+# this will handle something like:
 # GET /image/v0/deepCoadd?ra=19.36995&dec=-0.3146&filter=r
 @imageREST.route('/deepCoadd', methods=['GET'])
 def getDeepCoadd():
@@ -182,7 +225,6 @@ def getIDeepCoaddCutout():
 @imageREST.route('/deepCoadd/cutoutPixel', methods=['GET'])
 def getIDeepCoaddCutoutPixel():
     return _getICutout(request, W13DeepCoaddDb, 'pixel')
-
 
 def _getIFull(_request, W13db):
     ''' Get a full image from the input paramters.
@@ -247,7 +289,7 @@ def _getIScienceId(_request, W13db):
     '''
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
     value = request.args.get("id")
-    if value == None:
+    if value is None:
         resp = "INVALID_INPUT value={}".format(value)
         return resp
     ids, valid = w13db.getImageIdsFromScienceId(value)
@@ -290,11 +332,50 @@ def _getICutout(_request, W13db, units):
         msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
-            ra, dec, filt, width, height))
+             ra, dec, filt, width, height))
 
     # fetch the image here
     w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    img = w13db.getImage(ra, dec, width, height, units)
+    img = w13db.getImage(ra, dec, filt, width, height, units)
+    if img is None:
+        return _imageNotFound()
+    log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
+    tmpPath = tempfile.mkdtemp()
+    fileName = os.path.join(tmpPath, "cutout.fits")
+    log.info("temporary fileName=%s", fileName)
+    img.writeFits(fileName)
+    resp = responseFile(fileName)
+    os.remove(fileName)
+    os.removedirs(tmpPath)
+    return resp
+
+
+def _getICutoutFromScienceId(_request, W13db, scienceId):
+    '''Get cutout of calexp image from the id given.
+    W13db presumed to be W13CalexpDb.
+    Units: arcsecond, pixel (to be inferred from the request parameters)
+    '''
+    # fetch the interested parameters
+    # Only one of (widthAng, heightAng),(widthPix, heightPix) should be valid
+    params = ['ra', 'dec', 'widthAng', 'heightAng', 'widthPix', 'heightPix']
+    raIn, decIn, widthAng, heightAng, widthPix, heightPix = getRequestParams(_request, params)
+
+    valid, units, msg = False, "", ""
+    width, height = 0.0, 0.0
+    if (widthAng is not None and heightAng is not None):
+        valid, sId, ra, dec, width, height, units, msg = checkParamsICutoutFromScienceId(
+                scienceId, raIn, decIn, widthAng, heightAng, 'arcsecond')
+    elif (widthPix is not None and heightPix is not None):
+        valid, sId, ra, dec, width, height, units, msg = checkParamsICutoutFromScienceId(
+                scienceId, raIn, decIn, widthPix, heightPix, 'pixel')
+    else:
+        msg = "INVALID_INPUT no dimensions for cutout specified"
+    if not valid:
+        return _error(ValueError.__name__, msg, BAD_REQUEST)
+    # fetch the image here
+    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # need to pass the source science id as string
+    img = w13db._getImageCutoutFromScienceId(scienceId, ra, dec, width, height, units)
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -347,7 +428,7 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     if not source:
         # Use a default
         source = current_app.config["dax.imgserv.default_source"]
-        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/" #TODO
+        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"  # TODO
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
