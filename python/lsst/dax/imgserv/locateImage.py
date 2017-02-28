@@ -447,9 +447,9 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
                                                                  offsetX, offsetY))
     # Reduce the size of the box if it goes over the edge of the image (offsets are <= 0)
 # KLO
-    if pixW += offsetX > 0:
+    if pixW + offsetX > 0:
         pixW += offsetX
-    if pixH += offsetY > 0:
+    if pixH + offsetY > 0:
         pixH += offsetY
 # KLO
     imgW = srcImage.getWidth()
