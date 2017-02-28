@@ -446,8 +446,12 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
     log.debug("pixULX={} pixULY={} offsetX={} offsetY={}".format(pixULX, pixULY,
                                                                  offsetX, offsetY))
     # Reduce the size of the box if it goes over the edge of the image (offsets are <= 0)
-    pixW += offsetX
-    pixH += offsetY
+# KLO
+    if pixW += offsetX > 0:
+        pixW += offsetX
+    if pixH += offsetY > 0:
+        pixH += offsetY
+# KLO
     imgW = srcImage.getWidth()
     imgH = srcImage.getHeight()
     pixW = min(imgW, pixW)
