@@ -36,7 +36,7 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.log as log
 
-from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR
+from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
@@ -61,7 +61,7 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
     '''
     # @todo throw exception instead of return valid DM-1980
     valid, ra, dec, msg = checkRaDec(raIn, decIn)
-    if filt not in validFilters:
+    if filt == None or filt not in validFilters:
         msg = ("Invalid filter {}. valid filters are {}.".format(filt,
                validFilters))
         valid = False
@@ -154,6 +154,13 @@ def getIRawCutoutPixel():
     return _getICutout(request, W13RawDb, 'pixel')
 
 # this will handle something like:
+# GET /image/v0/raw/5646240694/cutout?ra=37.6292&dec=0.104625widthAng=30.0&heightAng=45.0
+# GET /image/v0/raw/5646240694/cutout?ra=37.6292&dec=0.104625&widthPix=100&heightPix=100
+@imageREST.route('/raw/<Id>/cutout', methods=['GET'])
+def getIRawCoutFromScienceId(Id):
+    return _getICutoutFromScienceId(request, W13RawDb, Id)
+
+# this will handle something like:
 # GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
 @imageREST.route('/calexp', methods=['GET'])
 def getCalexp():
@@ -225,6 +232,14 @@ def getIDeepCoaddCutout():
 @imageREST.route('/deepCoadd/cutoutPixel', methods=['GET'])
 def getIDeepCoaddCutoutPixel():
     return _getICutout(request, W13DeepCoaddDb, 'pixel')
+
+# this will handle something like:
+# GET /image/v0/deepCoadd/23986176/cutout?ra=19.36995&dec=-0.3146widthAng=30.0&heightAng=45.0
+# GET /image/v0/deepCoadd/23986176/cutout?ra=19.36995&dec=-0.3146xx&widthPix=100&heightPix=100
+@imageREST.route('/deepCoadd/<Id>/cutout', methods=['GET'])
+def getIDeepCoaddCutoutFromScienceId(Id):
+    return _getICutoutFromScienceId(request, W13DeepCoaddDb, Id)
+
 
 def _getIFull(_request, W13db):
     ''' Get a full image from the input paramters.
@@ -351,9 +366,9 @@ def _getICutout(_request, W13db, units):
 
 
 def _getICutoutFromScienceId(_request, W13db, scienceId):
-    '''Get cutout of calexp image from the id given.
-    W13db presumed to be W13CalexpDb.
-    Units: arcsecond, pixel (to be inferred from the request parameters)
+    '''Get cutout image from the id given.
+    W13db should be the appropriate class (W13CalexpDb, W13DeepCoadDb, W13RawDb, etc.)
+    Units: arcsecond, pixel (request parameters)
     '''
     # fetch the interested parameters
     # Only one of (widthAng, heightAng),(widthPix, heightPix) should be valid
@@ -477,8 +492,8 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     return resp
 
 
-def _imageNotFound():  # FIXME: Not sure what error this should be, 400, 404, 500?
-    return _error("ImageNotFound", "Image Not Found", INTERNAL_SERVER_ERROR)
+def _imageNotFound():  # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
+    return make_response("Image Not Found", NOT_FOUND)
 
 
 def _error(exception, message, status_code):

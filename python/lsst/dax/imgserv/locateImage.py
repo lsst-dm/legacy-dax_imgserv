@@ -185,7 +185,7 @@ class W13Db:
         xyWcs = wcs.skyToPixel(raDec)
         x0 = img.getX0()
         y0 = img.getY0()
-        xyCenter = afwGeom.Point2D(xyWcs.getX() - x0, xyWcs.getY() - y0)
+        xyCenter = afwGeom.Point2I(int(xyWcs.getX() - x0), int(xyWcs.getY() - y0))
         if cutoutType == 'pixel':
             imgSub = _cutoutBoxPixels(img, xyCenter, width, height, self._log)
             return imgSub
@@ -269,13 +269,16 @@ class W13RawDb(W13Db):
         '''
         # This will return on the first result.
         log.debug("Raw_getImageButler qResults:{}".format(qResults))
-        for ln in qResults:
-            run, camcol, field, filterName = ln[2:6]
+        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
+        if valid is True:
+            log.debug("Raw_getImageButler run={} camcol={} field={} filter={}".format(run, 
+                camcol, field, filterName))
             butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._imageDatasetType, run=run, camcol=camcol,
-                    field=field, filter=filterName)
+            img = butler.get(self._imageDatasetType, run=run, camcol=camcol, field=field, filter=filterName)
             return img, butler
-        return None, None
+        else:
+            return None, None
+
 
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
@@ -284,6 +287,22 @@ class W13RawDb(W13Db):
             run, camcol, field, filterName = ln[2:6]
             return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
                               field=field, filter=filterName)
+
+
+    def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
+        ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
+        Units (or cutoutType): "arcsecond", "pixel"
+        '''
+        # Get the corresponding image(data) id from the butler
+        dataId, valid = self.getImageIdsFromScienceId(scienceId)
+        log.debug("Raw_getImageCutoutFromScienceId dataId:{}".format(dataId))
+        if valid is True:
+            # make id compatible with qResult type via custom wrapping
+            c_qr = ['CUSTOM_QR', dataId]
+            image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
+            return image
+        else:
+            return None
 
 
 class W13CalexpDb(W13RawDb):
@@ -309,22 +328,6 @@ class W13CalexpDb(W13RawDb):
                        butlerPolicy="calexp",
                        butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
-
-    def _getImageButler(self, qResults):
-        '''Retrieve the image and butler for this image type using the query results in 'qResults'
-        The retrieval process varies for different image types.
-        '''
-        # This will return on the first result.
-        log.debug("Calexp_getImageButler qResults:{}".format(qResults))
-        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
-        if valid is True:
-            log.debug("Calexp_getImageButler run={} camcol={} field={} filter={}".format(run, 
-                camcol, field, filterName))
-            butler = lsst.daf.persistence.Butler(self._dataRoot)
-            img = butler.get(self._imageDatasetType, run=run, camcol=camcol, field=field, filter=filterName)
-            return img, butler
-        else:
-            return None, None
     
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
@@ -332,22 +335,6 @@ class W13CalexpDb(W13RawDb):
         valid, run, camcol, field, filterName = _getKeysForButler(qResults)
         return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol, 
                 field=field, filter=filterName)
-
-
-    def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
-        ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
-        Units (or cutoutType): "arcsecond", "pixel"
-        '''
-        # Get the corresponding image(data) id from the butler
-        dataId, valid = self.getImageIdsFromScienceId(scienceId)
-        log.debug("Calexp_getImageCutoutFromScienceId dataId:{}".format(dataId))
-        if valid is True:
-            # make id compatible with qResult type via custom wrapping
-            c_qr = ['CUSTOM_QR', dataId]
-            image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
-            return image
-        else:
-            return None
 
 
 class W13DeepCoaddDb(W13Db):
@@ -387,12 +374,11 @@ class W13DeepCoaddDb(W13Db):
             "tract": scienceId//(2**29),
             "patch": "%d,%d" % (patchX, patchY)
         }
-
         for key in self._butlerKeys:
             value = possibleFields[key]
             if value is None:
                 valid = False
-            ids[key] = value
+                ids[key] = value
         return ids, valid
 
     def _getImageButler(self, qResults):
@@ -400,17 +386,16 @@ class W13DeepCoaddDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        log.debug("deepCoadd _getImageButler qResults:{}".format(qResults))
-        for ln in qResults:
-            tract = ln[2]
-            patch = ln[3]
-            filterName = ln[4]
+        log.debug("Raw_getImageButler qResults:{}".format(qResults))
+        valid, tract, patch, filterName = _getKeysForButler2(qResults)
+        if valid is True:
             log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
                       tract, patch, filterName))
             butler = lsst.daf.persistence.Butler(self._dataRoot)
             img = butler.get(self._imageDatasetType, tract=tract, patch=patch, filter=filterName)
             return img, butler
-        return None, None
+        else:
+            return None, None
 
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler
@@ -422,6 +407,23 @@ class W13DeepCoaddDb(W13Db):
             metadata = butler.get(self.getImageDatasetMd(), tract=tract, patch=patch, filter=filterName)
             return metadata
 
+
+    def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
+        ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
+        Units (or cutoutType): arcsecond, pixel
+        '''
+        # Get the corresponding image(data) id from the butler
+        dataId, valid = self.getImageIdsFromScienceId(scienceId)
+        log.debug("DeepCoadd getImageCutoutFromScienceId dataId:{}".format(dataId))
+        if valid is True:
+            # make id compatible with qResult type via custom wrapping
+            c_qr = ['CUSTOM_QR', dataId]
+            image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
+            return image
+        else:
+            return None
+
+    
 def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
     '''Returns an image cutout from the source image.
     srcImage - Source image.
@@ -430,43 +432,19 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
     height - The height in pixels.
     height and width will be trimmed if they go past the edge of the source image.
     '''
-    pixW = width
-    pixH = height
-    pixULX = xyCenter.getX() - pixW/2.0
-    pixULY = xyCenter.getY() - pixH/2.0
-    offsetX = 0
-    offsetY = 0
-    if pixULX < 0:
-        offsetX = pixULX
-        pixULX = 0
-    if pixULY < 0:
-        offsetY = pixULY
-        pixULY = 0
+    # assuming both src_box and xyCenter to be in Box2I 
     log.debug("xyCenter={}".format(xyCenter))
-    log.debug("pixULX={} pixULY={} offsetX={} offsetY={}".format(pixULX, pixULY,
-                                                                 offsetX, offsetY))
-    # Reduce the size of the box if it goes over the edge of the image (offsets are <= 0)
-    pixW += offsetX
-    pixH += offsetY
-    imgW = srcImage.getWidth()
-    imgH = srcImage.getHeight()
-    pixW = min(imgW, pixW)
-    pixH = min(imgH, pixH)
-    pixULX = int(pixULX)
-    pixULY = int(pixULY)
-    pixW = int(pixW)
-    pixH = int(pixH)
-    log.debug("pixULX=%d pixULY=%d pixW=%d pixH=%d", pixULX, pixULY, pixW, pixH)
-    # bbox = afwGeom.Box2I(afwGeom.Point2I(pixULX, pixULY),
-    #                    afwGeom.Extent2I(pixW, pixH))
-    # img = butler.get("fpC_sub", run=run, camcol=camcol,
-    #                 field=field, filter=filterName, bbox=bbox)
-    pixEndX = pixULX + pixW
-    pixEndY = pixULY + pixH
-    log.debug("pixULX=%d pixEndX=%d, pixULY=%d pixEndY=%d",
-              pixULX, pixEndX, pixULY, pixEndY)
-    # Cut the sub image out of the image. See -
-    # https://lsst-web.ncsa.illinois.edu/doxygen/x_masterDoxyDoc/afw_sec_py_image.html
+    src_box = srcImage.getBBox()
+    co_box = afwGeom.Box2I(xyCenter, afwGeom.Extent2I(int(width), int(height)))
+    co_box.clip(src_box)
+    pixULX = co_box.getBeginX()
+    pixEndX = co_box.getEndX()
+    pixULY = co_box.getBeginY()
+    pixEndY = co_box.getEndY()
+    log.debug("co_box pixULX={} pixEndX={} pixULY={} pixEndY={}".format(pixULX,
+        pixEndX, pixULY, pixEndY))
+    if co_box.isEmpty():
+        return None                  
     imgSub = srcImage[pixULX:pixEndX, pixULY:pixEndY].clone()
     return imgSub
 
@@ -494,6 +472,22 @@ def _getKeysForButler(qResults):
             run, camcol, field, filterName = ln[2:6]
             valid = True
     return valid, run, camcol, field, filterName
+
+
+def _getKeysForButler2(qResults):
+    valid, hm = False, False
+    for ln in qResults:
+        if ln == 'CUSTOM_QR':   # custom tag
+            hm = True
+            continue 
+        elif hm is True:
+            tract, patch, filterName = _getKeysFromList(ln,
+                    ['tract', 'patch', 'filter'])
+            valid = True
+        else:
+            tract, patch, filterName = ln[2:5]
+            valid = True
+    return valid, tract, patch, filterName
 
 
 def _arcsecToDeg(arcsecs):
