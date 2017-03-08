@@ -27,6 +27,7 @@ Web Service, e.g., through webserv/bin/server.py
 
 @author  Jacek Becla, SLAC
 """
+from __future__ import print_function
 
 import sys
 from flask import Flask
@@ -40,6 +41,6 @@ app.config["dax.imgserv.default_source"] = "/datasets/gapon/data/DC_2013/coadd"
 if __name__ == '__main__':
     try:
         app.run(debug=True)
-    except Exception, e:
-        print "Problem starting the server.", str(e)
+    except Exception as e:
+        print(("Problem starting the server.", str(e)))
         sys.exit(1)

@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # LSST Data Management System
 # Copyright 2015 LSST/AURA.
@@ -36,12 +37,12 @@ def testDefault():
     #  port = 3306
     #  password = <password>
     imgFull = w13Raw.getImageFull(359.195, -0.1055, 'r')
-    print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
-    print "Writing imgFull.fits", imgFull
+    print("Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight()))
+    print(("Writing imgFull.fits", imgFull))
     imgFull.writeFits("imgFull.fits")
     img = w13Raw.getImage(359.195, -0.1055, 30.0, 60.0, "arcsecond")
-    print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
-    print "Writing img.fits", img
+    print("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
+    print(("Writing img.fits", img))
     img.writeFits("img.fits")
     w13Raw.closeConnection()
 
@@ -52,12 +53,12 @@ def test(argv):
     w = float(argv[3])
     h = float(argv[4])
     imgFull = w13Raw.getImageFull(ra, dec, 'r')
-    print "Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight())
-    print "Writing imgFull.fits", imgFull
+    print("Full w={} h={}".format(imgFull.getWidth(), imgFull.getHeight()))
+    print(("Writing imgFull.fits", imgFull))
     imgFull.writeFits("imgFull.fits")
     img = w13Raw.getImage(ra, dec, w, h)
-    print "Sub w={} h={}".format(img.getWidth(), img.getHeight())
-    print "Writing img.fits", img
+    print("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
+    print(("Writing img.fits", img))
     img.writeFits("img.fits")
     w13Raw.closeConnection()
 

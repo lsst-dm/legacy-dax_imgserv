@@ -26,6 +26,7 @@ Corresponding URI: /image
 
 @author  Jacek Becla, SLAC; John Gates, SLAC; Kenny Lo, SLAC;
 """
+from __future__ import print_function
 
 import os
 import tempfile
