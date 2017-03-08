@@ -1,0 +1,23 @@
+{
+  "name": "raw_i4",
+  "get": {
+    "image": {
+      "raw": {
+        "cutout": {
+          "nearest": { 
+            "radec": { "ra": 359.195, "dec": -0.1055 },
+            "filter": "r"
+          },
+          "rectangle": {
+            "width": 30.0,
+            "height": 45.0,
+            "unit": "arcsecond",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "raw", "cutout", "nearest" ]
+  },
+  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+}

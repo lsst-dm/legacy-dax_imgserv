@@ -1,0 +1,12 @@
+{
+  "name": "raw_i2",
+  "get": {
+    "image": {
+      "raw": {
+          "data_id_rcff": { "run": 5646, "camcol": 4, "field": 694, "filter": "g" }
+      }
+    },
+    "api_id": [ "raw", "data_id", "run", "camcol", "field", "filter" ]
+  },
+  "check": { "sha256": "0e23206bd029c6b225356f1f88b6044136e51718b7e1afa6f4fec677a97c0b47" }
+}

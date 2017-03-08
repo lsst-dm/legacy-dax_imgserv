@@ -1,0 +1,21 @@
+{
+  "name": "raw_i19",
+  "get": {
+    "image": {
+      "raw": {
+        "cutout": {
+          "science_id": 5646240694, 
+          "radec": { "ra": 37.6292, "dec": 0.104625 },
+          "rectangle": {
+            "width": 100,
+            "height": 100,
+            "unit": "pixel",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "raw", "cutout", "science_id" ]
+  },
+  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+}

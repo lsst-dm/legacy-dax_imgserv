@@ -1,0 +1,23 @@
+{
+  "name": "calexp_i9",
+  "get": {
+    "image": {
+      "calexp": {
+        "cutout": {
+          "nearest": { 
+            "radec": { "ra": 37.6444598, "dec": 0.104625 },
+            "filter": "r"
+          },
+          "rectangle": {
+            "width": 30.0,
+            "height": 45.0,
+            "unit": "arcsecond",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "calexp", "cutout", "nearest" ]
+  },
+  "check": { "sha256": "ca562be3d230981aee6d7af8421eb95f37caf0b6e0fda0d657d8ae60678dbfbc" }
+}

@@ -1,0 +1,15 @@
+{
+  "name": "calexp_i6",
+  "get": {
+    "image": {
+      "calexp": {
+        "nearest": {
+          "radec": { "ra": 37.644598, "dec": 0.104625 },
+          "filter": "r"
+        }
+      }
+    },
+    "api_id": [ "calexp", "nearest" ]
+  },
+  "check": { "sha256": "fe1675878b720a5bac33484b211bd8ff2e3cf2892a4ea4aa855b07c435511451" }
+}

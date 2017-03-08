@@ -1,0 +1,23 @@
+{
+  "name": "deepcoadd_i17",
+  "get": {
+    "image": {
+      "deepcoadd": {
+        "cutout": {
+          "nearest": { 
+            "radec": { "ra": 19.62322, "dec": -0.2978 },
+            "filter": "r"
+          },
+          "rectangle": {
+            "width": 100,
+            "height": 100,
+            "unit": "pixel",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "deepcoadd", "cutout", "nearest" ]
+  },
+  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+}
