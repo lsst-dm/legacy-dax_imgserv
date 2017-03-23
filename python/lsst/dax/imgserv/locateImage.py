@@ -283,11 +283,12 @@ class W13RawDb(W13Db):
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
         '''
-        for ln in qResults:
-            run, camcol, field, filterName = ln[2:6]
+        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
+        if valid == True:      
             return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
                               field=field, filter=filterName)
-
+        else:
+            return None
 
     def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
         ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
@@ -400,12 +401,12 @@ class W13DeepCoaddDb(W13Db):
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler
         '''
-        for ln in qResults:
-            tract = ln[2]
-            patch = ln[3]
-            filterName = ln[4]
+        valid, tract, patch, filterName = _getKeysForButler2(qResults)
+        if valid is True:
             metadata = butler.get(self.getImageDatasetMd(), tract=tract, patch=patch, filter=filterName)
             return metadata
+        else:
+            return None
 
 
     def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
