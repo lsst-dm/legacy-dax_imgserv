@@ -378,7 +378,7 @@ class W13DeepCoaddDb(W13Db):
             value = possibleFields[key]
             if value is None:
                 valid = False
-                ids[key] = value
+            ids[key] = value
         return ids, valid
 
     def _getImageButler(self, qResults):
