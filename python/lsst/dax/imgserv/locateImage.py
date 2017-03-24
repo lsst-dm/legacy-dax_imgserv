@@ -105,7 +105,7 @@ class W13Db:
             "filter": "ugriz"[(scienceId//100000)%10],
             "run": scienceId//1000000,
         }
-        log.debug("w13Db_getImageIdsFromScienceId {} {} {} {}".format( 
+        log.info("w13Db_getImageIdsFromScienceId {} {} {} {}".format( 
                 possibleFields[0], possibleFields[1], possibleFields[2],
                 possibleFields[3]))
         for key in self._butlerKeys:
@@ -113,7 +113,7 @@ class W13Db:
             if value is None:
                 valid = False
             ids[key] = value
-        log.debug("W13Db ids={} {}".format(valid, ids))
+        log.info("W13Db ids={} {}".format(valid, ids))
         return ids, valid
 
     def getImageByIds(self, ids):
@@ -378,14 +378,14 @@ class W13DeepCoaddDb(W13Db):
             "tract": scienceId//(2**29),
             "patch": "%d,%d" % (patchX, patchY)
         }
-        log.debug("w13DeepCoaddDb_getImageIdsFromScienceId {} {} {}".format( 
+        log.info("w13DeepCoaddDb_getImageIdsFromScienceId {} {} {}".format( 
                 possibleFields[0], possibleFields[1], possibleFields[2])
         for key in self._butlerKeys:
             value = possibleFields[key]
             if value is None:
                 valid = False
             ids[key] = value
-        log.debug("W13DeepCoaddDb ids={} {}".format(valid, ids))
+        log.info("W13DeepCoaddDb ids={} {}".format(valid, ids))
         return ids, valid
 
     def _getImageButler(self, qResults):
