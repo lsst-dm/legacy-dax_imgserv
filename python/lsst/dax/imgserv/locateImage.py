@@ -105,7 +105,7 @@ class W13Db:
             "filter": "ugriz"[(scienceId//100000)%10],
             "run": scienceId//1000000,
         }
-        log.debug("w13Db_getImageIdsFromScienceId {} {} {} {}".format( 
+        log.debug("w13Db_getImageIdsFromScienceId {}".format( 
                 possibleFields))
         for key in self._butlerKeys:
             value = possibleFields[key]
