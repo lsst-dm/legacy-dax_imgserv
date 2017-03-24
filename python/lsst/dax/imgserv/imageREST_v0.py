@@ -308,7 +308,7 @@ def _getIScienceId(_request, W13db):
         resp = "INVALID_INPUT value={}".format(value)
         return resp
     ids, valid = w13db.getImageIdsFromScienceId(value)
-    log.debug("valid={} value={} ids{}".format(valid, value, ids))
+    log.debug("_getIScienceId valid={} value={} ids={}".format(valid, value, ids))
     if not valid:
         resp = "INVALID_INPUT value={} {}".format(value, ids)
         return resp
