@@ -36,6 +36,8 @@ import os
 import sys
 import time
 
+from flask import current_app
+
 from sqlalchemy.exc import SQLAlchemyError
 
 import lsst.afw
@@ -105,12 +107,14 @@ class W13Db:
             "filter": "ugriz"[(scienceId//100000)%10],
             "run": scienceId//1000000,
         }
-
+        self._log.debug("w13Db_getImageIdsFromScienceId {}".format( 
+                possibleFields))
         for key in self._butlerKeys:
             value = possibleFields[key]
             if value is None:
                 valid = False
             ids[key] = value
+        self._log.debug("W13Db ids={} {}".format(valid, ids))
         return ids, valid
 
     def getImageByIds(self, ids):
@@ -237,7 +241,7 @@ class W13Db:
                "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
         self._log.info(sql)
-        log.info("findNearest sql={}".format(sql))
+        self._log.info("findNearest sql={}".format(sql))
         return self._conn.execute(sql).fetchall()
 
 
@@ -255,10 +259,13 @@ class W13RawDb(W13Db):
         # @todo The names needed for the data butler need to come from a central location.
         W13Db.__init__(self,
                        credFileName,
-                       database="DC_W13_Stripe82",
-                       table="Science_Ccd_Exposure",
+                       # database="DC_W13_Stripe82",
+                       current_app.config["DAX_IMG_DB"],
+                       # table="Science_Ccd_Exposure",
+                       current_app.config["DAX_IMG_TAB_SCICCDEXP"],
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/datasets/sdss/preprocessed/dr7/runs",
+                       # dataRoot="/datasets/sdss/preprocessed/dr7/runs",
+                       dataRoot=current_app.config["DAX_IMG_DR"]+"/runs",
                        butlerPolicy="fpC",
                        butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
@@ -268,9 +275,9 @@ class W13RawDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        log.debug("Raw_getImageButler qResults:{}".format(qResults))
+        self._log.debug("Raw_getImageButler qResults:{}".format(qResults))
         valid, run, camcol, field, filterName = _getKeysForButler(qResults)
-        if valid is True:
+        if valid:
             log.debug("Raw_getImageButler run={} camcol={} field={} filter={}".format(run, 
                 camcol, field, filterName))
             butler = lsst.daf.persistence.Butler(self._dataRoot)
@@ -283,11 +290,10 @@ class W13RawDb(W13Db):
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler.
         '''
-        for ln in qResults:
-            run, camcol, field, filterName = ln[2:6]
+        valid, run, camcol, field, filterName = _getKeysForButler(qResults)
+        if valid:      
             return butler.get(self.getImageDatasetMd(), run=run, camcol=camcol,
                               field=field, filter=filterName)
-
 
     def _getImageCutoutFromScienceId(self, scienceId, ra, dec, width, height, units):
         ''' Get the image specified by id centered on (ra, dec) with width and height dimensions.
@@ -295,14 +301,12 @@ class W13RawDb(W13Db):
         '''
         # Get the corresponding image(data) id from the butler
         dataId, valid = self.getImageIdsFromScienceId(scienceId)
-        log.debug("Raw_getImageCutoutFromScienceId dataId:{}".format(dataId))
-        if valid is True:
+        self._log.debug("Raw_getImageCutoutFromScienceId dataId:{}".format(dataId))
+        if valid:
             # make id compatible with qResult type via custom wrapping
             c_qr = ['CUSTOM_QR', dataId]
             image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
             return image
-        else:
-            return None
 
 
 class W13CalexpDb(W13RawDb):
@@ -321,10 +325,13 @@ class W13CalexpDb(W13RawDb):
         # @todo The names needed for the data butler need to come from a central location.
         W13Db.__init__(self,
                        credFileName,
-                       database="DC_W13_Stripe82",
-                       table="Science_Ccd_Exposure",
+                       # database="DC_W13_Stripe82",
+                       database=current_app.config["DAX_IMG_DB"],
+                       # table="Science_Ccd_Exposure",
+                       table=current_app.config["DAX_IMG_TAB_SCICCDEXP"],
                        columns=["run", "camcol", "field", "filterName"],
-                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps",
+                       # dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/calexps",
+                       dataRoot=current_app.config["DAX_IMG_DS"]+"/calexps",
                        butlerPolicy="calexp",
                        butlerKeys=["run", "camcol", "field", "filter"],
                        logger=logger)
@@ -351,10 +358,13 @@ class W13DeepCoaddDb(W13Db):
         # @todo The names needed for the data butler need to come from a central location.
         W13Db.__init__(self,
                        credFileName,
-                       database="DC_W13_Stripe82",
-                       table="DeepCoadd",
+                       #database="DC_W13_Stripe82",
+                       database=current_app.config["DAX_IMG_DB"],
+                       #table="DeepCoadd",
+                       table = current_app.config["DAX_IMG_TAB_DEEPCOADD"],
                        columns=["tract", "patch", "filterName"],
-                       dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd",
+                       #dataRoot="/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd",
+                       dataRoot=current_app.config["DAX_IMG_DS"]+"/coadd",
                        butlerPolicy="deepCoadd",
                        butlerKeys=["tract", "patch", "filter"],
                        logger=logger)
@@ -374,11 +384,14 @@ class W13DeepCoaddDb(W13Db):
             "tract": scienceId//(2**29),
             "patch": "%d,%d" % (patchX, patchY)
         }
+        self._log.debug("w13DeepCoaddDb_getImageIdsFromScienceId {}".format( 
+                possibleFields))
         for key in self._butlerKeys:
             value = possibleFields[key]
             if value is None:
                 valid = False
-                ids[key] = value
+            ids[key] = value
+        self._log.debug("W13DeepCoaddDb ids={} {}".format(valid, ids))
         return ids, valid
 
     def _getImageButler(self, qResults):
@@ -386,10 +399,10 @@ class W13DeepCoaddDb(W13Db):
         The retrieval process varies for different image types.
         '''
         # This will return on the first result.
-        log.debug("Raw_getImageButler qResults:{}".format(qResults))
+        self._log.debug("Raw_getImageButler qResults:{}".format(qResults))
         valid, tract, patch, filterName = _getKeysForButler2(qResults)
-        if valid is True:
-            log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
+        if valid:
+            self._log.debug("deepCoad _getImageButler getting butler tract={} patch={} filterName={}".format(
                       tract, patch, filterName))
             butler = lsst.daf.persistence.Butler(self._dataRoot)
             img = butler.get(self._imageDatasetType, tract=tract, patch=patch, filter=filterName)
@@ -400,10 +413,8 @@ class W13DeepCoaddDb(W13Db):
     def _getMetadata(self, butler, qResults):
         '''Return the metadata for the query results in qResults and a butler
         '''
-        for ln in qResults:
-            tract = ln[2]
-            patch = ln[3]
-            filterName = ln[4]
+        valid, tract, patch, filterName = _getKeysForButler2(qResults)
+        if valid:
             metadata = butler.get(self.getImageDatasetMd(), tract=tract, patch=patch, filter=filterName)
             return metadata
 
@@ -414,14 +425,12 @@ class W13DeepCoaddDb(W13Db):
         '''
         # Get the corresponding image(data) id from the butler
         dataId, valid = self.getImageIdsFromScienceId(scienceId)
-        log.debug("DeepCoadd getImageCutoutFromScienceId dataId:{}".format(dataId))
-        if valid is True:
+        self._log.debug("DeepCoadd getImageCutoutFromScienceId dataId:{}".format(dataId))
+        if valid:
             # make id compatible with qResult type via custom wrapping
             c_qr = ['CUSTOM_QR', dataId]
             image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
             return image
-        else:
-            return None
 
     
 def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
@@ -464,7 +473,7 @@ def _getKeysForButler(qResults):
         if ln == 'CUSTOM_QR':   # custom tag
             hm = True
             continue 
-        elif hm is True:
+        elif hm:
             run, camcol, field, filterName = _getKeysFromList(ln,
                     ['run', 'camcol', 'field', 'filter'])
             valid = True
@@ -480,7 +489,7 @@ def _getKeysForButler2(qResults):
         if ln == 'CUSTOM_QR':   # custom tag
             hm = True
             continue 
-        elif hm is True:
+        elif hm:
             tract, patch, filterName = _getKeysFromList(ln,
                     ['tract', 'patch', 'filter'])
             valid = True
