@@ -108,6 +108,9 @@ class W13Db:
         log.info("w13Db_getImageIdsFromScienceId {} {} {} {}".format( 
                 possibleFields[0], possibleFields[1], possibleFields[2],
                 possibleFields[3]))
+        print("w13Db_getImageIdsFromScienceId {} {} {} {}".format( 
+                possibleFields[0], possibleFields[1], possibleFields[2],
+                possibleFields[3]))
         for key in self._butlerKeys:
             value = possibleFields[key]
             if value is None:
@@ -379,6 +382,8 @@ class W13DeepCoaddDb(W13Db):
             "patch": "%d,%d" % (patchX, patchY)
         }
         log.info("w13DeepCoaddDb_getImageIdsFromScienceId {} {} {}".format( 
+                possibleFields[0], possibleFields[1], possibleFields[2])
+        print("w13DeepCoaddDb_getImageIdsFromScienceId {} {} {}".format( 
                 possibleFields[0], possibleFields[1], possibleFields[2])
         for key in self._butlerKeys:
             value = possibleFields[key]
