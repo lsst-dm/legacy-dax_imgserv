@@ -31,6 +31,7 @@ import os
 import tempfile
 
 from flask import Blueprint, make_response, request, current_app
+from flask import render_template
 
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
@@ -40,18 +41,22 @@ from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
-imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
+imageREST = Blueprint('imageREST', __name__, static_folder='static',
+                      template_folder='templates')
 
+def imageServ_loadConfig(config_path):
+    f_json = os.path.join(config_path, "config.json")
+    # load the config file for this imgserv instance
+    current_app.config.from_json(f_json)
+    # configure the log file (log4cxx)
+    log.configure(os.path.join(config_path, "log.properties"))
+    # log.initLog(os.path.join(current_app.config["LOG_FILE_LOC"],
+    #    os.environ.get('hostname'), ".log"))
 
 # this will eventually print list of supported versions
 @imageREST.route('/')
 def index():
-    return """
-Hello, LSST Image Cutout Service here. Try something like:<br />
-/image/v0/raw?ra=1&dec=1&filter=r<br />
-/image/v0/raw/cutout?ra=1&dec=1&filter=r&width=12&height=12
-"""
-
+    return make_response(render_template(("index.html")))
 
 def checkRaDecFilter(raIn, decIn, filt, validFilters):
     '''Returns: valid, ra, dec, filt, msg  where:
@@ -258,7 +263,8 @@ def _getIFull(_request, W13db):
         return resp
     log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
     imgFull = w13db.getImageFull(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
@@ -277,7 +283,8 @@ def _getIIds(_request, W13db):
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
     validIds = False
     ids = {}
     ids, validIds = w13db.getIdsFromRequest(_request)
@@ -302,14 +309,14 @@ def _getIScienceId(_request, W13db):
     ''' Get a full image from the id given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
     value = request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
         return resp
     ids, valid = w13db.getImageIdsFromScienceId(value)
-    log.info("valid={} value={} ids{}".format(valid, value, ids))
-    print("valid={} value={} ids{}".format(valid, value, ids))
+    log.debug("_getIScienceId valid={} value={} ids={}".format(valid, value, ids))
     if not valid:
         resp = "INVALID_INPUT value={} {}".format(value, ids)
         return resp
@@ -350,7 +357,8 @@ def _getICutout(_request, W13db, units):
              ra, dec, filt, width, height))
 
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
     img = w13db.getImage(ra, dec, filt, width, height, units)
     if img is None:
         return _imageNotFound()
@@ -388,7 +396,8 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     if not valid:
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
     # need to pass the source science id as string
     img = w13db._getImageCutoutFromScienceId(scienceId, ra, dec, width, height, units)
     if img is None:
@@ -442,8 +451,9 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     source = _request.args.get("source", None)
     if not source:
         # Use a default
-        source = current_app.config["dax.imgserv.default_source"]
-        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"  # TODO
+        # source = current_app.config["dax.imgserv.default_source"]
+        # source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"  # TODO
+        source = current_app.config["DATA_SOURCE"]+"coadd/"
 
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')

@@ -1,0 +1,10 @@
+{
+        "DEBUG": true,
+	"DB_CONFIG": "~/.lsst/dbAuth-dbServ.ini",
+	"DATA_SOURCE": "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00",  
+	"DATABASE": "DC_W13_Stripe82",
+	"TABLE_SCI_CCD_EXP": "Science_Ccd_Exposure",
+	"TABLE_DEEPCOADD": "DeepCoadd",
+	"DATA_RELEASE": "/datasets/sdss/preprocessed/dr7",
+	"LOG_FILE_LOC": "/var/log/imgserv/"
+}
