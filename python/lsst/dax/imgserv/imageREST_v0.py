@@ -48,8 +48,8 @@ imageREST = Blueprint('imageREST', __name__, static_folder='static',
 # To be called from webserv
 def imageServ_loadConfig(config_path, db_auth_conf):
     if config_path is None:
-        # relative to Flask: root_path
-        config_path = "config/"
+        # use default root_path for imageREST
+        config_path = imageREST.root_path+"/config/"
     f_json = os.path.join(config_path, "settings.json")
     # load the general config file  
     current_app.config.from_json(f_json)
