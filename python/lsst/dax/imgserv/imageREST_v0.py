@@ -44,14 +44,18 @@ from .skymapStitch import getSkyMap
 imageREST = Blueprint('imageREST', __name__, static_folder='static',
                       template_folder='templates')
 
-def imageServ_loadConfig(config_path):
-    f_json = os.path.join(config_path, "config.json")
-    # load the config file for this imgserv instance
+
+# To be called from webserv
+def imageServ_loadConfig(config_path, db_auth_conf):
+    if config_path is None:
+        # relative to Flask: root_path
+        config_path = "config/"
+    f_json = os.path.join(config_path, "settings.json")
+    # load the general config file  
     current_app.config.from_json(f_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
-    # log.initLog(os.path.join(current_app.config["LOG_FILE_LOC"],
-    #    os.environ.get('hostname'), ".log"))
+    current_app.config['DAX_IMG_DBCONF'] = db_auth_conf
 
 # this will eventually print list of supported versions
 @imageREST.route('/')
@@ -263,8 +267,7 @@ def _getIFull(_request, W13db):
         return resp
     log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
     # fetch the image here
-    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
+    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
     imgFull = w13db.getImageFull(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
@@ -283,8 +286,7 @@ def _getIIds(_request, W13db):
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
     # fetch the image here
-    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
+    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
     validIds = False
     ids = {}
     ids, validIds = w13db.getIdsFromRequest(_request)
@@ -309,8 +311,7 @@ def _getIScienceId(_request, W13db):
     ''' Get a full image from the id given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
-    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
+    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
     value = request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
@@ -357,8 +358,7 @@ def _getICutout(_request, W13db, units):
              ra, dec, filt, width, height))
 
     # fetch the image here
-    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
+    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
     img = w13db.getImage(ra, dec, filt, width, height, units)
     if img is None:
         return _imageNotFound()
@@ -396,8 +396,7 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     if not valid:
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     # fetch the image here
-    # w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    w13db = dbOpen(current_app.config["DB_CONFIG"], W13db)
+    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
     # need to pass the source science id as string
     img = w13db._getImageCutoutFromScienceId(scienceId, ra, dec, width, height, units)
     if img is None:
@@ -451,17 +450,12 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     source = _request.args.get("source", None)
     if not source:
         # Use a default
-        # source = current_app.config["dax.imgserv.default_source"]
-        # source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"  # TODO
-        source = current_app.config["DATA_SOURCE"]+"coadd/"
-
+        source = current_app.config["DAX_IMG_DATASOURCE"]+"coadd/"
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
-
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
-
     raIn = _request.args.get('ra')
     decIn = _request.args.get('dec')
     filt = _request.args.get('filter')
