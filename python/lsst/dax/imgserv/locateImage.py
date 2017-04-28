@@ -189,12 +189,17 @@ class W13Db:
         xyWcs = wcs.skyToPixel(raDec)
         x0 = img.getX0()
         y0 = img.getY0()
-        xyCenter = afwGeom.Point2I(int(xyWcs.getX() - x0), int(xyWcs.getY() - y0))
+        xyCenter_x0 = xyWcs.getX() - x0
+        xyCenter_y0 = xyWcs.getY() - y0
+        # specify the center for the cutout
+        pixULX = int(xyCenter_x0 - width/2.0)
+        pixULY = int(xyCenter_y0 - height/2.0)
+        xyCenter = afwGeom.Point2I(pixULX, pixULY)
         if cutoutType == 'pixel':
-            imgSub = _cutoutBoxPixels(img, xyCenter, width, height, self._log)
+            self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, 
+                    dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter.getX(), xyCenter.getY())
+            imgSub = _cutoutBoxPixels(img, xyCenter, width, height, wcs, self._log)
             return imgSub
-        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, dec,
-                       xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter.getX(), xyCenter.getY())
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
         # and compare that distance with the number of pixels.
         raDecUL = wcs.pixelToSky(afwGeom.Point2D(0, 0))
@@ -216,7 +221,7 @@ class W13Db:
         # Need Upper Left corner and dimensions for Box2I
         pixW = width*pixelPerArcsec
         pixH = height*pixelPerArcsec
-        imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, self._log)
+        imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, wcs, self._log)
         return imgSub
 
     def _findNearestImageContaining(self, ra, dec, filterName):
@@ -432,30 +437,35 @@ class W13DeepCoaddDb(W13Db):
             image = self.getImageByDataId(ra, dec, width, height, c_qr, units)
             return image
 
-    
-def _cutoutBoxPixels(srcImage, xyCenter, width, height, log):
-    '''Returns an image cutout from the source image.
-    srcImage - Source image.
-    xyCenter - The center of region to cutout in pixels.
-    width - The width in pixels.
-    height - The height in pixels.
-    height and width will be trimmed if they go past the edge of the source image.
-    '''
-    # assuming both src_box and xyCenter to be in Box2I 
-    log.debug("xyCenter={}".format(xyCenter))
-    src_box = srcImage.getBBox()
-    co_box = afwGeom.Box2I(xyCenter, afwGeom.Extent2I(int(width), int(height)))
-    co_box.clip(src_box)
-    pixULX = co_box.getBeginX()
-    pixEndX = co_box.getEndX()
-    pixULY = co_box.getBeginY()
-    pixEndY = co_box.getEndY()
-    log.debug("co_box pixULX={} pixEndX={} pixULY={} pixEndY={}".format(pixULX,
-        pixEndX, pixULY, pixEndY))
-    if co_box.isEmpty():
-        return None                  
-    imgSub = srcImage[pixULX:pixEndX, pixULY:pixEndY].clone()
-    return imgSub
+
+def _cutoutBoxPixels(srcImage, xyCenter, width, height, wcs, log):
+     '''Returns an image cutout from the source image.
+     srcImage - Source image.
+     xyCenter - The center of region to cutout in pixels.
+     width - The width in pixels.
+     height - The height in pixels.
+     height and width will be trimmed if they go past the edge of the source image.
+     '''
+     # assuming both src_box and xyCenter to be in Box2I 
+     log.debug("xyCenter={}".format(xyCenter))
+     src_box = srcImage.getBBox()
+     co_box = afwGeom.Box2I(xyCenter, afwGeom.Extent2I(int(width), int(height)))
+     co_box.clip(src_box)
+     if co_box.isEmpty():
+         return None 
+     pixULX = co_box.getBeginX()
+     pixEndX = co_box.getEndX()
+     pixULY = co_box.getBeginY()
+     pixEndY = co_box.getEndY()
+     log.debug("co_box pixULX={} pixEndX={} pixULY={} pixEndY={}".format(pixULX,
+         pixEndX, pixULY, pixEndY))
+     if isinstance(srcImage, afwImage.ExposureF):
+        imgSub= afwImage.ExposureF(srcImage, co_box)
+        imgSub.setWcs(wcs)
+     else:
+        # for non-ExposureF, e.g. raw (DecoredImage)
+        imgSub = srcImage[pixULX:pixEndX, pixULY:pixEndY].clone()
+     return imgSub
 
 
 def _getKeysFromList(flist, fields):
