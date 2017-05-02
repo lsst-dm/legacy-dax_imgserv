@@ -187,18 +187,13 @@ class W13Db:
                                    ra * afwGeom.degrees,
                                    dec * afwGeom.degrees)
         xyWcs = wcs.skyToPixel(raDec)
-        x0 = img.getX0()
-        y0 = img.getY0()
-        xyCenter_x0 = xyWcs.getX() - x0
-        xyCenter_y0 = xyWcs.getY() - y0
-        # specify the center for the cutout
-        pixULX = int(xyCenter_x0 - width/2.0)
-        pixULY = int(xyCenter_y0 - height/2.0)
-        xyCenter = afwGeom.Point2I(pixULX, pixULY)
+        x0, y0 = img.getX0(), img.getY0()
+        xyCenter_x = xyWcs.getX() - x0
+        xyCenter_y = xyWcs.getY() - y0
+        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, 
+                dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter_x, xyCenter_y)
         if cutoutType == 'pixel':
-            self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, 
-                    dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter.getX(), xyCenter.getY())
-            imgSub = _cutoutBoxPixels(img, xyCenter, width, height, wcs, self._log)
+            imgSub = _cutoutBoxPixels(img, xyCenter_x, xyCenter_y, width, height, wcs, self._log)
             return imgSub
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
         # and compare that distance with the number of pixels.
@@ -221,7 +216,9 @@ class W13Db:
         # Need Upper Left corner and dimensions for Box2I
         pixW = width*pixelPerArcsec
         pixH = height*pixelPerArcsec
-        imgSub = _cutoutBoxPixels(img, xyCenter, pixW, pixH, wcs, self._log)
+        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra,
+                dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter_x, xyCenter_y)
+        imgSub = _cutoutBoxPixels(img, xyCenter_x, xyCenter_y, pixW, pixH, wcs, self._log)
         return imgSub
 
     def _findNearestImageContaining(self, ra, dec, filterName):
@@ -438,7 +435,7 @@ class W13DeepCoaddDb(W13Db):
             return image
 
 
-def _cutoutBoxPixels(srcImage, xyCenter, width, height, wcs, log):
+def _cutoutBoxPixels(srcImage, xyCenter_x, xyCenter_y, width, height, wcs, log):
      '''Returns an image cutout from the source image.
      srcImage - Source image.
      xyCenter - The center of region to cutout in pixels.
@@ -446,9 +443,13 @@ def _cutoutBoxPixels(srcImage, xyCenter, width, height, wcs, log):
      height - The height in pixels.
      height and width will be trimmed if they go past the edge of the source image.
      '''
-     # assuming both src_box and xyCenter to be in Box2I 
+     # now center the cutout image
+     pixULX = int(xyCenter_x - width/2.0)
+     pixULY = int(xyCenter_y - height/2.0)
+     xyCenter = afwGeom.Point2I(pixULX, pixULY)
      log.debug("xyCenter={}".format(xyCenter))
      src_box = srcImage.getBBox()
+     # assuming both src_box and xyCenter to be in Box2I 
      co_box = afwGeom.Box2I(xyCenter, afwGeom.Extent2I(int(width), int(height)))
      co_box.clip(src_box)
      if co_box.isEmpty():
