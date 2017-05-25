@@ -25,6 +25,7 @@ This is an example of stiching images together.
 
 @author  John Gates, SLAC
 """
+from __future__ import print_function
 
 # See also obs_lsstSim policy/LsstSimMapper.paf to see all
 # available data products and the dataID keys used to obtain them.
@@ -50,7 +51,7 @@ def stitchTestDeepCoadd():
     w13Db = dbOpen("~/.mysqlAuthLSST.lsst10", W13DeepCoaddDb)
     fullImg, metaFull = w13Db.getImageFullWithMetadata(19.36995, -0.3146, 'r')
     if fullImg == None:
-        print "No image found"
+        print("No image found")
         exit()
     # cut the image into quarters
     imgW = fullImg.getWidth()

@@ -1,3 +1,4 @@
+from __future__ import print_function
 #
 # LSST Data Management System
 # Copyright 2014-2015 LSST/AURA.
@@ -159,13 +160,13 @@ class DataCatUtil:
 
 
 def helpMsg():
-    print ' --DEL --ds <dataset>                  // delete the dataset from DataCat'
-    print ' --regf <fileName> --ds <datasetName> // register file'
-    print ' --regd <directory> --ds <datasetPrefix> // recursively register files in directory'
-    print '                                  // with a datasetName prefix'
-    print ' --DEL_dir <directory> --ds <datasetPrefix> // recursively remove files in directory'
-    print '                                  // from DataCat with datasetPrefix'
-    print '                                  // This does not delete the files.'
+    print(' --DEL --ds <dataset>                  // delete the dataset from DataCat')
+    print(' --regf <fileName> --ds <datasetName> // register file')
+    print(' --regd <directory> --ds <datasetPrefix> // recursively register files in directory')
+    print('                                  // with a datasetName prefix')
+    print(' --DEL_dir <directory> --ds <datasetPrefix> // recursively remove files in directory')
+    print('                                  // from DataCat with datasetPrefix')
+    print('                                  // This does not delete the files.')
 
 
 def expandDir(directory):
@@ -202,31 +203,31 @@ def main(argv):
             aVals["datasetName"] = arg
     cmd = aVals["command"]
     if cmd == "regf":
-        print 'regf {} {}'.format(aVals["fileName"], aVals["datasetName"])
+        print('regf {} {}'.format(aVals["fileName"], aVals["datasetName"]))
         if aVals["fileName"] != "" and aVals["datasetName"] != "":
             dcu.registerFile(aVals["fileName"], aVals["datasetName"])
         else:
             helpMsg()
     elif cmd == "regd":
-        print 'regd {}'.format(aVals["dirName"])
+        print('regd {}'.format(aVals["dirName"]))
         if aVals["dirName"] != "":
             count = dcu.directoryCrawlRegister(aVals["dirName"], aVals["datasetName"])
-            print "Registered {} files".format(count)
+            print("Registered {} files".format(count))
         else:
             helpMsg()
     elif cmd == "DEL":
         if aVals["datasetName"] != "":
             dcu.deleteDataset(aVals["datasetName"])
     elif cmd == "DEL_dir":
-        print 'DEL_dir {} {}'.format(aVals["dirName"], aVals["datasetName"])
+        print('DEL_dir {} {}'.format(aVals["dirName"], aVals["datasetName"]))
         if aVals["dirName"] != "":
             count = dcu.directoryCrawlDelete(aVals["dirName"], aVals["datasetName"])
-            print "Deleted from DataCat {} files".format(count)
+            print("Deleted from DataCat {} files".format(count))
         else:
             helpMsg()
     else:
         helpMsg()
-    print "Done"
+    print("Done")
 
 if __name__ == '__main__':
     main(sys.argv[1:])
