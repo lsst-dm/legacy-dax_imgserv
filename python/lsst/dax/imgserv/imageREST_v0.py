@@ -38,7 +38,7 @@ import lsst.afw.geom as afwGeom
 import lsst.log as log
 
 from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
-from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
 imageREST = Blueprint('imageREST', __name__, static_folder='static',
@@ -47,6 +47,7 @@ imageREST = Blueprint('imageREST', __name__, static_folder='static',
 
 # To be called from webserv
 def imageServ_loadConfig(config_path, db_auth_conf):
+    '''Load configuration into ImageServ.'''
     if config_path is None:
         # use default root_path for imageREST
         config_path = imageREST.root_path+"/config/"
@@ -95,7 +96,6 @@ def checkRaDec(raIn, decIn):
         msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(raIn, decIn)
         valid = False
     return valid, ra, dec, msg
-
 
 
 def checkParamsICutoutFromScienceId(scienceId, raIn, decIn,
@@ -265,10 +265,10 @@ def _getIFull(_request, W13db):
         # TODO: use HTTP errors DM-1980
         resp = "INVALID_INPUT {}".format(msg)
         return resp
-    log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
+    log.info("raw ra={} dec={} filter={}".format(ra, dec, filt))
     # fetch the image here
-    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
-    imgFull = w13db.getImageFull(ra, dec, filt)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    imgFull = img_getter.fullimage(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -286,15 +286,15 @@ def _getIIds(_request, W13db):
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
     # fetch the image here
-    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     validIds = False
     ids = {}
-    ids, validIds = w13db.getIdsFromRequest(_request)
+    ids, validIds = img_getter.data_id_from_request(_request)
     log.info("valid={} id {}".format(validIds, ids))
     if not validIds:
         resp = "INVALID_INPUT {}".format(ids)
         return resp
-    imgFull, butler = w13db.getImageByIds(ids)
+    imgFull = img_getter.image_by_data_id(ids)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -311,17 +311,17 @@ def _getIScienceId(_request, W13db):
     ''' Get a full image from the id given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
-    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     value = request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
         return resp
-    ids, valid = w13db.getImageIdsFromScienceId(value)
+    ids, valid = img_getter.data_id_from_science_id(value)
     log.debug("_getIScienceId valid={} value={} ids={}".format(valid, value, ids))
     if not valid:
         resp = "INVALID_INPUT value={} {}".format(value, ids)
         return resp
-    imgFull, butler = w13db.getImageByIds(ids)
+    imgFull = img_getter.image_by_data_id(ids)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -356,10 +356,9 @@ def _getICutout(_request, W13db, units):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
              ra, dec, filt, width, height))
-
     # fetch the image here
-    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
-    img = w13db.getImage(ra, dec, filt, width, height, units)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img = img_getter.image_cutout(ra, dec, filt, width, height, units)
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -396,9 +395,9 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     if not valid:
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     # fetch the image here
-    w13db = dbOpen(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     # need to pass the source science id as string
-    img = w13db._getImageCutoutFromScienceId(scienceId, ra, dec, width, height, units)
+    img = img_getter.imagecutout_from_science_id(scienceId, ra, dec, width, height, units)
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
