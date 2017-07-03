@@ -108,15 +108,3 @@ def stitch_exposures_good_pixel_copy(dest_wcs, dest_bbox, expo_list, warper,
         dest_masked_image = dest_expo.getMaskedImage()
         coadd_utils.copyGoodPixels(dest_masked_image, src_masked_image, bad_pixel_mask)
     return dest_expo
-
-
-def strExpoCornersRaDec(expo):
-    wcs = expo.getWcs()
-    x0 = expo.getX0()
-    y0 = expo.getY0()
-    w = expo.getWidth()
-    h = expo.getHeight()
-    ll_corner = wcs.pixelToSky(x0, y0)
-    ur_corner = wcs.pixelToSky(x0+w, y0+h)
-    s = "ll_corner={} ur_corner={}".format(ll_corner, ur_corner)
-    return s
