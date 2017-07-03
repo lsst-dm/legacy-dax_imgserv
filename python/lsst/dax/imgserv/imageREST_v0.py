@@ -33,8 +33,8 @@ import tempfile
 from flask import Blueprint, make_response, request, current_app
 from flask import render_template
 
-import lsst.afw.coord as afwCoord
-import lsst.afw.geom as afwGeom
+import lsst.afw.coord as afw_coord
+import lsst.afw.geom as afw_geom
 import lsst.log as log
 
 from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
@@ -46,7 +46,7 @@ imageREST = Blueprint('imageREST', __name__, static_folder='static',
 
 
 # To be called from webserv
-def imageServ_loadConfig(config_path, db_auth_conf):
+def load_imgserv_config(config_path, db_auth_conf):
     """Load configuration into ImageServ."""
     if config_path is None:
         # use default root_path for imageREST
@@ -114,28 +114,18 @@ def _assert_cutout_parameters(science_id, ra, dec,
     return science_id, ra, dec, width, height, units
 
 
-def getRequestParams(_request, params):
-    """Returns the values of the specified parameters specified in the
-       params as string array.
-    """
-    vals = []
-    for p in params:
-        vals.append(_request.args.get(p))
-    return vals
-
-
 # this will handle something like:
 # GET /image/v0/raw?ra=359.195&dec=-0.1055&filter=r
 @imageREST.route('/raw', methods=['GET'])
 def getRaw():
-    return _getIFull(request, W13RawDb)
+    return _image(request, W13RawDb)
 
 
 # this will handle something like:
 # GET /image/v0/raw/ids?run=5646&camcol=4&field=694&filter=g
 @imageREST.route('/raw/ids', methods=['GET'])
 def getIRawIds():
-    return _getIIds(request, W13RawDb)
+    return _image_from_data_id(request, W13RawDb)
 
 
 # this will handle something like:
@@ -143,21 +133,21 @@ def getIRawIds():
 # Which should translate to run=3325 camcol=1 field=171 filter=z
 @imageREST.route('/raw/id', methods=['GET'])
 def getIRawScienceId():
-    return _getIScienceId(request, W13RawDb)
+    return _image_from_science_id(request, W13RawDb)
 
 
 # this will handle something like:
 # GET /image/v0/raw/cutout?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutout', methods=['GET'])
 def getIRawCutout():
-    return _getICutout(request, W13RawDb, 'arcsecond')
+    return _image_cutout(request, W13RawDb, 'arcsecond')
 
 
 # this will handle something like:
 # GET /image/v0/raw/cutoutPixel?ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0
 @imageREST.route('/raw/cutoutPixel', methods=['GET'])
 def getIRawCutoutPixel():
-    return _getICutout(request, W13RawDb, 'pixel')
+    return _image_cutout(request, W13RawDb, 'pixel')
 
 
 # this will handle something like:
@@ -165,21 +155,21 @@ def getIRawCutoutPixel():
 # GET /image/v0/raw/5646240694/cutout?ra=37.6292&dec=0.104625&widthPix=100&heightPix=100
 @imageREST.route('/raw/<id>/cutout', methods=['GET'])
 def getIRawCoutFromScienceId(id):
-    return _getICutoutFromScienceId(request, W13RawDb, id)
+    return _image_cutout_from_science_id(request, W13RawDb, id)
 
 
 # this will handle something like:
 # GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
 @imageREST.route('/calexp', methods=['GET'])
 def getCalexp():
-    return _getIFull(request, W13CalexpDb)
+    return _image(request, W13CalexpDb)
 
 
 # this will handle something like:
 # GET /image/v0/calexp/ids?run=5646&camcol=4&field=694&filter=g
 @imageREST.route('/calexp/ids', methods=['GET'])
 def getICalexpIds():
-    return _getIIds(request, W13CalexpDb)
+    return _image_from_data_id(request, W13CalexpDb)
 
 
 # this will handle something like:
@@ -187,21 +177,21 @@ def getICalexpIds():
 # Which should translate to run=3325 camcol=1 field=171 filter=z
 @imageREST.route('/calexp/id', methods=['GET'])
 def getICalexpScienceId():
-    return _getIScienceId(request, W13CalexpDb)
+    return _image_from_science_id(request, W13CalexpDb)
 
 
 # this will handle something like:
 # GET /image/v0/calexp/cutout?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutout', methods=['GET'])
 def getICalexpCutout():
-    return _getICutout(request, W13CalexpDb, 'arcsecond')
+    return _image_cutout(request, W13CalexpDb, 'arcsecond')
 
 
 # this will handle something like:
 # GET /image/v0/calexp/cutoutPixel?ra=37.644598&dec=0.104625&filter=r&width=30.0&height=45.0
 @imageREST.route('/calexp/cutoutPixel', methods=['GET'])
 def getICalexpCutoutPixel():
-    return _getICutout(request, W13CalexpDb, 'pixel')
+    return _image_cutout(request, W13CalexpDb, 'pixel')
 
 
 # this will handle something like:
@@ -209,21 +199,21 @@ def getICalexpCutoutPixel():
 # GET /image/v0/calexp/5646240694/cutout?ra=37.6292&dec=-0.0658&widthPix=30&heightPix=45
 @imageREST.route('/calexp/<id>/cutout', methods=['GET'])
 def getICalexpCutoutFromScienceId(id):
-    return _getICutoutFromScienceId(request, W13CalexpDb, id)
+    return _image_cutout_from_science_id(request, W13CalexpDb, id)
 
 
 # this will handle something like:
 # GET /image/v0/deepCoadd?ra=19.36995&dec=-0.3146&filter=r
 @imageREST.route('/deepCoadd', methods=['GET'])
 def getDeepCoadd():
-    return _getIFull(request, W13DeepCoaddDb)
+    return _image(request, W13DeepCoaddDb)
 
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/ids?tract=0&patch=225,1&filter='i'
 @imageREST.route('/deepCoadd/ids', methods=['GET'])
 def getIDeepCoaddsIds():
-    return _getIIds(request, W13DeepCoaddDb)
+    return _image_from_data_id(request, W13DeepCoaddDb)
 
 
 # this will handle something like:
@@ -231,21 +221,21 @@ def getIDeepCoaddsIds():
 # Which should translate to tract= patch=1 filter=
 @imageREST.route('/deepCoadd/id', methods=['GET'])
 def getIDeepCoaddScienceId():
-    return _getIScienceId(request, W13DeepCoaddDb)
+    return _image_from_science_id(request, W13DeepCoaddDb)
 
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutout?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
 @imageREST.route('/deepCoadd/cutout', methods=['GET'])
 def getIDeepCoaddCutout():
-    return _getICutout(request, W13DeepCoaddDb, 'arcsecond')
+    return _image_cutout(request, W13DeepCoaddDb, 'arcsecond')
 
 
 # this will handle something like:
 # GET /image/v0/deepCoadd/cutoutPixel?ra=19.36995&dec=-0.3146&filter=r&width=115&height=235
 @imageREST.route('/deepCoadd/cutoutPixel', methods=['GET'])
 def getIDeepCoaddCutoutPixel():
-    return _getICutout(request, W13DeepCoaddDb, 'pixel')
+    return _image_cutout(request, W13DeepCoaddDb, 'pixel')
 
 
 # this will handle something like:
@@ -253,17 +243,16 @@ def getIDeepCoaddCutoutPixel():
 # GET /image/v0/deepCoadd/23986176/cutout?ra=19.36995&dec=-0.3146xx&widthPix=100&heightPix=100
 @imageREST.route('/deepCoadd/<id>/cutout', methods=['GET'])
 def getIDeepCoaddCutoutFromScienceId(id):
-    return _getICutoutFromScienceId(request, W13DeepCoaddDb, id)
+    return _image_cutout_from_science_id(request, W13DeepCoaddDb, id)
 
 
-def _getIFull(_request, W13db):
+def _image(_request, W13db):
     """ Get a full image from the input paramters.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
     ra = _request.args.get('ra')
     dec = _request.args.get('dec')
-    filter = _request.args.get('filter')
-    filter = filter.encode('ascii')
+    filter = _request.args.get('filter').encode('ascii')
 
     # check inputs
     try:
@@ -276,49 +265,35 @@ def _getIFull(_request, W13db):
     img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     full_img = img_getter.fullimage(ra, dec, filter)
     if full_img is None:
-        return _imageNotFound()
+        return _image_not_found()
     log.debug("Full w=%d h=%d", full_img.getWidth(), full_img.getHeight())
-    tmp_path = tempfile.mkdtemp()
-    file_name = os.path.join(tmp_path, "fullImage.fits")
-    log.info("temporary file_name=%s", file_name)
-    full_img.writeFits(file_name)
-    resp = responseFile(file_name)
-    os.remove(file_name)
-    os.removedirs(tmp_path)
-    return resp
+    return _file_response(full_img, "full_image.fits")
 
 
-def _getIIds(_request, W13db):
+def _image_from_data_id(_request, W13db):
     """ Get a full image from the field ids given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
     # fetch the image here
     img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
-    ids, validIds = img_getter.data_id_from_request(_request)
-    log.info("valid={} id {}".format(validIds, ids))
-    if not validIds:
+    ids, valid_ids = img_getter.data_id_from_request(_request)
+    log.info("valid={} id {}".format(valid_ids, ids))
+    if not valid_ids:
         resp = "INVALID_INPUT {}".format(ids)
         return resp
     full_img = img_getter.image_by_data_id(ids)
     if full_img is None:
-        return _imageNotFound()
+        return _image_not_found()
     log.debug("Full w=%d h=%d", full_img.getWidth(), full_img.getHeight())
-    tmpPath = tempfile.mkdtemp()
-    fileName = os.path.join(tmpPath, "fullImage.fits")
-    log.info("temporary fileName=%s", fileName)
-    full_img.writeFits(fileName)
-    resp = responseFile(fileName)
-    os.remove(fileName)
-    os.removedirs(tmpPath)
-    return resp
+    return _file_response(full_img, "full_image.fits")
 
 
-def _getIScienceId(_request, W13db):
-    """ Get a full image from the id given.
+def _image_from_science_id(_request, W13db):
+    """ Get a full image response from the id given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
     img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
-    value = request.args.get("id")
+    value = _request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
         return resp
@@ -329,59 +304,45 @@ def _getIScienceId(_request, W13db):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     full_img = img_getter.image_by_data_id(ids)
     if full_img is None:
-        return _imageNotFound()
+        return _image_not_found()
     log.debug("Full w=%d h=%d", full_img.getWidth(), full_img.getHeight())
-    tmp_path = tempfile.mkdtemp()
-    file_name = os.path.join(tmp_path, "fullImage.fits")
-    log.info("temporary file_name=%s", file_name)
-    full_img.writeFits(file_name)
-    resp = responseFile(file_name)
-    os.remove(file_name)
-    os.removedirs(tmp_path)
-    return resp
+    return _file_response(full_img, "full_image.fits")
 
 
-def _getICutout(_request, W13db, units):
-    """Get a raw image from based on imput parameters.
+def _image_cutout(_request, W13db, units):
+    """Get a raw image response from based on imput parameters.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     units should be 'pixel' or 'arcsecond'
     """
-    raIn = _request.args.get('ra')
-    decIn = _request.args.get('dec')
-    filt = _request.args.get('filter')
-    widthIn = _request.args.get('width')
-    heightIn = _request.args.get('height')
+    ra = _request.args.get('ra')
+    dec = _request.args.get('dec')
+    filter = _request.args.get('filter').encode('ascii')
+    width = _request.args.get('width')
+    height = _request.args.get('height')
     # check inputs
     try:
-        ra, dec, filt = _assert_ra_dec_filter(raIn, decIn, filt, 'irg')
+        ra, dec, filter = _assert_ra_dec_filter(ra, dec, filter, 'irg')
         try:
-            width = float(widthIn)
-            height = float(heightIn)
+            width = float(width)
+            height = float(height)
         except ValueError:
-            msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
+            msg = "INVALID_INPUT width={} height={}".format(width, height)
             raise ValueError(msg)
     except ValueError as e:
         return _error(ValueError.__name__, e.args[0], BAD_REQUEST)
 
-    log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
-             ra, dec, filt, width, height))
+    log.info("raw cutout pixel ra={} dec={} filter={} width={} height={}".format(
+             ra, dec, filter, width, height))
     # fetch the image here
     img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
-    img = img_getter.image_cutout(ra, dec, filt, width, height, units)
+    img = img_getter.image_cutout(ra, dec, filter, width, height, units)
     if img is None:
-        return _imageNotFound()
+        return _image_not_found()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
-    tmp_path = tempfile.mkdtemp()
-    file_name = os.path.join(tmp_path, "cutout.fits")
-    log.info("temporary file_name=%s", file_name)
-    img.writeFits(file_name)
-    resp = responseFile(file_name)
-    os.remove(file_name)
-    os.removedirs(tmp_path)
-    return resp
+    return _file_response(img, "cutout.fits")
 
 
-def _getICutoutFromScienceId(_request, W13db, scienceId):
+def _image_cutout_from_science_id(_request, W13db, scienceId):
     """Get cutout image from the id given.
     W13db should be the appropriate class (W13CalexpDb, W13DeepCoadDb, W13RawDb, etc.)
     Units: arcsecond, pixel (request parameters)
@@ -389,17 +350,15 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     # fetch the interested parameters
     # Only one of (widthAng, heightAng),(widthPix, heightPix) should be valid
     params = ['ra', 'dec', 'widthAng', 'heightAng', 'widthPix', 'heightPix']
-    raIn, decIn, widthAng, heightAng, widthPix, heightPix = getRequestParams(_request, params)
+    ra, dec, widthAng, heightAng, widthPix, heightPix = [_request.args.get(p) for p in params]
 
-    valid, units, msg = False, "", ""
-    width, height = 0.0, 0.0
     try:
         if widthAng is not None and heightAng is not None:
             sId, ra, dec, width, height, units = _assert_cutout_parameters(
-                    scienceId, raIn, decIn, widthAng, heightAng, 'arcsecond')
+                    scienceId, ra, dec, widthAng, heightAng, 'arcsecond')
         elif widthPix is not None and heightPix is not None:
             sId, ra, dec, width, height, units = _assert_cutout_parameters(
-                scienceId, raIn, decIn, widthPix, heightPix, 'pixel')
+                scienceId, ra, dec, widthPix, heightPix, 'pixel')
         else:
             msg = "INVALID_INPUT no dimensions for cutout specified"
             raise ValueError(msg)
@@ -410,16 +369,9 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     # need to pass the source science id as string
     img = img_getter.imagecutout_from_science_id(scienceId, ra, dec, width, height, units)
     if img is None:
-        return _imageNotFound()
+        return _image_not_found()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
-    tmp_path = tempfile.mkdtemp()
-    file_name = os.path.join(tmp_path, "cutout.fits")
-    log.info("temporary file_name=%s", file_name)
-    img.writeFits(file_name)
-    resp = responseFile(file_name)
-    os.remove(file_name)
-    os.removedirs(tmp_path)
-    return resp
+    return _file_response(img, "cutout.fits")
 
 
 # this will handle something like:
@@ -435,7 +387,7 @@ def getISkyMapDeepCoaddCutout():
     :query integer height: Height
     :query string source: Optional filesystem path to provide imgserv
     """
-    return _getISkyMapDeepCoaddCutout(request, 'arcsecond')
+    return _stiched_image_cutout(request, 'arcsecond')
 
 
 # this will handle something like:
@@ -451,10 +403,10 @@ def getISkyMapDeepCoaddCutoutPixel():
     :query integer height: Height
     :query string source: Optional filesystem path to provide imgserv
     """
-    return _getISkyMapDeepCoaddCutout(request, 'pixel')
+    return _stiched_image_cutout(request, 'pixel')
 
 
-def _getISkyMapDeepCoaddCutout(_request, units):
+def _stiched_image_cutout(_request, units):
     """Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     """
     source = _request.args.get("source", None)
@@ -464,50 +416,42 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
-    mapType = "deepCoadd_skyMap"
-    patchType = "deepCoadd"
-    raIn = _request.args.get('ra')
-    decIn = _request.args.get('dec')
-    filt = _request.args.get('filter')
-    widthIn = _request.args.get('width')
-    heightIn = _request.args.get('height')
+    map_type = "deepCoadd_skyMap"
+    patch_type = "deepCoadd"
+    ra = _request.args.get('ra')
+    dec = _request.args.get('dec')
+    filter = _request.args.get('filter').encode('ascii')
+    width = _request.args.get('width')
+    height = _request.args.get('height')
     # check inputs - Many valid filter names are unknown and can't be checked.
     try:
-        ra, dec = _assert_ra_dec(raIn, decIn)
+        ra, dec = _assert_ra_dec(ra, dec)
         try:
-            width = float(widthIn)
-            height = float(heightIn)
-            # The butler isn't fond of unicode in this case.
-            filt = filt.encode('ascii')
+            width = float(width)
+            height = float(height)
         except ValueError:
-            msg = "INVALID_INPUT width={} height={}".format(widthIn, heightIn)
+            msg = "INVALID_INPUT width={} height={}".format(width, height)
             raise ValueError(msg)
     except ValueError as e:
         return _error(ValueError.__name__, e.args[0], BAD_REQUEST)
 
-    log.info("skymap cutout pixel ra={} dec={} filt={} width={} height={}".format(
-            ra, dec, filt, width, height))
+    log.info("skymap cutout pixel ra={} dec={} filter={} width={} height={}".format(
+            ra, dec, filter, width, height))
     # fetch the image here
-    ra_angle = afwGeom.Angle(ra, afwGeom.degrees)
-    dec_angle = afwGeom.Angle(dec, afwGeom.degrees)
-    center_coord = afwCoord.Coord(ra_angle, dec_angle, 2000.0)
+    ra_angle = afw_geom.Angle(ra, afw_geom.degrees)
+    dec_angle = afw_geom.Angle(dec, afw_geom.degrees)
+    center_coord = afw_coord.Coord(ra_angle, dec_angle, 2000.0)
     try:
-        expo = getSkyMap(center_coord, int(width), int(height), filt, units, source, mapType, patchType)
+        expo = getSkyMap(center_coord, int(width), int(height),
+                         filter, units, source, map_type, patch_type)
     except RuntimeError as e:
         return _error("RuntimeError", e.message, INTERNAL_SERVER_ERROR)
     if expo is None:
-        return _imageNotFound()
-    tmp_path = tempfile.mkdtemp()
-    file_name = os.path.join(tmp_path, "cutout.fits")
-    log.info("temporary file_name=%s", file_name)
-    expo.writeFits(file_name)
-    resp = responseFile(file_name)
-    os.remove(file_name)
-    os.removedirs(tmp_path)
-    return resp
+        return _image_not_found()
+    return _file_response(expo, "cutout.fits")
 
 
-def _imageNotFound():  # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
+def _image_not_found():  # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
     return make_response("Image Not Found", NOT_FOUND)
 
 
@@ -515,7 +459,18 @@ def _error(exception, message, status_code):
     return make_response({"exception": exception, "message": message}, status_code)
 
 
-def responseFile(file_name):
+def _file_response(img, file_name):
+    tmp_path = tempfile.mkdtemp()
+    file_path = os.path.join(tmp_path, file_name)
+    log.debug("temporary file_path=%s", file_path)
+    img.writeFits(file_path)
+    resp = _make_file_response(file_path)
+    os.remove(file_path)
+    os.removedirs(tmp_path)
+    return resp
+
+
+def _make_file_response(file_name):
     # It would be nice to just write to 'data' instead of making a file.
     # writeFits defined in afw/python/lsst/afw/math/background.py
     # Using a cache of files might be desirable. We would need consistent and
