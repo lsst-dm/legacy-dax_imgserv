@@ -34,17 +34,12 @@ dimensions, via the appropriate Butler object passed in.
 
 """
 
-import gzip
 import math
-import os
-import sys
-import time
 
 import lsst.afw
-import lsst.afw.coord as afwCoord
-import lsst.afw.display as afwDisplay
-import lsst.afw.geom as afwGeom
-import lsst.afw.image as afwImage
+import lsst.afw.coord as afw_coord
+import lsst.afw.geom as afw_geom
+import lsst.afw.image as afw_image
 
 import lsst.log as log
 
@@ -89,7 +84,7 @@ class ImageGetter:
                 valid = False
             try:
                 value = int(value)
-            except:
+            except ValueError:
                 value = str(value)
             ids[key] = value
         return ids, valid
@@ -118,22 +113,22 @@ class ImageGetter:
         - Use filtername, ra, dec, width, and height to find an image from the database.
         
         """
-         # Find the nearest image to ra and dec.
+        # Find the nearest image to ra and dec.
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
         qresult = self._metaservget.nearest_image_containing(ra, dec, filtername)
         return self._imagecutout_by_data_id(ra, dec, width, height, qresult, cutout_type)
    
-    def imagecutout_from_science_id(self, scienceID, ra, dec, width, height, units):
+    def imagecutout_from_science_id(self, science_id, ra, dec, width, height, units):
         """ Get the image specified by id centered on (ra, dec) with width and height dimensions.
         Units (or cutout_type): "arcsecond", "pixel"
         
         """
         # Get the corresponding image(data) id from the butler
-        dataID, valid = self.data_id_from_science_id(scienceID)
-        self._log.debug("imagecutout_from_science_id dataID:{}".format(dataID))
+        data_id, valid = self.data_id_from_science_id(science_id)
+        self._log.debug("imagecutout_from_science_id data_id:{}".format(data_id))
         if valid:
             # make id compatible with qResult type via custom wrapping
-            c_qr = ["CUSTOM_QR", dataID]
+            c_qr = ["CUSTOM_QR", data_id]
             image = self._imagecutout_by_data_id(ra, dec, width, height, c_qr, units)
             return image
 
@@ -147,32 +142,32 @@ class ImageGetter:
         ids = {}
         science_id = int(science_id)
         if self._butler_keys == ["run", "camcol", "field", "filter"]:
-            possibleFields = {
+            possible_fields = {
                 "field": science_id % 10000,
-                "camcol": (science_id//10000)%10,
-                "filter": "ugriz"[(science_id//100000)%10],
+                "camcol": (science_id//10000) % 10,
+                "filter": "ugriz"[(science_id//100000) % 10],
                 "run": science_id//1000000,
             }
             self._log.debug("w13Db data_id_from_science_id {}".format( 
-                possibleFields))
+                possible_fields))
             for key in self._butler_keys:
-                value = possibleFields[key]
+                value = possible_fields[key]
                 if value is None:
                     valid = False
                 ids[key] = value
             self._log.debug("W13Db ids={} {}".format(valid, ids))
         elif self._butler_keys == ["tract", "patch", "filter"]:
-            patchY = (science_id//8)%(2**13)
-            patchX = (science_id//(2**16))%(2**13)
-            possibleFields = {
-                "filter": "ugriz"[science_id%8],
+            patch_y = (science_id//8) % (2**13)
+            patch_x = (science_id//(2**16)) % (2**13)
+            possible_fields = {
+                "filter": "ugriz"[science_id % 8],
                 "tract": science_id//(2**29),
-                "patch": "%d,%d" % (patchX, patchY)
+                "patch": "%d,%d" % (patch_x, patch_y)
             }
             self._log.debug("w13DeepCoaddDb: data_id_from_science_id {}".format( 
-                possibleFields))
+                possible_fields))
             for key in self._butler_keys:
-                value = possibleFields[key]
+                value = possible_fields[key]
                 if value is None:
                     valid = False
                 ids[key] = value
@@ -180,7 +175,7 @@ class ImageGetter:
         return ids, valid 
  
     def apply_cutout(self, src_img, metadata, ra, dec, width, height, qresults,
-            cutout_type="arcsecond"):
+                     cutout_type="arcsecond"):
         """Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcseconds by default).
 
@@ -202,55 +197,61 @@ class ImageGetter:
         
         Returns
         -------
-        afwImage  
+        afw_image  
                 the cutout image 
         
         """
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
-        imgW = src_img.getWidth()
-        imgH = src_img.getHeight()
-        self._log.debug("imgW=%d imgH=%d", imgW, imgH)
+        img_w = src_img.getWidth()
+        img_h = src_img.getHeight()
+        self._log.debug("img_w=%d img_h=%d", img_w, img_h)
         wcs = lsst.afw.image.makeWcs(metadata, False)
-        raDec = afwCoord.makeCoord(afwCoord.ICRS,
-                                   ra * afwGeom.degrees,
-                                   dec * afwGeom.degrees)
-        xyWcs = wcs.skyToPixel(raDec)
+        ra_dec = afw_coord.makeCoord(afw_coord.ICRS,
+                                     ra * afw_geom.degrees,
+                                     dec * afw_geom.degrees)
+        xy_wcs = wcs.skyToPixel(ra_dec)
         x0, y0 = src_img.getX0(), src_img.getY0()
-        xyCenter_x = xyWcs.getX() - x0
-        xyCenter_y = xyWcs.getY() - y0
-        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra, 
-                dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter_x, xyCenter_y)
+        xy_center_x = xy_wcs.getX() - x0
+        xy_center_y = xy_wcs.getY() - y0
+        self._log.info("ra=%f dec=%f xy_wcs=(%f,%f) x0y0=(%f,%f) "
+                       "xy_center=(%f,%f)", ra, dec, xy_wcs.getX(), xy_wcs.getY(),
+                       x0, y0, xy_center_x, xy_center_y)
         if cutout_type == 'pixel':
-            img = self._cutoutbox_pixels(src_img, xyCenter_x, xyCenter_y, 
-                    width, height, wcs, self._log)
+            img = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y,
+                                         width, height, wcs, self._log)
             return img
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
         # and compare that distance with the number of pixels.
-        raDecUL = wcs.pixelToSky(afwGeom.Point2D(0, 0))
-        raDecLR = wcs.pixelToSky(afwGeom.Point2D(imgW - 1, imgH - 1))
-        self._log.debug("raDecUL 0=%f 1=%f", raDecUL[0].asDegrees(), raDecUL[1].asDegrees())
-        self._log.debug("raDecLR 0=%f 1=%f", raDecLR[0].asDegrees(), raDecLR[1].asDegrees())
+        ra_dec_ul = wcs.pixelToSky(afw_geom.Point2D(0, 0))
+        ra_dec_lr = wcs.pixelToSky(afw_geom.Point2D(img_w - 1, img_h - 1))
+        self._log.debug("ra_dec_ul 0=%f 1=%f",
+                        ra_dec_ul[0].asDegrees(), ra_dec_ul[1].asDegrees())
+        self._log.debug("ra_dec_lr 0=%f 1=%f",
+                        ra_dec_lr[0].asDegrees(), ra_dec_lr[1].asDegrees())
         # length of a line from upper left (UL) to lower right (LR)
-        decDist = raDecUL[1].asArcseconds() - raDecLR[1].asArcseconds()
-        raLR = self._keep_within_180(raDecUL[0].asDegrees(), raDecLR[0].asDegrees())
-        raLR *= 3600.0  # convert degrees to arcseconds
+        dec_dist = ra_dec_ul[1].asArcseconds() - ra_dec_lr[1].asArcseconds()
+        ra_lr = self._keep_within_180(ra_dec_ul[0].asDegrees(), ra_dec_lr[0].asDegrees())
+        ra_lr *= 3600.0  # convert degrees to arcseconds
         # Correct distance in RA for the declination
-        cosDec = math.cos(dec*afwGeom.degrees)
-        raDist = cosDec * (raDecUL[0].asArcseconds() - raLR)
-        raDecDist = math.sqrt(math.pow(decDist, 2.0) + math.pow(raDist, 2.0))
-        self._log.debug("raDecDist=%f", raDecDist)
-        pixelDist = math.sqrt(math.pow(imgW, 2.0) + math.pow(imgH, 2.0))
-        pixelPerArcsec = pixelDist/raDecDist
-        self._log.debug("pixelPerArcsec=%f", pixelPerArcsec)
+        cos_dec = math.cos(dec * afw_geom.degrees)
+        ra_dist = cos_dec * (ra_dec_ul[0].asArcseconds() - ra_lr)
+        ra_dec_dist = math.sqrt(math.pow(dec_dist, 2.0) + math.pow(ra_dist, 2.0))
+        self._log.debug("ra_dec_dist=%f", ra_dec_dist)
+        pixel_dist = math.sqrt(math.pow(img_w, 2.0) + math.pow(img_h, 2.0))
+        pixel_per_arcsec = pixel_dist/ra_dec_dist
+        self._log.debug("pixel_per_arcsec=%f", pixel_per_arcsec)
         # Need Upper Left corner and dimensions for Box2I
-        pixW = width*pixelPerArcsec
-        pixH = height*pixelPerArcsec
-        self._log.info("ra=%f dec=%f xyWcs=(%f,%f) x0y0=(%f,%f) xyCenter=(%f,%f)", ra,
-                dec, xyWcs.getX(), xyWcs.getY(), x0, y0, xyCenter_x, xyCenter_y)
-        img = self._cutoutbox_pixels(src_img, xyCenter_x, xyCenter_y, pixW, pixH, wcs, self._log)
+        pix_w = width*pixel_per_arcsec
+        pix_h = height*pixel_per_arcsec
+        self._log.info("ra=%f dec=%f xy_wcs=(%f,%f) x0y0=(%f,%f) "
+                       "xyCenter=(%f,%f)", ra, dec, xy_wcs.getX(),
+                       xy_wcs.getY(), x0, y0, xy_center_x, xy_center_y)
+        img = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y,
+                                     pix_w, pix_h, wcs, self._log)
         return img
 
-    def _imagecutout_by_data_id(self, ra, dec, width, height, qresults, cutout_type="arcsecond"):
+    def _imagecutout_by_data_id(self, ra, dec, width, height, qresults,
+                                cutout_type="arcsecond"):
         # Return an image by data ID through the butler.
         img = self._imagefrombutler(qresults)
         if img is None:
@@ -259,81 +260,80 @@ class ImageGetter:
         # Get the metadata for the source image.
         metadata = self._metadata_from_data_id(qresults)
         img_co = self.apply_cutout(img, metadata, ra, dec, width, height,
-                qresults, cutout_type)
+                                   qresults, cutout_type)
         return img_co
 
     def _metadata_from_data_id(self, qresults):
         # Return the metadata for the query results in qResults and a butler.
         id_type, keyvals = self._data_id_from_qr(qresults)
         if id_type == "RCFF":
-            run, camcol, field, filtername = keyvals 
-            return self._butler.get(self._imagedataset_md(), run=run, camcol=camcol,
-                    field=field, filter=filtername)
+            run, camcol, field, filter = keyvals
+            return self._butler.get(self._imagedataset_md(), run=run,
+                                    camcol=camcol, field=field, filter=filter)
         elif id_type == "TPF":
-            tract, patch, filtername = keyvals
+            tract, patch, filter = keyvals
             return self._butler.get(self._imagedataset_md(), 
-                    tract=tract, patch=patch, filter=filtername)
+                                    tract=tract, patch=patch, filter=filter)
                
     def _imagefrombutler(self, qresults):
         # Retrieve the image through the Butler for this image type using the
         # query results as in 'qresults'.
         self._log.debug("_imagefrombutler qResults:{}".format(qresults))
         id_type, keyvals = self._data_id_from_qr(qresults)
-        if id_type == "RCFF": # rcff=run, camcol, field, filter
+        if id_type == "RCFF":  # rcff=run, camcol, field, filter
             run, camcol, field, filtername = keyvals
-            log.debug("_imagefrombutler run={} camcol={} field={} \
-                    filter={}".format(run, 
-                camcol, field, filtername))
-            img = self._butler.get(self._imagedataset_type, run=run, camcol=camcol,
-                    field=field, filter=filtername)
+            log.debug("_imagefrombutler run={} camcol={} field={} "
+                      "filter={}".format(run, camcol, field, filtername))
+            img = self._butler.get(self._imagedataset_type, run=run,
+                                   camcol=camcol, field=field, filter=filtername)
             return img 
-        elif id_type == "TPF": # tpf=tract, patch, filtername
+        elif id_type == "TPF":  # tpf=tract, patch, filtername
             tract, patch, filtername = keyvals
-            self._log.debug("deepCoadd _imagefrombutler tract={} patch={} \
-                    filtername={}".format(tract, patch, filtername))
+            self._log.debug("deepCoadd _imagefrombutler tract={} patch={} "
+                            "filtername={}".format(tract, patch, filtername))
             img = self._butler.get(self._imagedataset_type, tract=tract,
-                    patch=patch, filter=filtername)
+                                   patch=patch, filter=filtername)
             return img
 
     def _imagedataset_md(self):
-        #Return the butler policy name to retrieve metadata
+        # Return the butler policy name to retrieve metadata
         return self._imagedataset_type + "_md"
 
-    def _cutoutbox_pixels(self, src_image, xyCenter_x, xyCenter_y, width, height, wcs, log):
-        #Returns an image cutout from the source image.
+    def _cutoutbox_pixels(self, src_image, xy_center_x, xy_center_y, width, height, wcs, log):
+        # Returns an image cutout from the source image.
         #   srcImage - Source image.
-        #   xyCenter - The center of region to cutout in pixels.
+        #   xy_center - The center of region to cutout in pixels.
         #   width - The width in pixels.
         #   height - The height in pixels.
         #   height and width will be trimmed if they go past the edge of the source image.
         # First, center the cutout image
-        pixULX = int(xyCenter_x - width/2.0)
-        pixULY = int(xyCenter_y - height/2.0)
-        xyCenter = afwGeom.Point2I(pixULX, pixULY)
-        log.debug("xyCenter={}".format(xyCenter))
+        pix_ulx = int(xy_center_x - width/2.0)
+        pix_uly = int(xy_center_y - height/2.0)
+        xy_center = afw_geom.Point2I(pix_ulx, pix_uly)
+        log.debug("xy_center={}".format(xy_center))
         src_box = src_image.getBBox()
-        # assuming both src_box and xyCenter to be in Box2I 
-        co_box = afwGeom.Box2I(xyCenter, afwGeom.Extent2I(int(width), int(height)))
+        # assuming both src_box and xy_center to be in Box2I
+        co_box = afw_geom.Box2I(xy_center, afw_geom.Extent2I(int(width), int(height)))
         co_box.clip(src_box)
         if co_box.isEmpty():
             return None 
-        pixULX = co_box.getBeginX()
-        pixEndX = co_box.getEndX()
-        pixULY = co_box.getBeginY()
-        pixEndY = co_box.getEndY()
-        log.debug("co_box pixULX={} pixEndX={} pixULY={} pixEndY={}".format(pixULX,
-            pixEndX, pixULY, pixEndY))
-        if isinstance(src_image, afwImage.ExposureF):
-            img= afwImage.ExposureF(src_image, co_box)
+        pix_ulx = co_box.getBeginX()
+        pix_end_x = co_box.getEndX()
+        pix_uly = co_box.getBeginY()
+        pix_end_y = co_box.getEndY()
+        log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"
+                  .format(pix_ulx, pix_end_x, pix_uly, pix_end_y))
+        if isinstance(src_image, afw_image.ExposureF):
+            img = afw_image.ExposureF(src_image, co_box)
             img.setWcs(wcs)
         else:
             # for non-ExposureF, e.g. raw (DecoratedImage)
-            img = src_image[pixULX:pixEndX, pixULY:pixEndY].clone()
+            img = src_image[pix_ulx:pix_end_x, pix_uly:pix_end_y].clone()
         return img
 
-    def _keysfromlist(self, flist, fields):
-        #flist presumed to be a dictionary;fields, an array.
-        vals= []
+    def _keys_from_list(self, flist, fields):
+        # flist presumed to be a dictionary;fields, an array.
+        vals = []
         for f in fields:
             vals.append(flist.get(f))
         return vals
@@ -348,16 +348,17 @@ class ImageGetter:
         # first try run, camcol, field, filter keys
         if self._butler_keys == ["run", "camcol", "field", "filter"]: 
             if cqr:
-                run, camcol, field, filtername = self._keysfromlist(ln,
-                ['run', 'camcol', 'field', 'filter'])
+                run, camcol, field, filtername = self._keys_from_list(
+                    ln, ['run', 'camcol', 'field', 'filter']
+                )
             else:
                 run, camcol, field, filtername = ln[2:6]
             return "RCFF", [run, camcol, field, filtername]
         # if no match, then try tract, patch, filter keys
         if self._butler_keys == ["tract", "patch", "filter"]:
             if cqr:
-                tract, patch, filtername = self._keysfromlist(ln, ["tract",
-                    "patch", "filter"])
+                tract, patch, filtername = \
+                    self._keys_from_list(ln, ["tract", "patch", "filter"])
             else:
                 tract, patch, filtername = ln[2:5]
             return "TPF", [tract, patch, filtername]
@@ -373,6 +374,3 @@ class ImageGetter:
         while val < (target - 180.0):
             val += 360.0
         return val
-
-
-
