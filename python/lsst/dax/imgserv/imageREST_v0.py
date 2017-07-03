@@ -246,9 +246,9 @@ def getIDeepCoaddCutoutFromScienceId(id):
     return _image_cutout_from_science_id(request, W13DeepCoaddDb, id)
 
 
-def _image(_request, W13db):
+def _image(_request, image_db_class):
     """ Get a full image from the input paramters.
-    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    image_db_class should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
     ra = _request.args.get('ra')
     dec = _request.args.get('dec')
@@ -262,7 +262,7 @@ def _image(_request, W13db):
 
     log.info("raw ra={} dec={} filter={}".format(ra, dec, filter))
     # fetch the image here
-    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], image_db_class)
     full_img = img_getter.fullimage(ra, dec, filter)
     if full_img is None:
         return _image_not_found()
@@ -270,12 +270,12 @@ def _image(_request, W13db):
     return _file_response(full_img, "full_image.fits")
 
 
-def _image_from_data_id(_request, W13db):
+def _image_from_data_id(_request, image_db_class):
     """ Get a full image from the field ids given.
-    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    image_db_class should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
     # fetch the image here
-    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], image_db_class)
     ids, valid_ids = img_getter.data_id_from_request(_request)
     log.info("valid={} id {}".format(valid_ids, ids))
     if not valid_ids:
@@ -288,11 +288,11 @@ def _image_from_data_id(_request, W13db):
     return _file_response(full_img, "full_image.fits")
 
 
-def _image_from_science_id(_request, W13db):
+def _image_from_science_id(_request, image_db_class):
     """ Get a full image response from the id given.
-    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    image_db_class should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     """
-    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], image_db_class)
     value = _request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
@@ -309,9 +309,9 @@ def _image_from_science_id(_request, W13db):
     return _file_response(full_img, "full_image.fits")
 
 
-def _image_cutout(_request, W13db, units):
+def _image_cutout(_request, image_db_class, units):
     """Get a raw image response from based on imput parameters.
-    W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
+    image_db_class should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     units should be 'pixel' or 'arcsecond'
     """
     ra = _request.args.get('ra')
@@ -334,7 +334,7 @@ def _image_cutout(_request, W13db, units):
     log.info("raw cutout pixel ra={} dec={} filter={} width={} height={}".format(
              ra, dec, filter, width, height))
     # fetch the image here
-    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], image_db_class)
     img = img_getter.image_cutout(ra, dec, filter, width, height, units)
     if img is None:
         return _image_not_found()
@@ -342,9 +342,9 @@ def _image_cutout(_request, W13db, units):
     return _file_response(img, "cutout.fits")
 
 
-def _image_cutout_from_science_id(_request, W13db, scienceId):
+def _image_cutout_from_science_id(_request, image_db_class, science_id):
     """Get cutout image from the id given.
-    W13db should be the appropriate class (W13CalexpDb, W13DeepCoadDb, W13RawDb, etc.)
+    image_db_class should be the appropriate class (W13CalexpDb, W13DeepCoadDb, W13RawDb, etc.)
     Units: arcsecond, pixel (request parameters)
     """
     # fetch the interested parameters
@@ -355,19 +355,19 @@ def _image_cutout_from_science_id(_request, W13db, scienceId):
     try:
         if widthAng is not None and heightAng is not None:
             sId, ra, dec, width, height, units = _assert_cutout_parameters(
-                    scienceId, ra, dec, widthAng, heightAng, 'arcsecond')
+                    science_id, ra, dec, widthAng, heightAng, 'arcsecond')
         elif widthPix is not None and heightPix is not None:
             sId, ra, dec, width, height, units = _assert_cutout_parameters(
-                scienceId, ra, dec, widthPix, heightPix, 'pixel')
+                science_id, ra, dec, widthPix, heightPix, 'pixel')
         else:
             msg = "INVALID_INPUT no dimensions for cutout specified"
             raise ValueError(msg)
     except ValueError as e:
         return _error(ValueError.__name__, e.args[0], BAD_REQUEST)
     # fetch the image here
-    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], image_db_class)
     # need to pass the source science id as string
-    img = img_getter.imagecutout_from_science_id(scienceId, ra, dec, width, height, units)
+    img = img_getter.imagecutout_from_science_id(science_id, ra, dec, width, height, units)
     if img is None:
         return _image_not_found()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -417,7 +417,6 @@ def _stiched_image_cutout(_request, units):
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
     map_type = "deepCoadd_skyMap"
-    patch_type = "deepCoadd"
     ra = _request.args.get('ra')
     dec = _request.args.get('dec')
     filter = _request.args.get('filter').encode('ascii')
@@ -443,7 +442,7 @@ def _stiched_image_cutout(_request, units):
     center_coord = afw_coord.Coord(ra_angle, dec_angle, 2000.0)
     try:
         expo = getSkyMap(center_coord, int(width), int(height),
-                         filter, units, source, map_type, patch_type)
+                         filter, units, source, map_type)
     except RuntimeError as e:
         return _error("RuntimeError", e.message, INTERNAL_SERVER_ERROR)
     if expo is None:
