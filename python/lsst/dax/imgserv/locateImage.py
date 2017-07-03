@@ -50,7 +50,7 @@ import lsst.log as log
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
-from getimage.imagegetter import ImageGetter
+from .getimage.imagegetter import ImageGetter
 
 
 def image_open(credFileName, W13db, logger=log):
