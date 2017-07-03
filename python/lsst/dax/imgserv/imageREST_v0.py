@@ -26,7 +26,6 @@ Corresponding URI: /image
 
 @author  Jacek Becla, SLAC; John Gates, SLAC; Kenny Lo, SLAC;
 """
-from __future__ import print_function
 
 import os
 import tempfile
@@ -38,7 +37,7 @@ import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.log as log
 
-from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
+from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 

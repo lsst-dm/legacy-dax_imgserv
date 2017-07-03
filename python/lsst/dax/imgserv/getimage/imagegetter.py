@@ -363,7 +363,7 @@ class ImageGetter:
             return "TPF", [tract, patch, filtername]
      
     def _arcsec_to_deg(self, arcsecs):
-        return float(arcsecs/3600.0)
+        return arcsecs/3600.0
 
     def _keep_within_180(self, target, val):
         # Return a value that is equivalent to val on circle
