@@ -32,27 +32,37 @@ import os
 import tempfile
 
 from flask import Blueprint, make_response, request, current_app
+from flask import render_template
 
 import lsst.afw.coord as afwCoord
 import lsst.afw.geom as afwGeom
 import lsst.log as log
 
-from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR
-from .locateImage import dbOpen, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from httplib import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
+from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
 
-imageREST = Blueprint('imageREST', __name__, template_folder='imgserv')
+imageREST = Blueprint('imageREST', __name__, static_folder='static',
+                      template_folder='templates')
 
+
+# To be called from webserv
+def imageServ_loadConfig(config_path, db_auth_conf):
+    '''Load configuration into ImageServ.'''
+    if config_path is None:
+        # use default root_path for imageREST
+        config_path = imageREST.root_path+"/config/"
+    f_json = os.path.join(config_path, "settings.json")
+    # load the general config file  
+    current_app.config.from_json(f_json)
+    # configure the log file (log4cxx)
+    log.configure(os.path.join(config_path, "log.properties"))
+    current_app.config['DAX_IMG_DBCONF'] = db_auth_conf
 
 # this will eventually print list of supported versions
 @imageREST.route('/')
 def index():
-    return """
-Hello, LSST Image Cutout Service here. Try something like:<br />
-/image/v0/raw?ra=1&dec=1&filter=r<br />
-/image/v0/raw/cutout?ra=1&dec=1&filter=r&width=12&height=12
-"""
-
+    return make_response(render_template(("index.html")))
 
 def checkRaDecFilter(raIn, decIn, filt, validFilters):
     '''Returns: valid, ra, dec, filt, msg  where:
@@ -62,7 +72,7 @@ def checkRaDecFilter(raIn, decIn, filt, validFilters):
     '''
     # @todo throw exception instead of return valid DM-1980
     valid, ra, dec, msg = checkRaDec(raIn, decIn)
-    if filt not in validFilters:
+    if filt == None or filt not in validFilters:
         msg = ("Invalid filter {}. valid filters are {}.".format(filt,
                validFilters))
         valid = False
@@ -87,7 +97,6 @@ def checkRaDec(raIn, decIn):
         msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(raIn, decIn)
         valid = False
     return valid, ra, dec, msg
-
 
 
 def checkParamsICutoutFromScienceId(scienceId, raIn, decIn,
@@ -153,6 +162,13 @@ def getIRawCutout():
 @imageREST.route('/raw/cutoutPixel', methods=['GET'])
 def getIRawCutoutPixel():
     return _getICutout(request, W13RawDb, 'pixel')
+
+# this will handle something like:
+# GET /image/v0/raw/5646240694/cutout?ra=37.6292&dec=0.104625widthAng=30.0&heightAng=45.0
+# GET /image/v0/raw/5646240694/cutout?ra=37.6292&dec=0.104625&widthPix=100&heightPix=100
+@imageREST.route('/raw/<Id>/cutout', methods=['GET'])
+def getIRawCoutFromScienceId(Id):
+    return _getICutoutFromScienceId(request, W13RawDb, Id)
 
 # this will handle something like:
 # GET /image/v0/calexp?filter=r&ra=37.644598&dec=0.104625
@@ -227,6 +243,14 @@ def getIDeepCoaddCutout():
 def getIDeepCoaddCutoutPixel():
     return _getICutout(request, W13DeepCoaddDb, 'pixel')
 
+# this will handle something like:
+# GET /image/v0/deepCoadd/23986176/cutout?ra=19.36995&dec=-0.3146widthAng=30.0&heightAng=45.0
+# GET /image/v0/deepCoadd/23986176/cutout?ra=19.36995&dec=-0.3146xx&widthPix=100&heightPix=100
+@imageREST.route('/deepCoadd/<Id>/cutout', methods=['GET'])
+def getIDeepCoaddCutoutFromScienceId(Id):
+    return _getICutoutFromScienceId(request, W13DeepCoaddDb, Id)
+
+
 def _getIFull(_request, W13db):
     ''' Get a full image from the input paramters.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
@@ -242,10 +266,10 @@ def _getIFull(_request, W13db):
         # TODO: use HTTP errors DM-1980
         resp = "INVALID_INPUT {}".format(msg)
         return resp
-    log.info("raw ra={} dec={} filt={}".format(ra, dec, filt))
+    log.info("raw ra={} dec={} filter={}".format(ra, dec, filt))
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    imgFull = w13db.getImageFull(ra, dec, filt)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    imgFull = img_getter.fullimage(ra, dec, filt)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -263,15 +287,15 @@ def _getIIds(_request, W13db):
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     validIds = False
     ids = {}
-    ids, validIds = w13db.getIdsFromRequest(_request)
+    ids, validIds = img_getter.data_id_from_request(_request)
     log.info("valid={} id {}".format(validIds, ids))
     if not validIds:
         resp = "INVALID_INPUT {}".format(ids)
         return resp
-    imgFull, butler = w13db.getImageByIds(ids)
+    imgFull = img_getter.image_by_data_id(ids)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -288,18 +312,17 @@ def _getIScienceId(_request, W13db):
     ''' Get a full image from the id given.
     W13db should be the appropriate class (W13DeepCoadDb, W13RawDb, etc.)
     '''
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     value = request.args.get("id")
     if value is None:
         resp = "INVALID_INPUT value={}".format(value)
         return resp
-    ids, valid = w13db.getImageIdsFromScienceId(value)
-    log.info("valid={} value={} ids{}".format(valid, value, ids))
-    print("valid={} value={} ids{}".format(valid, value, ids))
+    ids, valid = img_getter.data_id_from_science_id(value)
+    log.debug("_getIScienceId valid={} value={} ids={}".format(valid, value, ids))
     if not valid:
         resp = "INVALID_INPUT value={} {}".format(value, ids)
         return resp
-    imgFull, butler = w13db.getImageByIds(ids)
+    imgFull = img_getter.image_by_data_id(ids)
     if imgFull is None:
         return _imageNotFound()
     log.debug("Full w=%d h=%d", imgFull.getWidth(), imgFull.getHeight())
@@ -334,10 +357,9 @@ def _getICutout(_request, W13db, units):
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     log.info("raw cutout pixel ra={} dec={} filt={} width={} height={}".format(
              ra, dec, filt, width, height))
-
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
-    img = w13db.getImage(ra, dec, filt, width, height, units)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
+    img = img_getter.image_cutout(ra, dec, filt, width, height, units)
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -352,9 +374,9 @@ def _getICutout(_request, W13db, units):
 
 
 def _getICutoutFromScienceId(_request, W13db, scienceId):
-    '''Get cutout of calexp image from the id given.
-    W13db presumed to be W13CalexpDb.
-    Units: arcsecond, pixel (to be inferred from the request parameters)
+    '''Get cutout image from the id given.
+    W13db should be the appropriate class (W13CalexpDb, W13DeepCoadDb, W13RawDb, etc.)
+    Units: arcsecond, pixel (request parameters)
     '''
     # fetch the interested parameters
     # Only one of (widthAng, heightAng),(widthPix, heightPix) should be valid
@@ -374,9 +396,9 @@ def _getICutoutFromScienceId(_request, W13db, scienceId):
     if not valid:
         return _error(ValueError.__name__, msg, BAD_REQUEST)
     # fetch the image here
-    w13db = dbOpen("~/.lsst/dbAuth-dbServ.ini", W13db)
+    img_getter = image_open(current_app.config["DAX_IMG_DBCONF"], W13db)
     # need to pass the source science id as string
-    img = w13db._getImageCutoutFromScienceId(scienceId, ra, dec, width, height, units)
+    img = img_getter.imagecutout_from_science_id(scienceId, ra, dec, width, height, units)
     if img is None:
         return _imageNotFound()
     log.debug("Sub w={} h={}".format(img.getWidth(), img.getHeight()))
@@ -428,16 +450,12 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     source = _request.args.get("source", None)
     if not source:
         # Use a default
-        source = current_app.config["dax.imgserv.default_source"]
-        source = "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00/coadd/"  # TODO
-
+        source = current_app.config["DAX_IMG_DATASOURCE"]+"coadd/"
     # Be safe and encode source to utf8, just in case
     source = source.encode('utf8')
     log.debug("Using filesystem source: " + source)
-
     mapType = "deepCoadd_skyMap"
     patchType = "deepCoadd"
-
     raIn = _request.args.get('ra')
     decIn = _request.args.get('dec')
     filt = _request.args.get('filter')
@@ -478,8 +496,8 @@ def _getISkyMapDeepCoaddCutout(_request, units):
     return resp
 
 
-def _imageNotFound():  # FIXME: Not sure what error this should be, 400, 404, 500?
-    return _error("ImageNotFound", "Image Not Found", INTERNAL_SERVER_ERROR)
+def _imageNotFound():  # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
+    return make_response("Image Not Found", NOT_FOUND)
 
 
 def _error(exception, message, status_code):

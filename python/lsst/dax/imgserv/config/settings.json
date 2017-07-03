@@ -1,0 +1,16 @@
+{
+  "DEBUG": true,
+	"DAX_IMG_DBCONF": "~/.lsst/dbAuth-dbServ.ini",
+	"DAX_IMG_DS": "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00",  
+	"DAX_IMG_DB": "DC_W13_Stripe82",
+	"DAX_IMG_TAB_SCICCDEXP": "Science_Ccd_Exposure",
+	"DAX_IMG_TAB_DEEPCOADD": "DeepCoadd",
+	"DAX_IMG_DR": "/datasets/sdss/preprocessed/dr7",
+  "DAX_IMG_BUTLER_KEYS1": [ "run", "camcol", "field", "filter" ],
+  "DAX_IMG_COLUMNS1": [ "run", "camcol", "field", "filterName" ],
+  "DAX_IMG_BUTLER_KEYS2": [ "tract", "patch", "filter" ],
+  "DAX_IMG_COLUMNS2": [ "tract", "patch", "filterName" ],
+  "DAX_IMG_BUTLER_POL0": "fpC",
+  "DAX_IMG_BUTLER_POL1": "calexp",
+  "DAX_IMG_BUTLER_POL2": "deepCoadd"
+}
