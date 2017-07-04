@@ -22,3 +22,5 @@ python/lsst/imgserv/imgservLib_wrap.os
 python/lsst/imgserv/utilsLib.py
 python/lsst/imgserv/version.py
 ups/imgserv.cfgc
+.idea
+

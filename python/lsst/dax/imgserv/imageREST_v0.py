@@ -66,12 +66,9 @@ def index():
 
 
 def _assert_ra_dec_filter(ra, dec, filter, valid_filters):
-    """Returns: valid, ra, dec, filter, msg  where:
-      valid is true if the inputs were accetpable.
-      ra and dec are the floating point equivalants of raIn and decIn.
-      msg is and error message if valid is false, otherwise blank.
+    """Validate ra, dec, filter. Return coerced values if valid,
+    otherwise, raise a ValueError
     """
-    # @todo throw exception instead of return valid DM-1980
     if filter is None or filter not in valid_filters:
         msg = "Invalid filter {}. " \
               "Valid filters are {}.".format(filter, valid_filters)
@@ -81,24 +78,21 @@ def _assert_ra_dec_filter(ra, dec, filter, valid_filters):
 
 
 def _assert_ra_dec(ra, dec):
-    """Returns: valid, ra, dec, msg  where:
-      valid is true if the inputs were accetpable.
-      ra and dec are the floating point equivalants of ra and dec.
-      msg is and error message if valid is false, otherwise blank.
+    """Validate ra, dec. Return coerced values if valid, otherwise,
+    raise a ValueError
     """
-    # @todo throw exception instead of return valid DM-1980
     try:
         ra = float(ra)
         dec = float(dec)
     except ValueError:
-        msg = "NEED_HTTP INVALID_INPUT ra={} dec={}".format(ra, dec)
+        msg = "Invalid ra {} and dec {}. ".format(ra, dec)
         raise ValueError(msg)
     return ra, dec
 
 
-def _assert_cutout_parameters(science_id, ra, dec,
-                              width, height, units):
-    """ Check and convert request parameters to numeric values.
+def _assert_cutout_parameters(science_id, ra, dec, width, height, units):
+    """Validate science_id, ra, dec, filter, width, height, and units.
+    . Return coerced values if valid, otherwise, raise a ValueError
     """
     ra, dec = _assert_ra_dec(ra, dec)
     if units == 'arcsecond':
@@ -475,7 +469,7 @@ def _make_file_response(file_name):
     # Using a cache of files might be desirable. We would need consistent and
     # unique identifiers for the files.
     try:
-        with open(file_name, 'r+b') as f:
+        with open(file_name, 'rb') as f:
             data = f.read()
             f.close()
             response = make_response(data)
