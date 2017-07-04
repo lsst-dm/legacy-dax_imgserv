@@ -475,7 +475,7 @@ def _make_file_response(file_name):
     # Using a cache of files might be desirable. We would need consistent and
     # unique identifiers for the files.
     try:
-        with open(file_name, 'r') as f:
+        with open(file_name, 'r+b') as f:
             data = f.read()
             f.close()
             response = make_response(data)
