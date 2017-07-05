@@ -139,7 +139,7 @@ class MetadataFits:
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
-        for key, value in self._entries.iteritems():
+        for key, value in self._entries.items():
             s += "( {}:{} ) = ({}, {}, {})\n".format(key[0], key[1], value[0], value[1], value[2])
         return s
 
@@ -194,7 +194,7 @@ class MetadataPosition:
         # if any column values were successfully defined, insert the row into the table
         if len(columns) > 0:
             colVal = [("fitsFileId", self._fileId), ("hdu", self._hdu)]
-            for col, val in columns.iteritems():
+            for col, val in columns.items():
                 colVal.append((col, val))
             executeInsertList(self._conn, "FitsPositions", colVal, self._log)
 
@@ -296,7 +296,7 @@ class MetadataFitsDb:
                     # Insert the file into the file table.
                     colVal = [("fileName", fileName), ("hduCount", hdus)]
                     lastFitsFileId = executeInsertList(self._conn, "FitsFiles", colVal, self._log)
-                    for key, entry in entries.iteritems():
+                    for key, entry in entries.items():
                         value, lineNum, comment = entry
                         # Put in one entry for each element of the tuple
                         if isinstance(value, tuple):
