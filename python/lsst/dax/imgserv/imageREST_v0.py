@@ -29,8 +29,9 @@ Corresponding URI: /image
 
 import os
 import tempfile
+import traceback
 
-from flask import Blueprint, make_response, request, current_app
+from flask import Blueprint, make_response, request, current_app, jsonify
 from flask import render_template
 
 import lsst.afw.coord as afw_coord
@@ -40,6 +41,7 @@ import lsst.log as log
 from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .skymapStitch import getSkyMap
+
 
 imageREST = Blueprint('imageREST', __name__, static_folder='static',
                       template_folder='templates')
@@ -57,6 +59,21 @@ def load_imgserv_config(config_path, db_auth_conf):
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config['DAX_IMG_DBCONF'] = db_auth_conf
+
+
+@imageREST.errorhandler(Exception)
+def handle_unhandled_exceptions(error):
+    err = {
+        "exception": error.__class__.__name__,
+        "message": error.args[0],
+        "traceback": traceback.format_exc()
+    }
+
+    if len(error.args) > 1:
+        err["more"] = [str(arg) for arg in error.args[1:]]
+    response = jsonify(err)
+    response.status_code = INTERNAL_SERVER_ERROR
+    return response
 
 
 # this will eventually print list of supported versions
@@ -106,6 +123,13 @@ def _assert_cutout_parameters(science_id, ra, dec, width, height, units):
         raise ValueError(msg)
     science_id = int(science_id)
     return science_id, ra, dec, width, height, units
+
+
+@imageREST.errorhandler(ValueError)
+def handle_invalid_input(error):
+    response = jsonify({"exception": "ValueError", "message": error.args[0]})
+    response.status_code = 400  # ValueError == BAD REQUEST
+    return response
 
 
 # this will handle something like:
@@ -444,12 +468,19 @@ def _stiched_image_cutout(_request, units):
     return _file_response(expo, "cutout.fits")
 
 
-def _image_not_found():  # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
-    return make_response("Image Not Found", NOT_FOUND)
+def _image_not_found(message=None):
+    # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
+    if not message:
+        message = "Image Not Found"
+    response = jsonify({"exception": IOError.__name__, "message": message})
+    response.status_code = NOT_FOUND  # ValueError == BAD REQUEST
+    return response
 
 
 def _error(exception, message, status_code):
-    return make_response({"exception": exception, "message": message}, status_code)
+    response = jsonify({"exception": exception, "message": message})
+    response.status_code = status_code
+    return response
 
 
 def _file_response(img, file_name):
