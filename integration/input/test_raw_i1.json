@@ -1,0 +1,15 @@
+{
+  "name": "raw_i1",
+  "get": {
+    "image": {
+      "raw": {
+        "nearest": {
+          "radec": { "ra": 359.195, "dec": -0.1055 },
+          "filter": "r"
+        }
+      }
+    },
+    "api_id": [ "raw", "nearest" ]
+  },
+  "check": { "sha256": "dac2c737ad50eae8ff7d5b58624f579bf06727a52e36c5b2cbb87eff7f620c4e" }
+}

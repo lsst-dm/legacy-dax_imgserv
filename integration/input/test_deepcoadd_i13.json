@@ -1,0 +1,15 @@
+{
+  "name": "deepcoadd_i13",
+  "get": {
+    "image": {
+      "deepcoadd": {
+        "nearest": {
+          "radec": { "ra": 19.36995, "dec": -0.3146 },
+          "filter": "r"
+        }
+      }
+    },
+    "api_id": [ "deepcoadd", "nearest" ] 
+  },
+  "check": { "sha256": "0139e043145e3e46fef45ecd393af625feffbac766bc9b6fdcdc75e215655976" }
+}

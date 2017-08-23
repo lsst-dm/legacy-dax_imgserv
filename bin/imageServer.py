@@ -27,7 +27,6 @@ Web Service, e.g., through webserv/bin/server.py
 
 @author  Jacek Becla, SLAC
 """
-
 import sys
 from flask import Flask
 from lsst.dax.imgserv import imageREST_v0
@@ -41,6 +40,5 @@ if __name__ == '__main__':
     try:
         app.run(debug=True)
     except Exception as e:
-        print("Problem starting the server.")
-        print(e)
+        print(("Problem starting the server.", str(e)))
         sys.exit(1)

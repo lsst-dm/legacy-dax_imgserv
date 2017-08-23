@@ -1,0 +1,12 @@
+{
+  "name": "deepcoadd_i15",
+  "get": {
+    "image": {
+      "deepcoadd": {
+        "science_id": 23986176
+      }
+    },
+    "api_id": [ "deepcoadd", "science_id" ] 
+  },
+  "check": { "sha256": "99e20c0127f0145ac89240be326fcfb6232458ef479351b218e8d7918e57f5f3" }
+}

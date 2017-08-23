@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 #
 # LSST Data Management System
 # Copyright 2014-2015 LSST/AURA.

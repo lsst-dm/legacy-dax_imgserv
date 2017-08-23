@@ -1,0 +1,23 @@
+{
+  "name": "raw_trim",
+  "get": {
+    "image": {
+      "raw": {
+        "cutout": {
+          "nearest": { 
+            "radec": { "ra": 359.195, "dec": -0.1055 },
+            "filter": "r"
+          },
+          "rectangle": {
+            "width": 300,
+            "height": 300,
+            "unit": "pixel",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "raw", "cutout", "nearest" ]
+  },
+  "check": { "sha256": "ad4d0cc6be081b24bd630d0e579f5a8f6ea5b424f54e5d2a65ae5adf532980d8" }
+}

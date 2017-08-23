@@ -1,0 +1,158 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#", 
+  "id": "https://lsst.org/schemas/imgserv_api_v1.schema#",
+  "type": "object",
+  "namespace": "lsst.dax.imgserv",
+  "name": "imageserv_API",
+  "description": "ImageServ API v1 Schema",
+  "version": "1+",
+  "properties": {
+    "image": { "$ref": "#/definitions/image" }
+  },
+  "required": [ "image" ],
+  "definitions": 
+  {
+    "rectangle": {
+      "type": "object",
+      "properties": {
+        "width": { "type": "number" },
+        "height": { "type": "number" },
+        "unit": { "enum": [ "pixel", "arcsec" ] },
+        "ucd": { "type": "string", "enum": ["pos.outline;obs"] } 
+      },
+      "required": [ "width", "height", "unit", "ucd" ] 
+    },
+    "circle": {
+      "type": "object",
+      "properties": {
+        "unit": { "type": "string",  "enum": ["deg"]  },
+        "ucd": { "type": "string", "enum": ["pos.outline;obs"] }, 
+        "radius": { "type": "number" }
+      },
+      "required": [ "unit", "ucd", "radius" ]
+    },
+    "range": {
+      "type": "object",
+      "properties": {
+        "long1": { "type": "number" },
+        "lat1": { "type": "number" },
+        "long2": { "type": "number" },
+        "lat2": { "type": "number" }
+      },
+     "required": [ "long1", "lat1", "long2", "lat2" ]
+    },
+    "polygon": {
+      "type": "object",
+      "properties": {
+        "unit": { "type": "string", "enum": ["deg"]  },
+        "ucd": { "type": "string", "enum": ["pos.outline;obs"] }, 
+        "sides": {
+          "type": "array",
+          "minItems": 3,
+          "items": {
+            "type": "number"
+          }
+        }
+      }, 
+      "required": [ "unit", "ucd", "sides" ]
+    },
+    "filter": { 
+     "enum": [ "g", "i", "r", "u", "z" ]
+    },
+    "data_id": {
+      "oneOf": [
+        { "$ref": "#/definitions/data_id_tpf" },
+        { "$ref": "#/definitions/data_id_rcff" }
+      ]
+    },
+    "data_id": {
+      "oneOf": [
+        { "$ref": "#/definitions/data_id_tpf" },
+        { "$ref": "#/definitions/data_id_rcff" }
+      ]
+    },
+    "data_id_rcff": {
+      "type": "object",
+      "properties": {
+        "run": { "type": "integer" },
+        "camcol": { "type": "integer" },
+        "field": { "type": "integer" },
+        "filter": { "$ref": "#/definitions/filter" }
+      },
+      "required": [ "run", "camcol", "field", "filter" ]
+    },
+    "data_id_tpf": {
+      "type": "object",
+      "properties": {
+        "tract": { "type": "integer" },
+        "patch_x": { "type": "integer" },
+        "patch_y": { "type": "integer" },
+        "filter": { "$ref": "#/definitions/filter" } 
+      },
+      "required": [ "tract", "patch_x", "patch_y", "filter" ]
+    },
+    "radec": {
+      "type": "object",
+      "properties": {
+        "ra": { "type": "number" },
+        "dec": { "type": "number" }
+      },
+      "required": [ "ra", "dec", "filter" ]
+    },
+    "nearest": {
+      "type": "object",
+      "properties": {
+        "radec": { "$ref": "#/definitions/radec" },
+        "filter": { "$ref": "#/definitions/filter" }
+     },
+     "required": [ "radec", "filter" ]
+    },
+    "cutout": {
+      "type": "object",
+      "oneOf": [
+        { "science_id": { "type": "integer" } },
+        { "data_id": { "$ref": "#/definitions/data_id" } },
+        { "nearest": { "$ref": "#/definitions/nearest" } }
+      ],
+      "properties": {
+        "radec": { "$ref": "#/definitions/radec" },
+        "rectangle": { "$ref": "#/definitions/rectangle" }
+      },
+      "required": [ "rectangle" ] 
+    },
+    "base": {
+      "oneOf": [
+        { "nearest": { "$ref": "#/definitions/nearest" } },
+        { "cutout": { "$ref": "#/definitions/cutout" } } 
+     ]
+    },
+    "raw": {
+      "oneOf": [
+        { "$ref": "#/definitions/base" },
+        { "data_id": { "$ref": "#/definitions/data_id_rcff" } },
+        { "science_id": { "type": "integer" } }
+     ]
+    },
+    "calexp": {
+      "oneOf": [
+        { "$ref": "#/definitions/base" },
+        { "data_id": { "$ref": "#/definitions/data_id_rcff" } },
+        { "science_id": { "type": "integer" } }
+      ]
+    },
+    "deepcoadd": {
+      "oneOf": [
+        { "$ref": "#/definitions/base"  },
+        { "data_id": { "$ref": "#/definitions/data_id_tpf" } },
+        { "science_id": { "type": "integer" } }
+      ]
+    },
+    "image": {
+      "oneOf": [ 
+        { "raw": { "$ref": "#/definitions/raw" } },
+        { "calexp": { "$ref": "#/definitions/calexp" } }, 
+        { "deepcoadd": { "$ref": "#/definitions/deepcoadd" } } 
+      ] 
+   }
+ }
+}

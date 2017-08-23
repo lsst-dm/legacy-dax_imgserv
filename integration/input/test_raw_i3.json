@@ -1,0 +1,12 @@
+{
+  "name": "raw_i3",
+  "get": {
+    "image": {
+      "raw": {
+        "science_id": 3325410171
+      }
+    },
+    "api_id": [ "raw", "science_id" ]
+  },
+  "check": { "sha256": "86991bee8c1500975bb645b353509eb17e2534091f34759e9f97d28f1a7ae1a8" }
+}

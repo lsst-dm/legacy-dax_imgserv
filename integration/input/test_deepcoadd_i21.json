@@ -1,0 +1,21 @@
+{
+  "name": "deepcoadd_i21",
+  "get": {
+    "image": {
+      "deepcoadd": {
+        "cutout": {
+          "science_id": 23986176,
+          "radec": { "ra": 9.47103, "dec": -1.181766 },
+          "rectangle": {
+            "width": 100,
+            "height": 100,
+            "unit": "pixel",
+            "ucd": "phys.angArea;obs"
+          }
+        }
+      }
+    },
+    "api_id": [ "deepcoadd", "cutout", "science_id" ]
+  },
+  "check": { "sha256": "7d098b7ba5a89ea765341368f219c0ea7c1aa5403ef1f65033abdfe46ac7275f" }
+}
