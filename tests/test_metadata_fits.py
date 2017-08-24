@@ -32,32 +32,27 @@ from lsst.dax.imgserv.MetadataFitsDb import isFits
 from lsst.dax.imgserv.MetadataFitsDb import isFitsExt
 from lsst.dax.imgserv.MetadataFitsDb import MetadataFitsDb
 
-import lsst.log as log
+ROOT = os.path.abspath(os.path.dirname(__file__))
+testFile = os.path.join(ROOT, 'testData',
+                        'imsim_886258731_R33_S21_C12_E000.fits.gz')
 
 
 class MetaDataFitsTest(unittest.TestCase):
     """Tests reading FITS file headers and placing them in the database.
     """
 
-    def setUp(self):
-        global _options
-        pass
-
-    def tearDown(self):
-        pass
-
-    def test_readInFits(self):
-        credFile = os.path.expanduser('~/.mysqlAuthLSST')
-        if not os.path.isfile(credFile):
-            log.warn("Required file with credentials '%s' not found.", credFile)
-            return
-
-        testFile = ("./tests/testData/imsim_886258731_R33_S21_C12_E000.fits.gz")
+    def test_isFits(self):
         self.assertTrue(isFitsExt('stuf.fits'))
         self.assertFalse(isFitsExt('thing.txt'))
         self.assertFalse(isFitsExt('item.tx.gz'))
         self.assertTrue(isFitsExt(testFile))
         self.assertTrue(isFits(testFile))
+        self.assertFalse(isFits("stuf.fits"))
+
+    def test_readInFits(self):
+        credFile = os.path.expanduser('~/.mysqlAuthLSST')
+        if not os.path.isfile(credFile):
+            raise unittest.SkipTest("Required file with credentials '{}' not found.".format(credFile))
 
         # Destroy existing tables and re-create them
         dbDestroyCreate(credFile, "DELETE")
@@ -68,22 +63,16 @@ class MetaDataFitsTest(unittest.TestCase):
         # test a specific file
         self.assertFalse(metadataFits.isFileInDb(testFile))
         metadataFits.insertFile(testFile)
-        log.info(metadataFits.showColumnsInTables())
+        print(metadataFits.showColumnsInTables())
         self.assertTrue(metadataFits.isFileInDb(testFile))
 
         # test crawler
         rootDir = '~/test_md'
         rootDir = os.path.expanduser(rootDir)
         if not os.path.exists(rootDir):
-            log.error("Data directory {} is required".format(rootDir))
-            return
+            raise RuntimeError("Data directory {} is required".format(rootDir))
         directoryCrawl(rootDir, metadataFits)
 
 
-def main():
-    global _options
-    unittest.main()
-
 if __name__ == "__main__":
-    log.setLevel("", log.INFO)
-    main()
+    unittest.main()
