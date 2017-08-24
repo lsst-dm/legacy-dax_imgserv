@@ -250,6 +250,68 @@ class W13Db:
             self._log.error("Db engine error %s" % e)
 
 
+class ButlerGet:
+    """Class to instantiate and hold instance of Butler for ImageGetter.
+    
+    """
+
+    def __init__(self, dataRoot, butler_policy, butler_keys, logger):
+        """Instantiate ButlerGet to be passed to ImageGetter."""
+        self.butler = dafPersist.Butler(dataRoot)
+        self.butler_policy = butler_policy
+        self.butler_keys = butler_keys
+        logger.debug("Instantiate ButlerGet.")
+
+
+class W13Db:
+    """This is the base class for examining DC_W13_Stripe82 image data,
+    Thie instantates a Butler for access to image repository, as well as
+    connection for metadata via MetaServ.
+
+    Attributes
+    ----------
+    imagegetter : obj
+        To be used for accessing images.
+    """
+
+    def __init__(self, credFileName, database, table, columns, dataRoot, 
+            butlerPolicy, butlerKeys, logger):
+        """Instantiate W13Db object with credential for database, butler 
+        configuration, and logger.
+    
+        Parameters
+        ----------
+        credFileName : str
+            The connection for accessing image metadata
+        database : str
+            the datbase connection string.
+        table : str
+            The table name.
+        columns : str
+            The database columns.
+        dataRoot : str
+            root for the butler.
+        bulterPolicy : str
+            The butler policy.
+        butlerKeys : str
+                      The bulter keys for this image data source.
+        logger : obj
+            The logger to be used.
+
+        """
+        self._log = logger
+        self.conn = getEngineFromFile(credFileName, database=database).connect()
+        self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
+        self.metaservget = MetaservGet(self.conn, table, columns, logger)
+        self.imagegetter = ImageGetter(self.butlerget, self.metaservget, logger)
+        try:
+            sql = "SET time_zone = '+0:00'"
+            self._log.info(sql)
+            self.conn.execute(sql)
+        except SQLAlchemyError as e:
+            self._log.error("Db engine error %s" % e)
+
+
 class W13RawDb(W13Db):
     """This class is used to connect to the DC_W13_Stripe82 Raw database.
     Raw images

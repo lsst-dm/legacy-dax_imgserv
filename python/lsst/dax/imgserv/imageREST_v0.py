@@ -83,6 +83,16 @@ def handle_unhandled_exceptions(error):
 def index():
     return make_response(render_template("index.html"))
 
+def _assert_ra_dec_filter(ra, dec, filter, valid_filters):
+    """Validate ra, dec, filter. Return coerced values if valid,
+    otherwise, raise a ValueError
+    """
+    if filter is None or filter not in valid_filters:
+        msg = "Invalid filter {}. " \
+              "Valid filters are {}.".format(filter, valid_filters)
+        raise ValueError(msg)
+    ra, dec = _assert_ra_dec(ra, dec)
+    return ra, dec, filter
 
 def _assert_ra_dec_filter(ra, dec, filter, valid_filters):
     """Validate ra, dec, filter. Return coerced values if valid,
@@ -95,7 +105,6 @@ def _assert_ra_dec_filter(ra, dec, filter, valid_filters):
     ra, dec = _assert_ra_dec(ra, dec)
     return ra, dec, filter
 
-
 def _assert_ra_dec(ra, dec):
     """Validate ra, dec. Return coerced values if valid, otherwise,
     raise a ValueError
@@ -107,7 +116,6 @@ def _assert_ra_dec(ra, dec):
         msg = "Invalid ra {} and dec {}. ".format(ra, dec)
         raise ValueError(msg)
     return ra, dec
-
 
 def _assert_cutout_parameters(science_id, ra, dec, width, height, unit):
     """Validate science_id, ra, dec, filter, width, height, and unit.
@@ -505,3 +513,4 @@ def _make_file_response(file_name):
         return response
     except IOError as e:
         return _error(IOError.__name__, e.message, INTERNAL_SERVER_ERROR)
+
