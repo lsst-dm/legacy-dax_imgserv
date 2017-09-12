@@ -118,7 +118,9 @@ class MetaservGet:
         cols.append(dist)
         col_str = ",".join(cols)
         sql = ("SELECT {} FROM {} WHERE {} "
-               "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
+               "scisql_s2PtInCPoly({}, {}, "
+               "corner1Ra, corner1Decl, corner2Ra, corner2Decl, "
+               "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
         self._log.debug(sql)
         self._log.debug("findNearest sql={}".format(sql))
