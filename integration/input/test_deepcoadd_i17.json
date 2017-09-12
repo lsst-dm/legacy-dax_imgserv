@@ -19,5 +19,5 @@
     },
     "api_id": [ "deepcoadd", "cutout", "nearest" ]
   },
-  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+  "check": { "sha256": "aa926d99e488cc79944a0433f97ead8abc222f818bbedc79863ff4bc19d697e2" }
 }

@@ -25,8 +25,8 @@
 # image is retrieved using the Data Butler.
 
 """
-This library module is used to locate and retrieve variolus image types and cutout 
-dimensions, via the appropriate Butler object passed in. 
+This library module is used to locate and retrieve variolus image types and cutout
+dimensions, via the appropriate Butler object passed in.
 
 @author: John Gates, SLAC
 @author: Brian Van Klaveren, SLAC
@@ -45,20 +45,20 @@ import lsst.log as log
 
 
 class ImageGetter:
-    """Provide operations to retrieve images including cutouts from the specified 
+    """Provide operations to retrieve images including cutouts from the specified
     image repository through the passed-in butler and metaserv.
 
     """
-    
+
     def __init__(self, butlerget, metaservget, logger):
         """ Instantiate ImageGetter object with butler, butler configuration,
         and connection for image metadata.
 
         Parameters
         ----------
-        butlerget : ButlerGet 
+        butlerget : ButlerGet
             the butler instance and config info.
-        metaservget : MetaservGet
+        metaservget : MetasevGet
             provides access to image metadata.
         logger : log
             the logger to be used.
@@ -92,20 +92,20 @@ class ImageGetter:
     def image_by_data_id(self, data_id):
         """Retrieve and image from the butler by the image id values in the dictionary ids
         The needed values are specified in _butler_keys.
-        
+
         """
-        img = self._butler.get(self._imagedataset_type, dataId=data_id)
-        return img 
+        image = self._butler.get(self._imagedataset_type, dataId=data_id)
+        return image
 
     def fullimage(self, ra, dec, filtername):
         """Return an image containing ra and dec with filtername (optional)
         Returns None if no image is found.
         This function assumes the entire image is valid. (no overscan, etc.)
-        
+
         """
         res = self._metaservget.nearest_image_containing(ra, dec, filtername)
-        img = self._imagefrombutler(res)
-        return img
+        image = self._imagefrombutler(res)
+        return image
 
     def image_from_science_id(self, science_id):
         ids, valid = self.data_id_from_science_id(science_id)
@@ -118,13 +118,12 @@ class ImageGetter:
         """Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcsecs).
         - Use filtername, ra, dec, width, and height to find an image from the database.
-        
         """
         # Find the nearest image to ra and dec.
         self._log.debug("getImage %f %f %f %f", ra, dec, width, height)
         qresult = self._metaservget.nearest_image_containing(ra, dec, filtername)
         return self._imagecutout_by_data_id(ra, dec, width, height, qresult, unit)
-   
+
     def imagecutout_from_science_id(self, science_id, ra, dec, width, height, unit):
         """ Get the image specified by id centered on (ra, dec) with width and height dimensions.
         Unit: "arcsec", "pixel"
@@ -150,7 +149,6 @@ class ImageGetter:
         """Returns a dictionary of ids derived from scienceId.
         The ids match the ids in _butler_keys and valid is false
         if at least one of the ids is missing.
-        
         """
         valid = True
         ids = {}
@@ -162,7 +160,7 @@ class ImageGetter:
                 "filter": "ugriz"[(science_id//100000) % 10],
                 "run": science_id//1000000,
             }
-            self._log.debug("w13Db data_id_from_science_id {}".format( 
+            self._log.debug("w13Db data_id_from_science_id {}".format(
                 possible_fields))
             for key in self._butler_keys:
                 value = possible_fields[key]
@@ -178,7 +176,7 @@ class ImageGetter:
                 "tract": science_id//(2**29),
                 "patch": "%d,%d" % (patch_x, patch_y)
             }
-            self._log.debug("w13DeepCoaddDb: data_id_from_science_id {}".format( 
+            self._log.debug("w13DeepCoaddDb: data_id_from_science_id {}".format(
                 possible_fields))
             for key in self._butler_keys:
                 value = possible_fields[key]
@@ -186,8 +184,8 @@ class ImageGetter:
                     valid = False
                 ids[key] = value
             self._log.debug("W13DeepCoaddDb dataID={} {}".format(valid, ids))
-        return ids, valid 
- 
+        return ids, valid
+
     def apply_cutout(self, src_img, metadata, ra, dec, width, height, qresults,
                      unit="arcsec"):
         """Return an image centered on ra and dec (in degrees) with dimensions
@@ -199,12 +197,12 @@ class ImageGetter:
              (This will fail at or very near the pole.)
         - Use that to define a box for the cutout.
         - Trim the box so it is entirely within the source image.
-        
+
         Returns
         -------
-        afw_image  
-                the cutout image 
-        
+        afw_image
+                the cutout image
+
         """
         self._log.debug("apply_cutout %f %f %f %f", ra, dec, width, height)
         # False: do not remove FITS keywords from metadata
@@ -222,13 +220,13 @@ class ImageGetter:
                                      dec * afw_geom.degrees)
         xy_wcs = wcs.skyToPixel(radec)
         xy_center_x = xy_wcs.getX()
-        xy_center_y = xy_wcs.getY() 
-        self._log.debug("ra=%f dec=%f xy_center=(%f,%f)", 
+        xy_center_y = xy_wcs.getY()
+        self._log.debug("ra=%f dec=%f xy_center=(%f,%f)",
                 ra, dec, xy_center_x, xy_center_y)
         if unit == 'pixel':
-            img = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y,
+            image = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y,
                                          width, height, wcs)
-            return img
+            return image
         img_w, img_h = src_img.getWidth(), src_img.getHeight()
         self._log.debug("src_img_w=%d src_img_h=%d", img_w, img_h)
         # Determine approximate pixels per arcsec - find image corners in RA and Dec
@@ -241,7 +239,7 @@ class ImageGetter:
                         radec_lr[0].asDegrees(), radec_lr[1].asDegrees())
         # length of a line from upper left (UL) to lower right (LR)
         dec_dist = radec_ul[1].asArcseconds() - radec_lr[1].asArcseconds()
-        ra_lr = self._keep_within_180(radec_ul[0].asDegrees(), 
+        ra_lr = self._keep_within_180(radec_ul[0].asDegrees(),
                 radec_lr[0].asDegrees())
         ra_lr *= 3600.0  # convert degrees to arcsecs
         # Correct distance in RA for the declination
@@ -255,9 +253,9 @@ class ImageGetter:
         # Need Upper Left corner and dimensions for Box2I
         pix_w = width*pixel_per_arcsec
         pix_h = height*pixel_per_arcsec
-        self._log.debug("ra=%f dec=%f xy_wcs=(%f,%f) xyCenter=(%f,%f)", 
+        self._log.debug("ra=%f dec=%f xy_wcs=(%f,%f) xyCenter=(%f,%f)",
                 ra, dec, xy_wcs.getX(), xy_wcs.getY(), xy_center_x, xy_center_y)
-        cutout = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y, 
+        cutout = self._cutoutbox_pixels(src_img, xy_center_x, xy_center_y,
                 pix_w, pix_h, wcs)
         return cutout
 
@@ -267,15 +265,15 @@ class ImageGetter:
         if not qresults:
             return None
         # Return an image by data ID through the butler.
-        img = self._imagefrombutler(qresults)
-        if img is None:
+        image = self._imagefrombutler(qresults)
+        if image is None:
             # @todo html error handling see DM-1980
             return None
         # Get the metadata for the source image.
         metadata = self._metadata_from_data_id(qresults)
-        img_co = self.apply_cutout(img, metadata, ra, dec, width, height,
+        image_cutout = self.apply_cutout(image, metadata, ra, dec, width, height,
                                    qresults, unit)
-        return img_co
+        return image_cutout
 
     def _metadata_from_data_id(self, qresults):
         # Return the metadata for the query results in qResults and a butler.
@@ -287,9 +285,9 @@ class ImageGetter:
                                     filter=filtername)
         elif id_type == "TPF":
             tract, patch, filtername = keyvals
-            return self._butler.get(self._imagedataset_md(), 
+            return self._butler.get(self._imagedataset_md(),
                                     tract=tract, patch=patch, filter=filtername)
-               
+
     def _imagefrombutler(self, qresults):
         # Retrieve the image through the Butler for this image type using the
         # query results as in 'qresults'.
@@ -299,16 +297,16 @@ class ImageGetter:
             run, camcol, field, filtername = keyvals
             log.debug("_imagefrombutler run={} camcol={} field={} "
                       "filter={}".format(run, camcol, field, filtername))
-            img = self._butler.get(self._imagedataset_type, run=run,
+            image = self._butler.get(self._imagedataset_type, run=run,
                                    camcol=camcol, field=field, filter=filtername)
-            return img 
+            return image
         elif id_type == "TPF":  # tpf=tract, patch, filtername
             tract, patch, filtername = keyvals
             self._log.debug("deepCoadd _imagefrombutler tract={} patch={} "
                             "filtername={}".format(tract, patch, filtername))
-            img = self._butler.get(self._imagedataset_type, tract=tract,
+            image = self._butler.get(self._imagedataset_type, tract=tract,
                                    patch=patch, filter=filtername)
-            return img
+            return image
 
     def _imagedataset_md(self):
         # Return the butler policy name to retrieve metadata
@@ -337,18 +335,18 @@ class ImageGetter:
         if isinstance(src_image, afw_image.ExposureF):
             self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"
                   .format(pix_ulx, pix_ulx+width, pix_uly, pix_uly+height))
-            # img will keep wcs from source image
-            img = afw_image.ExposureF(src_image, co_box)
+            # image will keep wcs from source image
+            image = afw_image.ExposureF(src_image, co_box)
         else:
             # hack for non-ExposureF, e.g. raw (DecoratedImage)
             pix_ulx = co_box.getBeginX() - src_image.getX0()
             pix_end_x = co_box.getEndX() - src_image.getX0()
             pix_uly = co_box.getBeginY() - src_image.getY0()
             pix_end_y = co_box.getEndY() - src_image.getY0()
-            self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}".format(pix_ulx, 
+            self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}".format(pix_ulx,
                 pix_end_x, pix_uly, pix_end_y))
-            img = src_image[pix_ulx:pix_end_x, pix_uly:pix_end_y].clone()
-        return img
+            image = src_image[pix_ulx:pix_end_x, pix_uly:pix_end_y].clone()
+        return image
 
     def _keys_from_list(self, flist, fields):
         # flist presumed to be a dictionary;fields, an array.
@@ -365,7 +363,7 @@ class ImageGetter:
             cqr = True
             ln = qresults[1]
         # first try run, camcol, field, filter keys
-        if self._butler_keys == ["run", "camcol", "field", "filter"]: 
+        if self._butler_keys == ["run", "camcol", "field", "filter"]:
             if cqr:
                 run, camcol, field, filtername = self._keys_from_list(
                     ln, ['run', 'camcol', 'field', 'filter']
@@ -381,7 +379,7 @@ class ImageGetter:
             else:
                 tract, patch, filtername = ln[2:5]
             return "TPF", [tract, patch, filtername]
-     
+
     def _arcsec_to_deg(self, arcsecs):
         return arcsecs/3600.0
 

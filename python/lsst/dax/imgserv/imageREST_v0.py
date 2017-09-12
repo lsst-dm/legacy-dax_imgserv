@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 # LSST Data Management System
 # Copyright 2015 AURA/LSST.
 #
@@ -24,7 +22,7 @@
 This module implements the RESTful interface for Image Cutout Service.
 Corresponding URI: /image
 
-@author  Jacek Becla, SLAC; John Gates, SLAC; Kenny Lo, SLAC;
+@author: Jacek Becla, SLAC; John Gates, SLAC; Kenny Lo, SLAC
 """
 
 import os

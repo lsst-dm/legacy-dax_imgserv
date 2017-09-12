@@ -11,5 +11,5 @@
     },
     "api_id": [ "deepcoadd", "nearest" ] 
   },
-  "check": { "sha256": "0139e043145e3e46fef45ecd393af625feffbac766bc9b6fdcdc75e215655976" }
+  "check": { "sha256": "f7d40802282a15b09c910d1964e281fa4a51bb7a94934ee389267920ee8b5f26" }
 }

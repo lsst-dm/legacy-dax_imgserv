@@ -1,158 +1,172 @@
 {
-  "$schema": "http://json-schema.org/draft-04/schema#", 
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$ucd": "https://lsst.org/schemas/vo_ucd.schema",
   "id": "https://lsst.org/schemas/imgserv_api_v1.schema#",
   "type": "object",
   "namespace": "lsst.dax.imgserv",
-  "name": "imageserv_API",
-  "description": "ImageServ API v1 Schema",
-  "version": "1+",
-  "properties": {
-    "image": { "$ref": "#/definitions/image" }
-  },
-  "required": [ "image" ],
-  "definitions": 
+  "name": "image",
+  "ucd": "obs.image",
+  "description": "DAX_ImageServ API v1",
+  "version": "1",
+  "type": "object",
+  "definitions":
   {
-    "rectangle": {
+    "orientation": {
+      "type": "string",
+      "ucd": "pos",
+      "enum": [
+        "Pixel_Coordinate",
+        "Equatorial_J2000",
+        "Equatorial_B1950",
+        "Ecliptic_J2000",
+        "Ecliptic_B1950",
+        "Galactic",
+        "Super_Galactic"
+      ]
+    },
+    "ra": {
+      "type": "number",
+      "unit": "deg",
+      "minimum": 0,
+      "maximum": 360,
+      "ucd": "pos.eq.ra"
+    },
+    "dec": {
+      "type": "number",
+      "unit": "deg",
+      "minimum": -90,
+      "maximum": 90,
+      "ucd": "pos.eq.dec"
+    },
+    "size": {
       "type": "object",
+      "ucd": "lsst;image.size",
       "properties": {
-        "width": { "type": "number" },
-        "height": { "type": "number" },
-        "unit": { "enum": [ "pixel", "arcsec" ] },
-        "ucd": { "type": "string", "enum": ["pos.outline;obs"] } 
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "unit": {
+          "enum": ["px", "pix", "pixel", "pixels", "arcsec", "arcmin", "deg"]
+        }
       },
-      "required": [ "width", "height", "unit", "ucd" ] 
+      "required": ["width", "height", "unit"]
     },
     "circle": {
       "type": "object",
+      "ucd": "phys.angArea;obs",
       "properties": {
-        "unit": { "type": "string",  "enum": ["deg"]  },
-        "ucd": { "type": "string", "enum": ["pos.outline;obs"] }, 
-        "radius": { "type": "number" }
+        "unit": {"type": "string", "enum": ["deg"]},
+        "radius": {"type": "number", "ucd": "phys.angSize"}
       },
-      "required": [ "unit", "ucd", "radius" ]
+      "required": ["unit", "radius"]
     },
     "range": {
       "type": "object",
+      "ucd": "phys.angArea;obs",
       "properties": {
-        "long1": { "type": "number" },
-        "lat1": { "type": "number" },
-        "long2": { "type": "number" },
-        "lat2": { "type": "number" }
+        "long1": {"type": "number", "ucd": "phys.angSize"},
+        "lat1": {"type": "number", "ucd": "phys.angSize"},
+        "long2": {"type": "number", "ucd": "phys.angSize"},
+        "lat2": {"type": "number", "ucd": "phys.angSize"}
       },
-     "required": [ "long1", "lat1", "long2", "lat2" ]
+      "required": ["long1", "lat1", "long2", "lat2"]
     },
     "polygon": {
       "type": "object",
+      "ucd": "phys.angArea;obs",
       "properties": {
-        "unit": { "type": "string", "enum": ["deg"]  },
-        "ucd": { "type": "string", "enum": ["pos.outline;obs"] }, 
         "sides": {
           "type": "array",
           "minItems": 3,
-          "items": {
-            "type": "number"
-          }
+          "items": {"type": "number", "ucd": "phys.angSize"}
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["arsec", "arcmin", "deg"]
         }
-      }, 
-      "required": [ "unit", "ucd", "sides" ]
+      },
+      "required": ["sides", "unit"]
     },
-    "filter": { 
-     "enum": [ "g", "i", "r", "u", "z" ]
+    "filter": {
+      "type": "string",
+      "ucd": "phys.transmission;instr.filter",
+      "enum": ["u", "g", "r", "i", "z", "y"]
     },
     "data_id": {
+      "type": "object",
+      "ucd": "meta.id",
+      "properties": {
+        "run": {"type": "integer"},
+        "camcol": {"type": "integer"},
+        "field": {"type": "integer"},
+        "tract": {"type": "integer"},
+        "patch_x": {"type": "integer"},
+        "patch_y": {"type": "integer"},
+        "filter": {"$ref": "#/definitions/filter"}
+      },
       "oneOf": [
-        { "$ref": "#/definitions/data_id_tpf" },
-        { "$ref": "#/definitions/data_id_rcff" }
+        {"required": ["run", "camcol", "field", "filter"]},
+        {"required": ["tract", "patch_x", "patch_y", "filter"]}
       ]
     },
-    "data_id": {
-      "oneOf": [
-        { "$ref": "#/definitions/data_id_tpf" },
-        { "$ref": "#/definitions/data_id_rcff" }
-      ]
-    },
-    "data_id_rcff": {
+    "center": {
       "type": "object",
+      "ucd": "lsst;image.center",
       "properties": {
-        "run": { "type": "integer" },
-        "camcol": { "type": "integer" },
-        "field": { "type": "integer" },
-        "filter": { "$ref": "#/definitions/filter" }
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "unit": {
+          "type": "string",
+          "enum": ["px", "pix", "pixel", "pixels", "arcsec", "arcmin", "deg"]
+        }
       },
-      "required": [ "run", "camcol", "field", "filter" ]
-    },
-    "data_id_tpf": {
-      "type": "object",
-      "properties": {
-        "tract": { "type": "integer" },
-        "patch_x": { "type": "integer" },
-        "patch_y": { "type": "integer" },
-        "filter": { "$ref": "#/definitions/filter" } 
-      },
-      "required": [ "tract", "patch_x", "patch_y", "filter" ]
-    },
-    "radec": {
-      "type": "object",
-      "properties": {
-        "ra": { "type": "number" },
-        "dec": { "type": "number" }
-      },
-      "required": [ "ra", "dec", "filter" ]
+      "required": ["x", "y", "unit"]
     },
     "nearest": {
       "type": "object",
+      "ucd": "lsst;image.nearest",
       "properties": {
-        "radec": { "$ref": "#/definitions/radec" },
-        "filter": { "$ref": "#/definitions/filter" }
-     },
-     "required": [ "radec", "filter" ]
+        "center": {"$ref": "#/definitions/center"},
+        "filter": {"$ref": "#/definitions/filter"}
+      },
+      "required": ["center", "filter"]
     },
     "cutout": {
       "type": "object",
-      "oneOf": [
-        { "science_id": { "type": "integer" } },
-        { "data_id": { "$ref": "#/definitions/data_id" } },
-        { "nearest": { "$ref": "#/definitions/nearest" } }
-      ],
+      "ucd": "lsst;image.cutout",
       "properties": {
-        "radec": { "$ref": "#/definitions/radec" },
-        "rectangle": { "$ref": "#/definitions/rectangle" }
+        "image_id": {"$ref": "#/definitions/image_id"},
+        "center": {"$ref": "#/definitions/center"},
+        "size": {"$ref": "#/definitions/size"}
       },
-      "required": [ "rectangle" ] 
+      "required": ["image_id", "center", "size"]
     },
-    "base": {
-      "oneOf": [
-        { "nearest": { "$ref": "#/definitions/nearest" } },
-        { "cutout": { "$ref": "#/definitions/cutout" } } 
-     ]
+    "image_id": {
+        "type": "object",
+        "ucd": "meta.id;obs.image",
+        "properties": {
+          "nearest": {"$ref": "#/definitions/nearest"},
+          "data_id": {"$ref": "#/definitions/data_id"},
+          "science_id": {"type": "integer", "ucd": "lsst;image.science_id"}
+        },
+        "oneOf": [
+          {"required": ["nearest"]},
+          {"required": ["data_id"]},
+          {"required": ["science_id"]}
+        ]
+    }
+  },
+  "properties": {
+    "db": {"type": "string"},
+    "ds": {
+      "type": "string",
+      "ucd": "meta.ref.url;meta.curation",
+      "enum": ["raw", "calexp", "deepcoadd"]
     },
-    "raw": {
-      "oneOf": [
-        { "$ref": "#/definitions/base" },
-        { "data_id": { "$ref": "#/definitions/data_id_rcff" } },
-        { "science_id": { "type": "integer" } }
-     ]
-    },
-    "calexp": {
-      "oneOf": [
-        { "$ref": "#/definitions/base" },
-        { "data_id": { "$ref": "#/definitions/data_id_rcff" } },
-        { "science_id": { "type": "integer" } }
-      ]
-    },
-    "deepcoadd": {
-      "oneOf": [
-        { "$ref": "#/definitions/base"  },
-        { "data_id": { "$ref": "#/definitions/data_id_tpf" } },
-        { "science_id": { "type": "integer" } }
-      ]
-    },
-    "image": {
-      "oneOf": [ 
-        { "raw": { "$ref": "#/definitions/raw" } },
-        { "calexp": { "$ref": "#/definitions/calexp" } }, 
-        { "deepcoadd": { "$ref": "#/definitions/deepcoadd" } } 
-      ] 
-   }
- }
+    "cutout": {"$ref": "#/definitions/cutout"},
+    "image_id": {"$ref": "#/definitions/image_id"}
+  },
+  "oneOf": [
+    {"required": ["db", "ds", "image_id"]},
+    {"required": ["db", "ds", "cutout"]}
+  ]
 }

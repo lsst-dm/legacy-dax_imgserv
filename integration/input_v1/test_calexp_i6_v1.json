@@ -1,0 +1,21 @@
+{
+  "name": "calexp_i6_v1",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "calexp",
+      "image_id": {
+        "nearest": {
+          "center": { 
+            "x": 37.644598, 
+            "y": 0.104625,
+            "unit": "deg"
+          },
+          "filter": "r"
+        }
+      }
+    },
+    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit" ]
+  },
+  "check": { "sha256": "fe1675878b720a5bac33484b211bd8ff2e3cf2892a4ea4aa855b07c435511451" }
+}

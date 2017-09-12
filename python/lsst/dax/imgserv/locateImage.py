@@ -51,6 +51,7 @@ from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
 from .getimage.imagegetter import ImageGetter
+from .getimage.imagegetter_v1 import ImageGetter_v1
 
 def image_open(W13db, config, logger=log):
     """Open access to specified images (raw, calexp,
@@ -58,15 +59,28 @@ def image_open(W13db, config, logger=log):
 
     Returns
     -------
-    imagegetter : obj 
+    imagegetter : obj
         instance for access to all image operations.
-                
+
     """
     imagedb = W13db(config, logger)
-    return imagedb.imagegetter
+    return ImageGetter(imagedb.butlerget, imagedb.metaservget, logger)
+
+def image_open_v1(W13db, config, logger=log):
+    """Open access to specified images (raw, calexp,
+    deepCoadd,etc) of specified image repository.
+
+    Returns
+    -------
+    imagegetter : obj
+        instance for access to all image operations.
+
+    """
+    imagedb = W13db(config, logger)
+    return ImageGetter_v1(imagedb.butlerget, imagedb.metaservget, logger)
 
 
-class MetaservGet: 
+class MetaservGet:
     """Class to fetch image metadata based on astronomical parameters.
 
     """
@@ -90,15 +104,15 @@ class MetaservGet:
 
     def nearest_image_containing(self, ra, dec, filtername):
         """Find nearest image containing the [ra, dec].
-            
+
         Parameters
         ----------
 
         ra : degree
         dec : degree
-        filtername: str [optional] 
-        
-        Returns 
+        filtername: str [optional]
+
+        Returns
         -------
         qResults: dict
             the result of the SQL query.
@@ -118,8 +132,10 @@ class MetaservGet:
         cols.append(dist)
         col_str = ",".join(cols)
         sql = ("SELECT {} FROM {} WHERE {} "
-               "scisql_s2PtInBox({}, {}, corner1Ra, corner1Decl, corner3Ra, corner3Decl) = 1 "
-               "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
+                "scisql_s2PtInCPoly({}, {}, "
+                "corner1Ra, corner1Decl, corner2Ra, corner2Decl, "
+                "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
+                "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
         self._log.debug(sql)
         self._log.debug("findNearest sql={}".format(sql))
         r = self._conn.execute(sql).fetchall()
@@ -128,7 +144,7 @@ class MetaservGet:
 
 class ButlerGet:
     """Class to instantiate and hold instance of Butler for ImageGetter.
-    
+
     """
 
     def __init__(self, dataRoot, butler_policy, butler_keys, logger):
@@ -150,11 +166,11 @@ class W13Db:
         To be used for accessing images.
     """
 
-    def __init__(self, credFileName, database, table, columns, dataRoot, 
+    def __init__(self, credFileName, database, table, columns, dataRoot,
             butlerPolicy, butlerKeys, logger):
-        """Instantiate W13Db object with credentials for database, butler 
+        """Instantiate W13Db object with credentials for database, butler
         configuration, and logger.
-    
+
         Parameters
         ----------
         credFileName : str
@@ -179,7 +195,6 @@ class W13Db:
         self.conn = getEngineFromFile(credFileName, database=database).connect()
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
         self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        self.imagegetter = ImageGetter(self.butlerget, self.metaservget, logger)
         try:
             sql = "SET time_zone = '+0:00'"
             self._log.info(sql)
@@ -190,7 +205,7 @@ class W13Db:
 
 class ButlerGet:
     """Class to instantiate and hold instance of Butler for ImageGetter.
-    
+
     """
 
     def __init__(self, dataRoot, butler_policy, butler_keys, logger):
@@ -212,11 +227,11 @@ class W13Db:
         To be used for accessing images.
     """
 
-    def __init__(self, credFileName, database, table, columns, dataRoot, 
+    def __init__(self, credFileName, database, table, columns, dataRoot,
             butlerPolicy, butlerKeys, logger):
-        """Instantiate W13Db object with credential for database, butler 
+        """Instantiate W13Db object with credential for database, butler
         configuration, and logger.
-    
+
         Parameters
         ----------
         credFileName : str
@@ -241,7 +256,6 @@ class W13Db:
         self.conn = getEngineFromFile(credFileName, database=database).connect()
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
         self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        self.imagegetter = ImageGetter(self.butlerget, self.metaservget, logger)
         try:
             sql = "SET time_zone = '+0:00'"
             self._log.info(sql)
@@ -252,7 +266,7 @@ class W13Db:
 
 class ButlerGet:
     """Class to instantiate and hold instance of Butler for ImageGetter.
-    
+
     """
 
     def __init__(self, dataRoot, butler_policy, butler_keys, logger):
@@ -274,11 +288,11 @@ class W13Db:
         To be used for accessing images.
     """
 
-    def __init__(self, credFileName, database, table, columns, dataRoot, 
+    def __init__(self, credFileName, database, table, columns, dataRoot,
             butlerPolicy, butlerKeys, logger):
-        """Instantiate W13Db object with credential for database, butler 
+        """Instantiate W13Db object with credential for database, butler
         configuration, and logger.
-    
+
         Parameters
         ----------
         credFileName : str
@@ -303,7 +317,6 @@ class W13Db:
         self.conn = getEngineFromFile(credFileName, database=database).connect()
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
         self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        self.imagegetter = ImageGetter(self.butlerget, self.metaservget, logger)
         try:
             sql = "SET time_zone = '+0:00'"
             self._log.info(sql)
@@ -372,7 +385,7 @@ class W13DeepCoaddDb(W13Db):
     MySQL table: DC_W13_Stripe82.DeepCoadd
     Table columns: tract, patch, filterName
     butler.get("deepCoadd", filter=filterName, tract=tract, patch=patch)
-    
+
     """
     def __init__(self, config, logger=log):
         """Instantiate W13DeepCoaddDb object with DB credential and logger."""
