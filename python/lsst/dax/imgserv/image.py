@@ -27,20 +27,20 @@ This module implements the Image request data model and operations.
 """
 
 class Image(object):
-    """ Image module maps a request and its parameters per JSON schema to the 
-        corresponding imagegetter method. 
+    """ Image module maps a request and its parameters per JSON schema to the
+        corresponding imagegetter method.
     """
-  
-    def __init__(self):
+
+    def __init__(cls):
        pass
 
     @classmethod
     def full(cls, img_getter, params):
         """ params(dict): ra, dec filt """
-        return img_getter.fullimage(cls._kp_val("ra", params), 
-                cls._kp_val("dec", params), 
+        return img_getter.fullimage(cls._kp_val("ra", params),
+                cls._kp_val("dec", params),
                 cls._kp_val("filter", params))
-        
+
     @classmethod
     def by_data_id(cls, img_getter, params):
         """ params(dict): data_id """
@@ -51,7 +51,7 @@ class Image(object):
             del ids["patch_x"]
             del ids["patch_y"]
         return img_getter.image_by_data_id(ids)
-    
+
     @classmethod
     def cutout_by_data_id(cls, img_getter, params):
         """ params(dict): data_id """
@@ -61,7 +61,7 @@ class Image(object):
             ids["patch"] = "%d,%d" % (ids["patch_x"], ids["patch_y"])
             del ids["patch_x"]
             del ids["patch_y"]
-        return img_getter.imagecutout_from_data_id(ids, 
+        return img_getter.imagecutout_from_data_id(ids,
                 cls._kp_val("ra", params),
                 cls._kp_val("dec", params),
                 cls._kp_val("width", params),
@@ -83,7 +83,7 @@ class Image(object):
                 cls._kp_val("width", params),
                 cls._kp_val("height", params),
                 cls._kp_val("unit", params))
-    
+
     @classmethod
     def cutout_by_science_id(cls, img_getter, params):
         """ params (dict): science_id, ra, dec, width, height, unit """

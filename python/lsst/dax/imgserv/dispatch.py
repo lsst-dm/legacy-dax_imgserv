@@ -20,7 +20,7 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This module implements the API dispatch logic. 
+This module implements the API dispatch logic.
 
 @author: Kenny Lo, SLAC
 
@@ -31,16 +31,17 @@ import json
 
 from .image import Image
 from .hashutil import Hasher
+from .jsonutil import flatten_json
 
 class Dispatcher(object):
-    """ Dispatcher maps request to corresponding Image method. 
+    """ Dispatcher maps request to corresponding Image method.
     """
 
     def __init__(self, config_dir):
         """ Load and keep ref to the key to API map """
         config = os.path.join(config_dir, "request_to_api.json")
         with open(config) as jason_api:
-            self.api_map = json.load(jason_api)  
+            self.api_map = json.load(jason_api)
             jason_api.close()
 
     def find_api(self, request):
@@ -48,40 +49,32 @@ class Dispatcher(object):
             for example, ['raw', 'nearest']
         Parameters
         ----------
-        request: 
+        request:
             the request object.
-        
+
         Returns
         -------
             the matching API method of the Image class.
             parameters for the API method.
         """
-        keys = request["get"]["api_id"]    
-        sig = Hasher.hash(str(keys).encode())
+        keys = request["get"]["api_id"]
+        sig = Hasher.hash(str(keys).encode("utf-8"))
         entry = self.api_map[sig.hexdigest()]
         if entry is not None:
             api_str = entry["api"]
             # example for api_str: 'Image.cutout'
             mod_name, func_name = api_str.split(".")
-            assert(mod_name == "Image")
             api = getattr(Image, func_name)
-            if api == None:
-                return None, None
+            if api is None:
+                raise Exception("Can not find matching API")
             # fetch the parameters specified by keys 
             params = self.get_params(request, keys)
             return api, params
 
     def get_params(self, req, keys):
-        """ Get the parameters corresponding to the API """
         image = req["get"]["image"]
-        p_list = self._flatten_json(image)
-        # params to be list of all items related to keys
-        params = {}
-        for k in keys:
-            for p in p_list:
-                if k in p:
-                    params[p]=p_list[p] # copy it
-        return params
+        p_list = flatten_json(image)
+        return p_list
 
     def _key_in_param(self, key, param):
         p_items = param.split(".")
@@ -90,19 +83,4 @@ class Dispatcher(object):
         else:
             return False
 
-    def _flatten_json(self, req):
-        """ flatten request elements into a dictionary. """
-        p_elems = {}
-
-        def flatten(r, name=""):
-            if isinstance(r, dict):
-                for x in r:
-                    flatten(r[x], name+x+".")
-            elif isinstance(r, list):
-                p_elems[name[:-1]].append(r)
-            else:
-                p_elems[name[:-1]] = r
-
-        flatten(req)
-        return p_elems
 

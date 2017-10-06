@@ -1,0 +1,14 @@
+{
+  "name": "calexp_i8_v1",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "calexp",
+      "image_id": {
+        "science_id": 3325410171
+      }
+    },
+    "api_id": [ "db", "ds", "science_id" ]
+  },
+  "check": { "sha256": "fd8b6bc68c6cfa84f25293b00b51902f9ab7633bcb0da02826e5027e1bbace31" }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "calexp_i11_v1",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "calexp",
+      "cutout": {
+        "image_id": {
+          "science_id": 5646240694
+        },
+        "center": { 
+          "x": 37.6292, 
+          "y": 0.104625,
+          "unit": "deg"
+        },
+        "size": {
+          "x": 30.0,
+          "y": 45.0,
+          "unit": "arcsec"
+        }
+      }
+    },
+    "api_id": [ "db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+  },
+  "check": { "sha256": "85a7ad77e147252b964aafb9d8f84607cda5bd9fd32a2b069d8b091a64164d8e" }
+}

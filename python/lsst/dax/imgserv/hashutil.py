@@ -31,7 +31,7 @@ import hashlib
 class Hasher(object):
     """ Hasher is simple wrapper to sha256 functionality.
     """
-     
+
     _hasher = hashlib.sha256
 
     @classmethod

@@ -1,0 +1,26 @@
+{
+  "name": "raw_i18",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "raw",
+      "cutout": {
+        "image_id": {
+          "science_id": 5646240694
+        },
+        "center": { 
+          "x": 37.6292, 
+          "y": 0.104625,
+          "unit": "deg"
+        },
+        "size": {
+          "x": 30.0,
+          "y": 45.0,
+          "unit": "arcsec"
+        }
+      }
+    },
+    "api_id": [ "db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+  },
+  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+}

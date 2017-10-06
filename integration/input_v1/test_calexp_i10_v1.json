@@ -1,0 +1,33 @@
+{
+  "name": "calexp_i10_v1",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "calexp",
+      "cutout": {
+        "image_id": {
+          "nearest": { 
+            "center": { 
+              "x": 37.6444598, 
+              "y": 0.104625,
+              "unit": "deg"
+            },
+            "filter": "r"
+          }
+        },
+        "center": {
+          "x": 37.6444598,
+          "y": 0.104625,
+          "unit": "deg"
+        },
+        "size": {
+          "x": 100,
+          "y": 100,
+          "unit": "pixel"
+          }
+        }
+    },
+    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+  },
+  "check": { "sha256": "a3bac7226f57ef116ee76bd0e0e33e1da1a6809e9d65d09c9b5ce12f54c4fefe" }
+}
