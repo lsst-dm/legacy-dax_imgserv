@@ -350,16 +350,21 @@ def isFitsExt(fileName):
 
 def isFits(fileName):
     '''Return True if a quick peeks says that this is a FITS file.
+    Returns False if the named file does not exist.
     '''
     if not isFitsExt(fileName):
+        return False
+    if not os.path.exists(fileName):
         return False
     if fileName.split('.')[-1] == 'gz':
         f = gzip.open(fileName)
     else:
-        f = open(fileName, 'r')
+        f = open(fileName, 'rb')
     line = f.read(9)
-    if line == 'SIMPLE  =':
+    f.close()
+    if line == b'SIMPLE  =':
         return True
+    return False
 
 def directoryCrawl(rootDir, metaDb):
     '''Crawl throught the directory tree looking for FITS files.
@@ -405,7 +410,3 @@ if __name__ == "__main__":
             test(sys.argv[1])
     else:
         test()
-
-
-
-
