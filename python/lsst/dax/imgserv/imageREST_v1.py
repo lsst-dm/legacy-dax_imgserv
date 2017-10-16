@@ -36,6 +36,7 @@ from flask import Blueprint, make_response, request, current_app, jsonify
 from flask import render_template
 
 import lsst.log as log
+import lsst.afw.fits as fits
 
 from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
@@ -170,7 +171,7 @@ def _getimage(_req, db_id):
         raise Exception("Failed to instantiate ImageGetter")
     image = api(img_getter, params)
     if image:
-        return _file_response(image, "image_out.fits")
+        return _data_response(image)
     else:
         return _image_not_found()
 
@@ -186,38 +187,25 @@ def _get_ds(image_type):
         return W13DeepCoaddDb
 
 
-def _file_response(image, file_name):
-    tmp_path = tempfile.mkdtemp()
-    file_path = os.path.join(tmp_path, file_name)
-    log.debug("temporary file_path=%s", file_path)
-    image.writeFits(file_path)
-    resp = _make_file_response(file_path)
-    os.remove(file_path)
-    os.removedirs(tmp_path)
-    return resp
+def _data_response(image):
+    """Write image data to FITS file via data buffer in memory.
 
+    Parameters
+    ----------
+    image: lsst.afw.image.Exposure
 
-def _make_file_response(file_name):
-    # It would be nice to just write to 'data' instead of making a file.
-    # writeFits defined in afw/python/lsst/afw/math/background.py
-    # Using a cache of files might be desirable. We would need consistent and
-    # unique identifiers for the files.
-    try:
-        with open(file_name, 'rb') as f:
-            data = f.read()
-            f.close()
-            response = make_response(data)
-            response.headers["Content-Disposition"] = "attachment;\
-                    filename=image.fits"
-            response.headers["Content-Type"] = "image/fits"
-        return response
-    except IOError as e:
-        return _error(IOError.__name__, e.message, INTERNAL_SERVER_ERROR)
-
-
-def _error(exception, message, status_code):
-    response = jsonify({"exception": exception, "message": message})
-    response.status_code = status_code
+    Returns
+    -------
+    flask.response
+        the response with FITS image data.
+    """
+    mfm = fits.MemFileManager()
+    image.writeFits(mfm)
+    data = mfm.getData()
+    response = make_response(data)
+    response.headers["Content-Disposition"] = "attachment;\
+            filename=image.fits"
+    response.headers["Content-Type"] = "image/fits"
     return response
 
 
