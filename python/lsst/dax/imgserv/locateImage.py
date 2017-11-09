@@ -45,13 +45,14 @@ from flask import current_app
 from sqlalchemy.exc import SQLAlchemyError
 
 import lsst.daf.base as dafBase
-import lsst.daf.persistence as dafPersist
 import lsst.log as log
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
 from .getimage.imagegetter import ImageGetter
 from .getimage.imagegetter_v1 import ImageGetter_v1
+from .butlerGet import  ButlerGet
+from .metaservGet import MetaservGet
 
 def image_open(W13db, config, logger=log):
     """Open access to specified images (raw, calexp,
@@ -78,203 +79,6 @@ def image_open_v1(W13db, config, logger=log):
     """
     imagedb = W13db(config, logger)
     return ImageGetter_v1(imagedb.butlerget, imagedb.metaservget, logger)
-
-
-class MetaservGet:
-    """Class to fetch image metadata based on astronomical parameters.
-
-    """
-
-    def  __init__(self, conn, table, columns, logger):
-        """Instantiate MetaServGet for access to image medatadata.
-
-        Parameters
-        ----------
-        conn :
-                the connection to database server.
-        columns :
-                the database columns.
-        logger: obj
-                used for logging messages.
-        """
-        self._log = logger
-        self._conn = conn
-        self._table = table
-        self._columns = columns
-
-    def nearest_image_containing(self, ra, dec, filtername):
-        """Find nearest image containing the [ra, dec].
-
-        Parameters
-        ----------
-
-        ra : degree
-        dec : degree
-        filtername: str [optional]
-
-        Returns
-        -------
-        qResults: dict
-            the result of the SQL query.
-        """
-        cols = ["ra", "decl"]
-        for s in self._columns:
-            cols.append(s)
-        dist = "(power((ra - {}),2) + power((decl - {}),2)) as distance".format(ra, dec)
-        # More accurate distance calc on a sphere-if needed
-        # SELECT *, 2 * ASIN(SQRT(POWER(SIN((raA)*pi()/180/2),2)+
-        # COS(raA*pi()/180)*COS(abs(raB)*pi()/180)*
-        # POWER(SIN((decB.lon)*pi()/180/2),2)) as distance
-        # FROM <table> order by distance ;
-        filterSql = ""
-        if filtername:
-            filterSql = "filtername = '{}' AND".format(filtername)
-        cols.append(dist)
-        col_str = ",".join(cols)
-        sql = ("SELECT {} FROM {} WHERE {} "
-               "scisql_s2PtInCPoly({}, {}, "
-               "corner1Ra, corner1Decl, corner2Ra, corner2Decl, "
-               "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
-               "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
-        self._log.debug(sql)
-        self._log.debug("findNearest sql={}".format(sql))
-        r = self._conn.execute(sql).fetchall()
-        return r
-
-
-class ButlerGet:
-    """Class to instantiate and hold instance of Butler for ImageGetter.
-
-    """
-
-    def __init__(self, dataRoot, butler_policy, butler_keys, logger):
-        """Instantiate ButlerGet to be passed to ImageGetter."""
-        logger.debug("Instantiating ButlerGet with dataRoot: {}".format(dataRoot))
-        self.butler = dafPersist.Butler(inputs=dataRoot)
-        self.butler_policy = butler_policy
-        self.butler_keys = butler_keys
-
-
-class W13Db:
-    """This is the base class for examining DC_W13_Stripe82 image data,
-    which instantates a data butler for access to image repository,and
-    establishes connection to MetaServ for metadata.
-
-    Attributes
-    ----------
-    imagegetter : obj
-        To be used for accessing images.
-    """
-
-    def __init__(self, credFileName, database, table, columns, dataRoot,
-            butlerPolicy, butlerKeys, logger):
-        """Instantiate W13Db object with credentials for database, butler
-        configuration, and logger.
-
-        Parameters
-        ----------
-        credFileName : str
-            The connection for accessing image metadata.
-        database : str
-            The database connection string.
-        table : str
-            The table name.
-        columns : str
-            The database columns.
-        dataRoot : str
-            Root for the butler.
-        bulterPolicy : str
-            The butler policy.
-        butlerKeys : str
-            The bulter keys for this image data source.
-        logger : obj
-            The logger to be used.
-
-        """
-        self._log = logger
-        self.conn = getEngineFromFile(credFileName, database=database).connect()
-        self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
-        self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        try:
-            sql = "SET time_zone = '+0:00'"
-            self._log.info(sql)
-            self.conn.execute(sql)
-        except SQLAlchemyError as e:
-            self._log.error("Db engine error %s" % e)
-
-
-class ButlerGet:
-    """Class to instantiate and hold instance of Butler for ImageGetter.
-
-    """
-
-    def __init__(self, dataRoot, butler_policy, butler_keys, logger):
-        """Instantiate ButlerGet to be passed to ImageGetter."""
-        self.butler = dafPersist.Butler(dataRoot)
-        self.butler_policy = butler_policy
-        self.butler_keys = butler_keys
-        logger.debug("Instantiate ButlerGet.")
-
-
-class W13Db:
-    """This is the base class for examining DC_W13_Stripe82 image data,
-    Thie instantates a Butler for access to image repository, as well as
-    connection for metadata via MetaServ.
-
-    Attributes
-    ----------
-    imagegetter : obj
-        To be used for accessing images.
-    """
-
-    def __init__(self, credFileName, database, table, columns, dataRoot,
-            butlerPolicy, butlerKeys, logger):
-        """Instantiate W13Db object with credential for database, butler
-        configuration, and logger.
-
-        Parameters
-        ----------
-        credFileName : str
-            The connection for accessing image metadata
-        database : str
-            the datbase connection string.
-        table : str
-            The table name.
-        columns : str
-            The database columns.
-        dataRoot : str
-            root for the butler.
-        bulterPolicy : str
-            The butler policy.
-        butlerKeys : str
-                      The bulter keys for this image data source.
-        logger : obj
-            The logger to be used.
-
-        """
-        self._log = logger
-        self.conn = getEngineFromFile(credFileName, database=database).connect()
-        self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
-        self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        try:
-            sql = "SET time_zone = '+0:00'"
-            self._log.info(sql)
-            self.conn.execute(sql)
-        except SQLAlchemyError as e:
-            self._log.error("Db engine error %s" % e)
-
-
-class ButlerGet:
-    """Class to instantiate and hold instance of Butler for ImageGetter.
-
-    """
-
-    def __init__(self, dataRoot, butler_policy, butler_keys, logger):
-        """Instantiate ButlerGet to be passed to ImageGetter."""
-        self.butler = dafPersist.Butler(dataRoot)
-        self.butler_policy = butler_policy
-        self.butler_keys = butler_keys
-        logger.debug("Instantiate ButlerGet.")
 
 
 class W13Db:

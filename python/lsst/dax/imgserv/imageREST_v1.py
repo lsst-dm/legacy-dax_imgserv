@@ -60,7 +60,8 @@ def load_imgserv_config(config_path, db_auth_conf):
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_DBCONF"] = db_auth_conf
     current_app.config["DAX_IMG_CONFIG"] = config_path
-
+    # create cache for butler instances
+    current_app.butler_instances = {}
 
 @imageRESTv1.route("/")
 def index():
