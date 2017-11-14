@@ -1,33 +1,31 @@
 {
   "name": "raw_i5_v1",
-  "get": {
-    "image": {
-      "db": "DC_W13_Stripe82",
-      "ds": "raw",
-      "cutout": {
-        "image_id": {
-          "nearest": { 
-            "center": { 
-              "x": 359.195, 
-              "y": -0.1055,
-              "unit": "deg"
-            },
-            "filter": "r"
-          }
-        },
-        "center": {
-          "x": 359.195,
-          "y": -0.1055,
-          "unit": "deg"
-        },
-        "size": {
-          "x": 100,
-          "y": 100,
-          "unit": "pixel"
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "cutout": {
+      "image_id": {
+        "nearest": { 
+          "center": { 
+            "x": 359.195, 
+            "y": -0.1055,
+            "unit": "deg"
+          },
+          "filter": "r"
         }
+      },
+      "center": {
+        "x": 359.195,
+        "y": -0.1055,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
       }
-    },
-    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+    }
   },
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
   "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
 }

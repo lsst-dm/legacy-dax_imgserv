@@ -1,33 +1,31 @@
 {
   "name": "calexp_i9_v1",
-  "get": {
-    "image": {
-      "db": "DC_W13_Stripe82",
-      "ds": "calexp",
-      "cutout": {
-        "image_id": {
-          "nearest": { 
-            "center": { 
-              "x": 37.6444598, 
-              "y": 0.104625, 
-              "unit": "deg"    
-            },
-            "filter": "r"
-          }
-        },
-        "center": {
-          "x": 37.6444598,
-          "y": 0.104625,
-          "unit": "deg"
-        },
-        "size": {
-          "x": 30.0,
-          "y": 45.0,
-          "unit": "arcsec"
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "calexp",
+    "cutout": {
+      "image_id": {
+        "nearest": { 
+          "center": { 
+            "x": 37.6444598, 
+            "y": 0.104625, 
+            "unit": "deg"    
+          },
+          "filter": "r"
         }
+      },
+      "center": {
+        "x": 37.6444598,
+        "y": 0.104625,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 30.0,
+        "y": 45.0,
+        "unit": "arcsec"
       }
-    },
-    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+    }
   },
-  "check": { "sha256": "ca562be3d230981aee6d7af8421eb95f37caf0b6e0fda0d657d8ae60678dbfbc" }
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
+  "check": { "sha256": "a8aecba1806d88829a0c256f4b24292cbb670546eb1154bb18adde2df76603f2" }
 }

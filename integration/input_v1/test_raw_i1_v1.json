@@ -1,21 +1,19 @@
 {
   "name": "raw_i1_v1",
-  "get": {
-    "image": {
-      "db": "DC_W13_Stripe82",
-      "ds": "raw",
-      "image_id": {
-        "nearest": {
-          "center": {
-            "x": 359.195, 
-            "y": -0.1055,
-            "unit": "deg"
-          },
-          "filter": "r"
-        }
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "image_id": {
+      "nearest": {
+        "center": {
+          "x": 359.195, 
+          "y": -0.1055,
+          "unit": "deg"
+        },
+        "filter": "r"
       }
-    },
-    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit" ]
+    }
   },
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit" ],
   "check": { "sha256": "dac2c737ad50eae8ff7d5b58624f579bf06727a52e36c5b2cbb87eff7f620c4e" }
 }

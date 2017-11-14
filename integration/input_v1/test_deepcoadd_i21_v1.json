@@ -1,26 +1,24 @@
 {
   "name": "deepcoadd_i21_v1",
-  "get": {
-    "image": {
-      "db": "DC_W13_Stripe82",
-      "ds": "deepcoadd",
-      "cutout": {
-        "image_id": {
-          "science_id": 23986176
-        },
-        "center": { 
-          "x": 9.47103, 
-          "y": -1.181766,
-          "unit": "deg"
-        },
-        "size": {
-          "x": 100,
-          "y": 100,
-          "unit": "pixel"
-        }
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "deepcoadd",
+    "cutout": {
+      "image_id": {
+        "science_id": 23986176
+      },
+      "center": { 
+        "x": 9.47103, 
+        "y": -1.181766,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
       }
-    },
-    "api_id": [ "db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+    }
   },
+  "api_id": [ "db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
   "check": { "sha256": "7d098b7ba5a89ea765341368f219c0ea7c1aa5403ef1f65033abdfe46ac7275f" }
 }

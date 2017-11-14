@@ -1,5 +1,6 @@
 {
   "DEBUG": true,
+  "DAX_IMG_VALIDATE": true,
   "DAX_IMG_DBCONF": "~/.lsst/dbAuth-dbServ.ini",
   "DAX_IMG_DS": "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00",  
   "DAX_IMG_DB": "DC_W13_Stripe82",
@@ -12,5 +13,6 @@
   "DAX_IMG_COLUMNS2": ["tract", "patch", "filterName"],
   "DAX_IMG_BUTLER_POL0": "fpC",
   "DAX_IMG_BUTLER_POL1": "calexp",
-  "DAX_IMG_BUTLER_POL2": "deepCoadd"
+  "DAX_IMG_BUTLER_POL2": "deepCoadd",
+  "DAX_IMG_SKYMAP_DEEPCOADD": "deepCoadd_skyMap"
 }

@@ -30,6 +30,7 @@ This module implements the command line interface (CLI) to ImageServ.
 
 import os
 import json
+from jsonschema import validate, ValidationError
 
 import click
 
@@ -59,7 +60,7 @@ def exec_command(config_dir, in_req, out_dir):
 class ImageServCLI(object):
     """ Module to implement CLI for ImageServ.
     """
-    def __init__(self, config_dir, in_req, out_dir):
+    def __init__(self, config_dir, out_dir):
         # load the configuration file
         if config_dir:
             config = os.path.join(config_dir, "settings.json")
@@ -72,12 +73,16 @@ class ImageServCLI(object):
             f.close()
         # configure the log file (log4cxx)
         log.configure(os.path.join(config_dir, "log.properties"))
-        self._in_req = in_req
         self._out_dir = out_dir
         self._dispatcher = Dispatcher(config_dir)
+        self._schema = os.path.join(config_dir, "imageREST_v1.schema")
+        self._validate =  self._config["DAX_IMG_VALIDATE"]
 
-    def process_request(self):
+    def process_request(self, in_req):
+        self._in_req = in_req
         errors, req = self._parse_req()
+        if errors > 0:
+            raise Exception("parse error in req")
         w13db = self._get_ds(req)
         if w13db:
             img_getter = image_open_v1(w13db, self._config)
@@ -123,8 +128,8 @@ class ImageServCLI(object):
         The extraction of each parameter is based upon best match
         of the name with parts delimited by '.'.
         """
-        keys = req["get"]["api_id"]
-        image = req["get"]["image"]
+        keys = req["api_id"]
+        image = req["image"]
         p_list = flatten_json(image)
         # params to be list of all items related to keys
         params = {}
@@ -144,7 +149,7 @@ class ImageServCLI(object):
 
     def _get_ds(self, req):
         # determine and get the image datasource
-        image_type = req["get"]["image"]["ds"]
+        image_type = req["image"]["ds"]
         if image_type == "raw":
             return W13RawDb
         elif image_type == "calexp":
@@ -152,19 +157,26 @@ class ImageServCLI(object):
         elif image_type == "deepcoadd":
             return W13DeepCoaddDb
 
-    def _get_req_data(self):
-        with open(self._in_req, "r") as req_file:
-            data = req_file.read()
-            req_file.close()
+    def _get_json_data(self, fp):
+        with open(fp, "r") as f:
+            data = f.read()
+            f.close()
         return data
 
     def _parse_req(self):
-        req_data = self._get_req_data()
-        # read and parse the request (JSON)
+        req_data = self._get_json_data(self._in_req)
+        try:
+            if self._validate:
+                # validate the schema
+                schema_data = self._get_json_data(self._schema)
+                schema = json.loads(schema_data)
+                validate(req_data, schema)
+        except ValidationError as e:
+            msg = json.loads({"Validation Error": e.message})
+            return 1, msg
+        # read in the request (JSON)
         req = json.loads(req_data)
-        # ToDo: validate schema here (DM-9929)
-        errors = 0
-        return errors, req
+        return 0, req
 
 
 if __name__ == '__main__':

@@ -40,9 +40,9 @@ import lsst.afw
 import lsst.afw.coord as afw_coord
 import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
-
 import lsst.log as log
 
+from .skymapImage import SkymapImage 
 
 class ImageGetter_v1:
     """Provide operations to retrieve images including cutouts from the specified
@@ -285,6 +285,36 @@ class ImageGetter_v1:
             image = self._imagecutout_by_data_id(ra, dec, width, height,
                     data_id, size_unit)
             return image
+
+    def cutout_from_skymap_id(self, skymap_id, filt, center_x, center_y,
+                center_unit, size_x, size_y, size_unit):
+        """
+        Parameters
+        ----------
+        skymap_id : string
+        filt : filter
+        center_x : float
+        center_y : float
+        center_unit : string
+            [ 'px', 'pix', 'pixel', 'pixels', 'arcsec', 'arcmin', 'deg' ]
+        size_x : float
+        size_y : float
+        size_unit : string
+            [ 'px', 'pix', 'pixel', 'pixels', 'arcsec', 'arcmin', 'deg' ]
+
+        Returns
+        -------
+        lsst.afw.Image or None
+
+        """
+        ra, dec = center_x, center_y
+        width, height = size_x, size_y
+        skymap = SkymapImage(self._butler, skymap_id, self._log)
+        ra_angle = afw_geom.Angle(ra, afw_geom.degrees)
+        dec_angle = afw_geom.Angle(dec, afw_geom.degrees)
+        center_coord = afw_coord.Coord(ra_angle, dec_angle, 2000.0)
+        image = skymap.get(center_coord, width, height, filt, center_unit)
+        return image
 
     def _data_id_from_science_id(self, science_id):
         """Returns a dictionary of ids derived from scienceId.

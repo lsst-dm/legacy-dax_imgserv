@@ -1,14 +1,12 @@
 {
   "name": "raw_i3_v1",
-  "get": {
-    "image": {
-      "db": "DC_W13_Stripe82",
-      "ds": "raw",
-      "image_id": {
-        "science_id": 3325410171
-      }
-    },
-    "api_id": [ "db", "ds", "science_id" ]
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "image_id": {
+      "science_id": 3325410171
+    }
   },
+  "api_id": [ "db", "ds", "science_id" ],
   "check": { "sha256": "86991bee8c1500975bb645b353509eb17e2534091f34759e9f97d28f1a7ae1a8" }
 }
