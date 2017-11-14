@@ -1,5 +1,5 @@
 # LSST Data Management System
-# Copyright 2015 AURA/LSST.
+# Copyright 2017 AURA/LSST.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -40,8 +40,8 @@ from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import (
         image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 )
-from .skymapStitch import getSkyMap
 
+from .getimage.skymapImage import SkymapImage
 
 imageREST = Blueprint('imageREST', __name__, static_folder='static',
                       template_folder='templates')
@@ -407,7 +407,7 @@ def getISkyMapDeepCoaddCutout():
     """Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     where width and height are in arcsecs.
     """
-    return _stiched_image_cutout(request, 'arcsec')
+    return _stiched_image_cutout(W13DeepCoaddDb, request, 'arcsec')
 
 
 # this will handle something like:
@@ -423,18 +423,16 @@ def getISkyMapDeepCoaddCutoutPixel():
     :query integer height: Height
     :query string source: Optional filesystem path to provide imgserv
     """
-    return _stiched_image_cutout(request, 'pixel')
+    return _stiched_image_cutout(W13DeepCoaddDb, request, 'pixel')
 
 
-def _stiched_image_cutout(_request, unit):
+def _stiched_image_cutout(image_db_class, _request, unit):
     """Get a stitched together deepCoadd image from /lsst/releaseW13EP deepCoadd_skyMap
     """
     source = _request.args.get("source", None)
     if not source:
         # Use a default
-        source = current_app.config["DAX_IMG_DATASOURCE"]+"coadd/"
-    # Be safe and encode source to utf8, just in case
-    source = source.encode('utf8')
+        source = current_app.config["DAX_IMG_DS"]+"/coadd"
     log.debug("Using filesystem source: " + source)
     map_type = "deepCoadd_skyMap"
     ra = _request.args.get('ra')
@@ -461,13 +459,15 @@ def _stiched_image_cutout(_request, unit):
     dec_angle = afw_geom.Angle(dec, afw_geom.degrees)
     center_coord = afw_coord.Coord(ra_angle, dec_angle, 2000.0)
     try:
-        expo = getSkyMap(center_coord, int(width), int(height),
-                         filter, unit, source, map_type)
+        # fetch the image here
+        img_getter = image_open(image_db_class, current_app.config)
+        skymap = SkymapImage(img_getter._butler, map_type)
+        expo = skymap.get(center_coord, width, height, filter, unit)
     except RuntimeError as e:
         return _error("RuntimeError", e.message, INTERNAL_SERVER_ERROR)
     if expo is None:
         return _image_not_found()
-    return _file_response(expo, "cutout.fits")
+    return _file_response(expo, "skymap_cutout.fits")
 
 
 def _image_not_found(message=None):

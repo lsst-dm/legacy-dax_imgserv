@@ -146,12 +146,20 @@
         "properties": {
           "nearest": {"$ref": "#/definitions/nearest"},
           "data_id": {"$ref": "#/definitions/data_id"},
-          "science_id": {"type": "integer", "ucd": "lsst;image.science_id"}
+          "science_id": {
+            "type": "integer",
+            "ucd": "lsst;image.science_id"
+          },
+          "skymap_id": {
+            "type": "string",
+            "ucd": "lsst;image.skymap_id"
+          }
         },
         "oneOf": [
           {"required": ["nearest"]},
           {"required": ["data_id"]},
-          {"required": ["science_id"]}
+          {"required": ["science_id"],
+          {"required": ["skymap_id"]}
         ]
     }
   },

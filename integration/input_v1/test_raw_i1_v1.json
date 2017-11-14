@@ -15,7 +15,7 @@
         }
       }
     },
-    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit" ]
+    "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit" ]
   },
   "check": { "sha256": "dac2c737ad50eae8ff7d5b58624f579bf06727a52e36c5b2cbb87eff7f620c4e" }
 }

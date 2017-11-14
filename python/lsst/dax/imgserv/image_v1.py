@@ -160,7 +160,6 @@ class Image(object):
         lsst.afw.image
             the cutout image (FITS).
         """
-        image = None
         if all (k in params.keys() for k in ("run", "camcol", "field", "filter")):
             run = int(params.get("run"))
             camcol = int(params.get("camcol"))
@@ -208,6 +207,7 @@ class Image(object):
 
         Returns
         -------
+        lsst.afw.Image or None
         """
         science_id = int(params.get("science_id"))
         center_x = float(params.get("center.x"))
@@ -217,6 +217,31 @@ class Image(object):
         size_y = float(params.get("size.y"))
         size_unit = params.get("size.unit")
         image = image_getter.cutout_from_science_id(science_id, center_x,
+                center_y, center_unit, size_x, size_y, size_unit)
+        return image
+
+    @classmethod
+    def cutout_from_skymap_id(cls, image_getter, params):
+        """Get cutout image from skymap id of specified center and size.
+
+        Parameters
+        ----------
+        image_getter : getimage.imagegetter.ImageGetter
+        skymap_id, center.y, center.y, center.unit, size.x, size.y, size.unit
+
+        Returns
+        -------
+        lsst.afw.Image or None
+        """
+        skymap_id = params.get("skymap_id")
+        filt = params.get("filter")
+        center_x = float(params.get("center.x"))
+        center_y = float(params.get("center.y"))
+        center_unit = params.get("center.unit")
+        size_x = float(params.get("size.x"))
+        size_y = float(params.get("size.y"))
+        size_unit = params.get("size.unit")
+        image = image_getter.cutout_from_skymap_id(skymap_id, filt, center_x,
                 center_y, center_unit, size_x, size_y, size_unit)
         return image
 
