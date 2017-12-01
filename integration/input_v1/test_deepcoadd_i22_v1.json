@@ -1,0 +1,27 @@
+{
+  "name": "skymap_coadd_i22_v1",
+  "get": {
+    "image": {
+      "db": "DC_W13_Stripe82",
+      "ds": "deepcoadd",
+      "cutout": {
+        "image_id": {
+          "skymap_id": "deepCoadd_skyMap"
+        },
+        "filter": "r",
+        "center": { 
+          "x": 19.36995, 
+          "y": -0.3146,
+          "unit": "deg"
+        },
+        "size": {
+          "x": 115,
+          "y": 235,
+          "unit": "arcsec"
+        }
+      }
+    },
+    "api_id": [ "db", "ds", "skymap_id", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+  },
+  "check": { "sha256": "fd3acd3ccda279973dcb7c6db2dfad11ce9496bb1b1960f19d5c0122d10a16a2" }
+}

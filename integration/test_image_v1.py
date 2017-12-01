@@ -41,7 +41,7 @@ RAW_ENDPOINTS = ["1", "2", "3", "4", "5", "18", "19"]
 
 CALEXP_ENDPOINTS = ["6", "7", "8", "9", "10", "11", "12"]
 
-COADD_ENDPOINTS = ["13", "14", "15", "16", "17", "20", "21"]
+COADD_ENDPOINTS = ["13", "14", "15", "16", "17", "20", "21", "22"]
 
 RAW_FILE_PATTERN = "test_raw_i{endpoint}_v1.json"
 CALEXP_FILE_PATTERN = "test_calexp_i{endpoint}_v1.json"

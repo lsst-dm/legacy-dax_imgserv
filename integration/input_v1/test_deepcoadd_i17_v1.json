@@ -27,7 +27,7 @@
         }
       }
     },
-    "api_id": [ "db", "ds", "nearest.filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
+    "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ]
   },
   "check": { "sha256": "aa926d99e488cc79944a0433f97ead8abc222f818bbedc79863ff4bc19d697e2" }
 }
