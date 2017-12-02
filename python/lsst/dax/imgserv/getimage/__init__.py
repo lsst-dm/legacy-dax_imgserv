@@ -20,5 +20,5 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 #
 
-__all__ = [ "imagegetter" ]
+__all__ = [ "imagegetter", "imagegetter_v1" ]
 

@@ -85,7 +85,7 @@ class Dispatcher(object):
             else:
                 filt = req_params.pop("filter", None)
             if filt:
-                req_params["nearest.filter"] = filt
+                req_params["filter"] = filt
         sid = req_params.pop("sid", None)
         if sid:
             req_params["science_id"] = sid

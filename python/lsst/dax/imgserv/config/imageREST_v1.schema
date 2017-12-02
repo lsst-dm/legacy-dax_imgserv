@@ -1,14 +1,10 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
   "$ucd": "https://lsst.org/schemas/vo_ucd.schema",
-  "id": "https://lsst.org/schemas/imgserv_api_v1.schema#",
-  "type": "object",
   "namespace": "lsst.dax.imgserv",
-  "name": "image",
   "ucd": "obs.image",
   "description": "DAX_ImageServ API v1",
   "version": "1",
-  "type": "object",
   "definitions":
   {
     "orientation": {
@@ -146,27 +142,41 @@
         "properties": {
           "nearest": {"$ref": "#/definitions/nearest"},
           "data_id": {"$ref": "#/definitions/data_id"},
-          "science_id": {"type": "integer", "ucd": "lsst;image.science_id"}
+          "science_id": {
+            "type": "integer",
+            "ucd": "lsst;image.science_id"
+          },
+          "skymap_id": {
+            "type": "string",
+            "ucd": "lsst;image.skymap_id"
+          }
         },
         "oneOf": [
           {"required": ["nearest"]},
           {"required": ["data_id"]},
-          {"required": ["science_id"]}
+          {"required": ["science_id"]},
+          {"required": ["skymap_id"]}
         ]
+    },
+    "image": {
+      "properties": {
+        "db": {"type": "string"},
+        "ds": {
+          "type": "string",
+          "ucd": "meta.ref.url;meta.curation",
+          "enum": ["raw", "calexp", "deepcoadd"]
+        },
+        "cutout": {"$ref": "#/definitions/cutout"},
+        "image_id": {"$ref": "#/definitions/image_id"}
+      },
+      "oneOf": [
+        {"required": ["db", "ds", "image_id"]},
+        {"required": ["db", "ds", "cutout"]}
+      ]
     }
   },
   "properties": {
-    "db": {"type": "string"},
-    "ds": {
-      "type": "string",
-      "ucd": "meta.ref.url;meta.curation",
-      "enum": ["raw", "calexp", "deepcoadd"]
-    },
-    "cutout": {"$ref": "#/definitions/cutout"},
-    "image_id": {"$ref": "#/definitions/image_id"}
+    "image": { "$ref": "#/definitions/image" }
   },
-  "oneOf": [
-    {"required": ["db", "ds", "image_id"]},
-    {"required": ["db", "ds", "cutout"]}
-  ]
+  "required": [ "image" ]
 }

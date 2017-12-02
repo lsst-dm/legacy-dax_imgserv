@@ -39,7 +39,7 @@ class Dispatcher(object):
 
     def __init__(self, config_dir):
         """ Load and keep ref to the key to API map """
-        config = os.path.join(config_dir, "request_to_api.json")
+        config = os.path.join(config_dir, "api_map_v0.json")
         with open(config) as jason_api:
             self.api_map = json.load(jason_api)
             jason_api.close()
