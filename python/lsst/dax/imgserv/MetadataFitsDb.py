@@ -133,7 +133,7 @@ class MetadataFits:
              else:
                  lineNum += 1
         #try:
-        #    wcs = afwImage.makeWcs(metaPl)
+        #    wcs = afwGeom.makeSkyWcs(metaPl)
         #except:
         #    pass
 

@@ -68,7 +68,7 @@ def stitchTestDeepCoadd():
     llImg.writeFits("ll.fits")
     lrImg.writeFits("lr.fits")
 
-    #fullWcs = lsst.afw.image.makeWcs(metaFull, False)
+    #fullWcs = afwGeom.makeSkyWcs(metaFull, strip=False)
     fullWcs = fullImg.getWcs()
     fullImg.setWcs(fullWcs)
     srcExpo = ulImg

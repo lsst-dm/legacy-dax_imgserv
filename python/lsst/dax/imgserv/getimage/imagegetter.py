@@ -211,10 +211,7 @@ class ImageGetter:
             wcs = src_img.getWcs()
         if wcs is None:
             # try to use the metadata
-            wcs = lsst.afw.image.makeWcs(metadata, False)
-        if wcs is None:
-            # can't continue
-            return None
+            wcs = lsst.afw.geom.makeSkyWcs(metadata, strip=False)
         radec = afw_coord.makeCoord(afw_coord.ICRS,
                                      ra * afw_geom.degrees,
                                      dec * afw_geom.degrees)
