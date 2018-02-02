@@ -12,20 +12,20 @@
             "unit": "deg"
           },
           "filter": "r"
-        },  
-        "center": { 
-          "x": 19.62322, 
-          "y": -0.2978,
-          "unit": "deg"
-        },
-        "size": {
-          "x": 100,
-          "y": 100,
-          "unit": "pixel"
-        }
+        } 
+      },
+      "center": { 
+        "x": 19.62322, 
+        "y": -0.2978,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
       }
     }
   },
   "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
-  "check": { "sha256": "aa926d99e488cc79944a0433f97ead8abc222f818bbedc79863ff4bc19d697e2" }
+  "check": { "sha256": "a3d315051a6da8b3e05bb50588923f7e3c9a70f5375dd0460a12e46d5a312f4e" }
 }

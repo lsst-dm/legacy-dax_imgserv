@@ -31,9 +31,10 @@ import os
 import tempfile
 import traceback
 import json
+from jsonschema import validate, ValidationError
 
 from flask import Blueprint, make_response, request, current_app, jsonify
-from flask import render_template
+from flask import render_template, send_file
 
 import lsst.log as log
 import lsst.afw.fits as fits
@@ -42,6 +43,7 @@ from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
 from .dispatch_v1 import Dispatcher
+from .jsonutil import get_params
 
 imageRESTv1 = Blueprint("imageRESTv1", __name__, static_folder="static",
                         template_folder="templates")
@@ -60,6 +62,8 @@ def load_imgserv_config(config_path, db_auth_conf):
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_DBCONF"] = db_auth_conf
     current_app.config["DAX_IMG_CONFIG"] = config_path
+    current_app.config["imageREST_v1"]=os.path.join(config_path,
+    "imageREST_v1.schema")
     # create cache for butler instances
     current_app.butler_instances = {}
 
@@ -78,7 +82,7 @@ def getimage_capabilities():
     return _getimage_capabilities(request)
 
 
-@imageRESTv1.route("/<db_id>", methods=["GET"])
+@imageRESTv1.route("/<db_id>", methods=["GET", "PUT", "POST"])
 def getimage_sync(db_id):
     return _getimage(request, db_id)
 
@@ -154,19 +158,36 @@ def _getimage(_req, db_id):
         request the request object
         db  image database string
     """
-    ds = _req.args.get("ds")
-    if ds is None:
-        return _db_not_found("ds parameter is missing")
-    w13db = _get_ds(ds.strip())
-    if w13db is None:
-        return _db_not_found()
-    dispatcher = Dispatcher(current_app.config["DAX_IMG_CONFIG"])
-    params = _req.args.copy()
+    if _req.is_json:
+        r_data =  _req.get_json()
+        # schema validation check
+        check = current_app.config["DAX_IMG_VALIDATE"]
+        if check:
+            f_schema = current_app.config["imageREST_v1"]
+            with open(f_schema) as f:
+                schema = json.load(f)
+                f.close()
+            validate(r_data, schema)
+        params = get_params(r_data)
+        ds = r_data["image"]["ds"]
+    else:
+        if _req.content_type and "form" in _req.content_type:
+            # e.g. Content-Type: application/www-form-urlencoded
+            params = _req.form.copy()
+        else:
+            # GET
+            params = _req.args.copy()
     params["db"] = db_id
-    params["ds"] = ds
+    ds = params["ds"]
+    if ds is None:
+        return _db_not_found("Mising ds parameter")
+    dispatcher = Dispatcher(current_app.config["DAX_IMG_CONFIG"])
     api = dispatcher.find_api(params)
     if api is None:
         raise Exception("Dispatcher failed to find matching API")
+    w13db = _get_ds(ds.strip())
+    if w13db is None:
+        return _db_not_found()
     img_getter = image_open_v1(w13db, current_app.config)
     if img_getter is None:
         raise Exception("Failed to instantiate ImageGetter")
@@ -189,25 +210,25 @@ def _get_ds(image_type):
 
 
 def _data_response(image):
-    """Write image data to FITS file via data buffer in memory.
+    """Write image data to FITS file and send back.
 
     Parameters
     ----------
-    image: lsst.afw.image.Exposure
+    image: lsst.afw.image.Exposure  OR
+            lsst.afw.image.DecoratedImage
 
     Returns
     -------
-    flask.response
-        the response with FITS image data.
+    flask.send_file
+        the image as FITS file attachement.
     """
-    mfm = fits.MemFileManager()
-    image.writeFits(mfm)
-    data = mfm.getData()
-    response = make_response(data)
-    response.headers["Content-Disposition"] = "attachment;\
-            filename=image.fits"
-    response.headers["Content-Type"] = "image/fits"
-    return response
+    fp = tempfile.NamedTemporaryFile()
+    image.writeFits(fp.name)
+    res = send_file(fp.name, 
+            mimetype="image/fits",
+            as_attachment=True,
+            attachment_filename="image.fits")
+    return res
 
 
 def _image_not_found(message=None):

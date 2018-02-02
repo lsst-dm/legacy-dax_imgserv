@@ -5,15 +5,13 @@
     "ds": "deepcoadd",
     "image_id": {
       "data_id": {
-        "tpf": {
-          "tract": 0, 
-          "patch_x": 225, 
-          "patch_y": 1, 
-          "filter": "i" 
-        }
+        "tract": 0, 
+        "patch_x": 225, 
+        "patch_y": 1, 
+        "filter": "i" 
       }
     }
   },
   "api_id": [ "db", "ds", "tract", "patch_x", "patch_y", "filter" ],
-  "check": { "sha256": "21a188c1c5f6177f9d74577a0f6eef353fc67570f89ea4a612aabf2de263b5ae" }
+  "check": { "sha256": "970a015551e08deabfefc425d4a8c573cf101b77ecf30f6d4de1c2daecd32abb" }
 }

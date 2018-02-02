@@ -44,7 +44,7 @@
           "enum": ["px", "pix", "pixel", "pixels", "arcsec", "arcmin", "deg"]
         }
       },
-      "required": ["width", "height", "unit"]
+      "required": ["x", "y", "unit"]
     },
     "circle": {
       "type": "object",

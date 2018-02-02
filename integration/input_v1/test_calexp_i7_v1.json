@@ -5,15 +5,13 @@
     "ds": "calexp",
     "image_id": {
       "data_id": {
-        "rcff": {
-          "run": 5646, 
-          "camcol": 4, 
-          "field": 694, 
-          "filter": "g" 
-        }
+        "run": 5646, 
+        "camcol": 4, 
+        "field": 694, 
+        "filter": "g" 
       }
     }
   },
   "api_id": [ "db", "ds", "run", "camcol", "field", "filter" ],
-  "check": { "sha256": "ded6b991ea987174135e9f953b6328ff4ca6549a85841c8b6ed36d003e74b63d" }
+  "check": { "sha256": "30d813cf89f1ca659e41794a591e984bc887a0caa39e03842bafe3d0f25d6be6" }
 }

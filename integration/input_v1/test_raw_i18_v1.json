@@ -1,5 +1,5 @@
 {
-  "name": "raw_i18",
+  "name": "raw_i18_v1",
   "image": {
     "db": "DC_W13_Stripe82",
     "ds": "raw",
@@ -20,5 +20,5 @@
     }
   },
   "api_id": [ "db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
-  "check": { "sha256": "1967da158234d42db7bddffea780b95eacb916af2731194a2369650ac66ae7ba" }
+  "check": { "sha256": "d4ef2a90ea96ada7e946d6623441bf703bce33e5b7c47539c214570767d59c51" }
 }

@@ -42,7 +42,7 @@ import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
 import lsst.log as log
 
-from .skymapImage import SkymapImage 
+from .skymapImage import SkymapImage
 
 class ImageGetter_v1:
     """Provide operations to retrieve images including cutouts from the specified
@@ -398,12 +398,12 @@ class ImageGetter_v1:
         wcs = None
         if isinstance(src_img, afw_image.ExposureF):
             wcs = src_img.getWcs()
-        if wcs is None:
+        if wcs is None and metadata:
             # try to use the metadata
             wcs = lsst.afw.image.makeWcs(metadata, False)
         if wcs is None:
             # can't continue
-            return None
+            raise Exception("wcs is missing in image!")
         radec = afw_coord.makeCoord(afw_coord.ICRS,
                 ra * afw_geom.degrees,
                 dec * afw_geom.degrees)
@@ -451,16 +451,20 @@ class ImageGetter_v1:
     def _metadata_from_data_id(self, data_id):
         # Return the metadata for the query results in qResults and a butler.
         if self._butler_keys == sorted(["run", "camcol", "field", "filter"]):
-            return self._butler.get(self._imagedataset_md(),
+            metadata = self._butler.get(self._imagedataset_md(),
                     run=data_id["run"],
                     camcol=data_id["camcol"],
                     field=data_id["field"],
                     filter=data_id["filter"])
-        if self._butler_keys == sorted(["tract", "patch", "filter"]):
-            return self._butler.get(self._imagedataset_md(),
+        elif self._butler_keys == sorted(["tract", "patch", "filter"]):
+            metadata = self._butler.get(self._imagedataset_md(),
                     tract=data_id["tract"],
                     patch=data_id["patch"],
                     filter=data_id["filter"])
+        else:
+            # no metadata found for the specified data id
+            metadata = None
+        return metadata
 
     def _image_from_butler(self, data_id):
         # Retrieve the image through the Butler using data id.
@@ -525,6 +529,11 @@ class ImageGetter_v1:
             self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} \
                     pix_end_y={}".format(pix_ulx, pix_end_x, pix_uly, pix_end_y))
             image = src_image[pix_ulx:pix_end_x, pix_uly:pix_end_y].clone()
+            # add back wcs for image types, e.g. raw
+            if wcs:
+                d_image = afw_image.DecoratedImageU(image)
+                d_image.setMetadata(wcs.getFitsMetadata())
+                return d_image
         return image
 
     def _data_id_from_qr(self, qresults):

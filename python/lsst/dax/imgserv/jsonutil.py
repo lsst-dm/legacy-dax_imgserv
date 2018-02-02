@@ -42,4 +42,36 @@ def flatten_json(j):
     return j_d
 
 
+def _endswith(param, k):
+    if param.endswith("."+k):
+        return True
+    elif k == param:
+        return True
+    else:
+        return False
 
+
+def get_params(req):
+    """ Get the parameters corresponding to the API.
+    The extraction of each parameter is based upon best match
+    of the name with parts delimited by '.'.
+
+    Parameters
+    ----------
+    req: the request in JSON
+
+    Returns
+    -------
+    dict
+        the list of parameters and their values.
+    """
+    keys = req["api_id"]
+    image = req["image"]
+    p_list = flatten_json(image)
+    # params to be list of all items related to keys
+    params = {}
+    for k in keys:
+        for p in p_list:
+            if _endswith(p, k):
+                params[k] = p_list[p]  # keep it
+    return params

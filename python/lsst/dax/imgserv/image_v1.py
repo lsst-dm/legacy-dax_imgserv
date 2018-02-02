@@ -51,7 +51,7 @@ class Image(object):
         x = float(params.get("center.x"))
         y = float(params.get("center.y"))
         unit = params.get("center.unit")
-        filt = params.get("nearest.filter")
+        filt = params.get("nearest.filter") or params.get("filter")
         image = image_getter.full_nearest(x, y, unit, filt)
         return image
 
@@ -136,7 +136,7 @@ class Image(object):
         size_x = float(params.get("size.x"))
         size_y = float(params.get("size.y"))
         size_unit = params.get("size.unit")
-        filt = params.get("nearest.filter")
+        filt = params.get("nearest.filter") or params.get("filter")
         image = image_getter.cutout_from_nearest(center_x, center_y, center_unit,
                 size_x, size_y, size_unit, filt)
         return image
@@ -181,9 +181,7 @@ class Image(object):
             else:
                 patch_x = int(params.get("patch_x"))
                 patch_y = int(params.get("patch_y"))
-            filt = params.get("nearest.filter")
-            if filt is None:
-                filt = params.get("filter")
+            filt = params.get("nearest.filter") or params.get("filter")
             center_x = float(params.get("center.x"))
             center_y = float(params.get("center.y"))
             center_unit = params.get("center.unit")
