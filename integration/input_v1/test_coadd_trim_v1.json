@@ -5,12 +5,10 @@
     "ds": "deepcoadd",
     "image_id": {
       "data_id": {
-        "tpf": {
-          "tract": 0, 
-          "patch_x": 321, 
-          "patch_y": 4, 
-          "filter": "r" 
-        }
+        "tract": 0, 
+        "patch_x": 321, 
+        "patch_y": 4, 
+        "filter": "r" 
       },
       "center": {
         "x": 19.36995,

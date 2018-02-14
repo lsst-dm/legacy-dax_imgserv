@@ -79,6 +79,12 @@ class ImageServCLI(object):
         self._validate =  self._config["DAX_IMG_VALIDATE"]
 
     def process_request(self, in_req):
+        """ Process the request.
+
+        Parameters
+        ----------
+            in_req - the file pathname containing the request
+        """
         self._in_req = in_req
         errors, req = self._parse_req()
         if errors > 0:
@@ -124,9 +130,18 @@ class ImageServCLI(object):
         return True if h == check_code else False
 
     def _get_params(self, req):
-        """ Get the parameters corresponding to the APIi.
+        """ Get the parameters corresponding to the API.
         The extraction of each parameter is based upon best match
         of the name with parts delimited by '.'.
+
+        Parameters
+        ----------
+        req: the request in JSON
+
+        Returns
+        -------
+        dict
+            the list of parameters and their values.
         """
         keys = req["api_id"]
         image = req["image"]
@@ -157,30 +172,23 @@ class ImageServCLI(object):
         elif image_type == "deepcoadd":
             return W13DeepCoaddDb
 
-    def _get_json_data(self, fp):
-        with open(fp, "r") as f:
-            data = f.read()
-            f.close()
-        return data
-
     def _parse_req(self):
-        req_data = self._get_json_data(self._in_req)
+        with open(self._in_req) as f:
+            req = json.load(f)
+            f.close()
         try:
             if self._validate:
                 # validate the schema
-                schema_data = self._get_json_data(self._schema)
-                schema = json.loads(schema_data)
-                validate(req_data, schema)
+                with open(self._schema) as s:
+                    schema = json.load(s)
+                    s.close()
+                validate(req, schema)
         except ValidationError as e:
-            msg = json.loads({"Validation Error": e.message})
+            msg = json.dumps({"Validation Error": e.message})
             return 1, msg
-        # read in the request (JSON)
-        req = json.loads(req_data)
         return 0, req
 
 
 if __name__ == '__main__':
     exec_command()
-
-
 

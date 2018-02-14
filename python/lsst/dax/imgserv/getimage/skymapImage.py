@@ -65,11 +65,11 @@ class CoaddConfig(pex_config.Config):
 class SkymapImage(object):
     """skyMapImage returns the stitched together images from the specified skyMap.
     """
-    def __init__(self, butler, skymap_id, logger=log):
+    def __init__(self, butler, skymap_id, logger):
         # Get the basic SkyMap information
-        self.butler = butler
-        self.skymap = self.butler.get(skymap_id)
-        self.log = logger
+        self._butler = butler
+        self._skymap = butler.get(skymap_id)
+        self._log = logger
 
     def get(self, center_coord, width, height, filt, units):
         """Merge multiple patches from a SkyMap into a single image.
@@ -81,7 +81,7 @@ class SkymapImage(object):
         @filt: valid filter for the data set such as 'i', 'r', 'g'
         @units: 'pixel' or 'arcsecond' (defaults to 'pixel')
         """
-        dest_tract_info = self.skymap.findTract(center_coord)
+        dest_tract_info = self._skymap.findTract(center_coord)
         dest_wcs = dest_tract_info.getWcs()
         # Determine target area.
         if units != "arcsec" and units != "arcsecond" and units != "pixel":
@@ -93,12 +93,12 @@ class SkymapImage(object):
         # Create source exposures from the patches within each tract
         # as all patches from a tract share a WCS.
         exposure_list = []
-        tract_patch_list = self.skymap.findTractPatchList(dest_corner_coords)
+        tract_patch_list = self._skymap.findTractPatchList(dest_corner_coords)
         for j, tract_patch in enumerate(tract_patch_list):
             tract_info = tract_patch[0]
             patch_list = tract_patch[1]
-            self.log.info("tract_info[{}]={}".format(j, tract_info))
-            self.log.info("patch_list[{}]={}".format(j, patch_list))
+            self._log.info("tract_info[{}]={}".format(j, tract_info))
+            self._log.info("patch_list[{}]={}".format(j, patch_list))
             src_wcs = tract_info.getWcs()
             src_bbox = afw_geom.Box2I()
             for patch_info in patch_list:
@@ -110,12 +110,11 @@ class SkymapImage(object):
             for patch_info in patch_list:
                 patch_index = patch_info.getIndex()
                 patch_index_str = ','.join(str(i) for i in patch_index)
-                self.log.info("butler.get dataId=filter:{}, tract:{}, "
+                self._log.info("butler.get dataId=filter:{}, tract:{}, "
                          "patch:{}".format(filt, tract_id, patch_index_str))
-                patch_exposure = self.butler.get("deepCoadd",
-                                            dataId={"filter": filt,
-                                                    "tract": tract_id,
-                                                    "patch": patch_index_str})
+                patch_exposure = self._butler.get("deepCoadd",
+                        dataId={"filter": filt,
+                            "tract": tract_id, "patch": patch_index_str})
                 src_view = afw_image.ExposureF(src_exposure, patch_exposure.getBBox())
                 src_view_img = src_view.getMaskedImage()
                 patch_img = patch_exposure.getMaskedImage()
@@ -138,12 +137,12 @@ class SkymapImage(object):
                     ll_corner.setY(0)
                 if ur_corner.getX() < 0:
                     ur_corner.setX(0)
-                    self.log.warn("getSkyMap negative X for ur_corner")
+                    self._log.warn("getSkyMap negative X for ur_corner")
                 if ur_corner.getY() < 0:
                     ur_corner.setY(0)
-                    self.log.warn("getSkyMap negative Y for ur_corner")
+                    self._log.warn("getSkyMap negative Y for ur_corner")
                 expo_bbox = afw_geom.Box2I(ll_corner, ur_corner)
-            self.log.info("j={} expo_bbox={} sBBox={}".format(j, expo_bbox, src_exposure.getBBox()))
+            self._log.info("j={} expo_bbox={} sBBox={}".format(j, expo_bbox, src_exposure.getBBox()))
             dest_exposure = afw_image.ExposureF(expo_bbox, src_wcs)
             dest_img = dest_exposure.getMaskedImage()
             begin_x = expo_bbox.getBeginX() - src_image.getX0()
@@ -161,11 +160,11 @@ class SkymapImage(object):
             if end_y > s_img_len_y:
                 new_width = s_img_len_y - begin_y
                 end_y = s_img_len_y
-            self.log.debug("begin_x={} end_x={}".format(begin_x, end_x))
-            self.log.debug("new_width{} = sBBox.EndX{} - sBBox.BeginX{}".format(
+            self._log.debug("begin_x={} end_x={}".format(begin_x, end_x))
+            self._log.debug("new_width{} = sBBox.EndX{} - sBBox.BeginX{}".format(
                 new_width, src_exposure.getBBox().getEndX(), expo_bbox.getBeginX()))
-            self.log.debug("begin_y={} end_y={}".format(begin_y, end_y))
-            self.log.debug("new_height{} = sBBox.EndY{} - sBBox.BeginY{}".format(
+            self._log.debug("begin_y={} end_y={}".format(begin_y, end_y))
+            self._log.debug("new_height{} = sBBox.EndY{} - sBBox.BeginY{}".format(
                 new_height, src_exposure.getBBox().getEndY(), expo_bbox.getBeginY()))
             dest_img[0:new_width, 0:new_height] = src_image[begin_x:end_x, begin_y:end_y]
             dest_exposure_list.append(dest_exposure)
@@ -173,7 +172,7 @@ class SkymapImage(object):
         if len(dest_exposure_list) == 1:
             return dest_exposure_list[0]
         # Need to stitch together the multiple destination exposures.
-        self.log.debug("SkymapImage: stitching together multiple destExposures")
+        self._log.debug("SkymapImage: stitching together multiple destExposures")
         warper_config = afw_math.WarperConfig()
         warper = afw_math.Warper.fromConfig(warper_config)
         stitched_exposure = self._stitch_exposures_good_pixel_copy(dest_wcs,
