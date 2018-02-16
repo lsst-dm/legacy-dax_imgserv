@@ -400,7 +400,7 @@ class ImageGetter_v1:
             wcs = src_img.getWcs()
         if wcs is None and metadata:
             # try to use the metadata
-            wcs = lsst.afw.image.makeWcs(metadata, False)
+            wcs = lsst.afw.geom.makeSkyWcs(metadata, strip=False)
         if wcs is None:
             # can't continue
             raise Exception("wcs is missing in image!")

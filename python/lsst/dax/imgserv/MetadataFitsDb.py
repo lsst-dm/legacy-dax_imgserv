@@ -34,7 +34,7 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 
 import lsst.afw
-import lsst.afw.image as afwImage
+from lsst.afw.fits import readMetadata
 import lsst.daf.base as dafBase
 import lsst.log as log
 from lsst.db import utils
@@ -115,7 +115,7 @@ class MetadataFits:
         # The only way to tell that the last HDU has been read is there is a C++ error.
         # We catch all exceptions and assume it's the 'past end of file' error.
         try:
-            meta = afwImage.readMetadata(self._fileName, hdu)
+            meta = readMetadata(self._fileName, hdu)
         except:
             raise ExpectedHduError
         # Cast to PropertyList to access more extensive information
@@ -133,7 +133,7 @@ class MetadataFits:
              else:
                  lineNum += 1
         #try:
-        #    wcs = afwImage.makeWcs(metaPl)
+        #    wcs = afwGeom.makeSkyWcs(metaPl)
         #except:
         #    pass
 
