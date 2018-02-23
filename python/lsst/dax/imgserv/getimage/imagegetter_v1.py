@@ -532,7 +532,8 @@ class ImageGetter_v1:
             # add back wcs for image types, e.g. raw
             if wcs:
                 d_image = afw_image.DecoratedImageU(image)
-                d_image.setMetadata(wcs.getFitsMetadata())
+                _wcs = wcs.getFitsMetadata(precise=False)
+                d_image.setMetadata(_wcs)
                 return d_image
         return image
 
