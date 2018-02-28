@@ -49,23 +49,10 @@ import lsst.log as log
 from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
-from .getimage.imagegetter import ImageGetter
 from .getimage.imagegetter_v1 import ImageGetter_v1
 from .butlerGet import  ButlerGet
 from .metaservGet import MetaservGet
 
-def image_open(W13db, config, logger=log):
-    """Open access to specified images (raw, calexp,
-    deepCoadd,etc) of specified image repository.
-
-    Returns
-    -------
-    imagegetter : obj
-        instance for access to all image operations.
-
-    """
-    imagedb = W13db(config, logger)
-    return ImageGetter(imagedb.butlerget, imagedb.metaservget, logger)
 
 def image_open_v1(W13db, config, logger=log):
     """Open access to specified images (raw, calexp,
