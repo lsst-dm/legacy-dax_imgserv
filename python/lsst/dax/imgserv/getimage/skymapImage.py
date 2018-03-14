@@ -27,7 +27,6 @@ Module to stitch together SkyMap images.
 
 """
 import lsst.afw
-import lsst.afw.coord as afw_coord
 import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
 import lsst.afw.math as afw_math
@@ -184,7 +183,7 @@ class SkymapImage(object):
         """Returns a Box2I object representing the bounding box in pixels
         of the target region.
         @wcs: WCS object for the target region.
-        @center_coord: RA and Dec coordinate for the center of the target region.
+        @center_coord: ICRS RA and Dec coordinate for the center of the target region.
         @width: Width of the target region with units indicated by 'units' below.
         @height: Height of the target region with units indicated by 'units' below.
         @units: Units for height and width. 'pixel' or 'arcsecond'
@@ -197,9 +196,9 @@ class SkymapImage(object):
             min_dec = center_coord.getLatitude() - height_half_a
             max_ra = center_coord.getLongitude() + width_half_a
             max_dec = center_coord.getLatitude() + height_half_a
-            ll_coord = afw_coord.Coord(min_ra, min_dec, center_coord.getEpoch())
+            ll_coord = afw_geom.SpherePoint(min_ra, min_dec)
             ll_coord_pix = wcs.skyToPixel(ll_coord)
-            ur_coord = afw_coord.Coord(max_ra, max_dec, center_coord.getEpoch())
+            ur_coord = afw_geom.SpherePoint(max_ra, max_dec)
             ur_coord_pix = wcs.skyToPixel(ur_coord)
             p2i_min = afw_geom.Point2I(ll_coord_pix)
             p2i_max = afw_geom.Point2I(ur_coord_pix)
