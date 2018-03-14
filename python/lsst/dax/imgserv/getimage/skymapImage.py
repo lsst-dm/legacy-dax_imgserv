@@ -26,7 +26,6 @@ Module to stitch together SkyMap images.
 @author: Kenny Lo, SLAC
 
 """
-import lsst.afw
 import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
 import lsst.afw.math as afw_math
