@@ -38,6 +38,7 @@ from flask import render_template, send_file
 
 import lsst.log as log
 import lsst.afw.fits as fits
+import lsst.afw.image as afwImage
 
 from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
 from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
@@ -222,12 +223,16 @@ def _data_response(image):
     flask.send_file
         the image as FITS file attachement.
     """
-    fp = tempfile.NamedTemporaryFile()
-    image.writeFits(fp.name)
-    res = send_file(fp.name, 
-            mimetype="image/fits",
-            as_attachment=True,
-            attachment_filename="image.fits")
+    if isinstance(image, (afwImage.ExposureF, afwImage.DecoratedImageU,
+        afwImage.ImageU)):
+        fp = tempfile.NamedTemporaryFile()
+        image.writeFits(fp.name)
+        res = send_file(fp.name,
+                mimetype="image/fits",
+                as_attachment=True,
+                attachment_filename="image.fits")
+    else:
+        res = jsonify(image)
     return res
 
 

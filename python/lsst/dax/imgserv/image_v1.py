@@ -243,4 +243,62 @@ class Image(object):
                 center_y, center_unit, size_x, size_y, size_unit)
         return image
 
+    @classmethod
+    def dataid_from_scienceid(cls, image_getter, params):
+        """Get the data id for the correspnding science id.
+
+        Parameters
+        ----------
+        image_getter: getimage.imagegetter.ImageGetter
+        params: dict
+
+        Returns
+        -------
+        dict - the data id.
+
+        """
+        science_id = int(params.get("ccdexpid"))
+        data_id = image_getter.data_id_from_science_id(science_id)
+        return data_id
+
+    @classmethod
+    def scienceid_from_dataid(cls, image_getter, params):
+        """The the science id for the corresponding data id.
+
+        Parameters
+        ----------
+        image_getter: getimage.imagegetter.ImageGetter
+        params: dict
+
+        Returns
+        -------
+        int - the science id.
+
+        """
+        data_id = cls._get_data_id(params)
+        science_id = image_getter.scienceid_from_dataid(data_id)
+        return science_id
+
+    @classmethod
+    def _get_data_id(cls, params):
+        """Returns the data id from the params."""
+        data_id={}
+        if "run" in params.keys():
+            data_id["run"] = int(params.get("run"))
+            data_id["camcol"] = int(params.get("camcol"))
+            data_id["field"] = int(params.get("field"))
+            data_id["filter"] = params.get("filter")
+        elif "tract" in params.keys():
+            data_id["tract"] = int(params.get("tract"))
+            data_id["filter"] = params.get("filter")
+            if params.get("patch"):
+                x,y = params.get("patch").split(",")
+                data_id["patch_x"] = int(x)
+                data_id["patch_y"] = int(y)
+            else:
+                patch_x = int(params.get("patch_x"))
+                patch_y = int(params.get("patch_y"))
+        else:
+            raise Exception("invalid data id input")
+        return data_id
 
