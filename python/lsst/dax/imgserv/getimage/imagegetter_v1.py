@@ -155,7 +155,7 @@ class ImageGetter_v1:
         lsst.afw.Image or None
 
         """
-        data_id = self._data_id_from_science_id(science_id)
+        data_id = self.data_id_from_science_id(science_id)
         if data_id:
             image = self._image_from_butler(data_id)
             return image
@@ -279,7 +279,7 @@ class ImageGetter_v1:
         ra, dec = center_x, center_y
         width, height = size_x, size_y
         # Get the corresponding image(data) id from the butler
-        data_id = self._data_id_from_science_id(science_id)
+        data_id = self.data_id_from_science_id(science_id)
         if data_id:
             # make id compatible with qResult type via custom wrapping
             image = self._imagecutout_by_data_id(ra, dec, width, height,
@@ -316,8 +316,15 @@ class ImageGetter_v1:
         image = skymap.get(center_coord, width, height, filt, center_unit)
         return image
 
-    def _data_id_from_science_id(self, science_id):
-        """Returns a dictionary of ids derived from scienceId.
+    def data_id_from_science_id(self, science_id):
+        """
+        Parameters
+        ----------
+        science_id: int
+
+        Returns
+        -------
+        dict - list of ids derived from scienceId.
         The ids match the ids in _butler_keys and valid is false
         if at least one of the ids is missing.
 
@@ -353,6 +360,21 @@ class ImageGetter_v1:
             self._log.debug("dataID={}".format(data_id))
         return data_id
 
+    def scienceid_from_dataid(self, data_id):
+        """Compose and return the science id corresponding to the data id input.
+
+        Parameters
+        ----------
+        data_id(dict):  the data id as input.
+
+        Returns
+        -------
+        int - the science id.
+
+        """
+        science_id = self._butler.get('ccdExposureId', dataId=data_id)
+        return science_id
+
     def _imagecutout_by_data_id(self, ra, dec, width, height, data_id,
             unit="arcsec"):
         # check to see if qresults is empty
@@ -383,7 +405,7 @@ class ImageGetter_v1:
 
         Parameters
         ----------
-        ra, dec :  flaot
+        ra, dec :  float
             ra, dec in degrees.
         height, width : float, float
             Height and width are in arcsecs.
@@ -400,22 +422,20 @@ class ImageGetter_v1:
             wcs = src_img.getWcs()
         if wcs is None and metadata:
             # try to use the metadata
-            wcs = lsst.afw.geom.makeSkyWcs(metadata, strip=False)
+            wcs = afw_geom.makeSkyWcs(metadata, strip=False)
         if wcs is None:
-            # can't continue
-            raise Exception("wcs is missing in image!")
-        radec = afw_coord.makeCoord(afw_coord.ICRS,
-                ra * afw_geom.degrees,
-                dec * afw_geom.degrees)
+            raise Exception("WCS missing in source image")
+        radec = afw_coord.IcrsCoord(ra*afw_geom.degrees, dec*afw_geom.degrees)
         xy_wcs = wcs.skyToPixel(radec)
         xy_center_x = xy_wcs.getX()
         xy_center_y = xy_wcs.getY()
         self._log.debug("ra=%f dec=%f xy_center=(%f,%f)",
                 ra, dec, xy_center_x, xy_center_y)
         if unit == 'pixel':
-            image = self._cutout_from_src(src_img, xy_center_x, xy_center_y,
-                                         width, height, wcs)
-            return image
+            cutout = self._cutout_from_src(src_img,
+                    xy_center_x, xy_center_y,
+                    width, height, wcs)
+            return cutout
         img_w, img_h = src_img.getWidth(), src_img.getHeight()
         self._log.debug("src_img_w=%d src_img_h=%d", img_w, img_h)
         # Determine approximate pixels per arcsec - find image corners in RA, Dec

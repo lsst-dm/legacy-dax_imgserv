@@ -36,25 +36,25 @@ import click
 
 import lsst.log as log
 
-from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from lsst.dax.imgserv.locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
-from .dispatch_v1 import Dispatcher
-from .hashutil import Hasher
-from .jsonutil import flatten_json
+from lsst.dax.imgserv.dispatch_v1 import Dispatcher
+from lsst.dax.imgserv.hashutil import Hasher
+from lsst.dax.imgserv.jsonutil import flatten_json
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
 
 @click.command()
-@click.argument("--config")
-@click.argument("--in-req", type=click.Path(exists=True))
-@click.argument("--out-dir", type=click.Path(exists=True))
-def exec_command(config_dir, in_req, out_dir):
+@click.option("--config", type=click.Path(exists=True))
+@click.option("--query")
+@click.option("--out", type=click.Path(exists=True))
+def exec_command(config, query, out):
     """ Command Line Interface: Process query to return image file
         in output directory.
     """
-    cli = ImageServCLI(config_dir, in_req, out_dir)
-    cli.process_request()
+    cli = ImageServCLI(config, out)
+    cli.process_request(query)
 
 
 class ImageServCLI(object):
