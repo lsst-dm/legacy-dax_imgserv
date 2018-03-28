@@ -37,7 +37,6 @@ cutout dimensions, via the appropriate Butler object passed in.
 import math
 
 import lsst.afw
-import lsst.afw.coord as afw_coord
 import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
 import lsst.log as log
@@ -307,12 +306,10 @@ class ImageGetter_v1:
         lsst.afw.Image or None
 
         """
-        ra, dec = center_x, center_y
+        ra_deg, dec_deg = center_x, center_y
         width, height = size_x, size_y
         skymap = SkymapImage(self._butler, skymap_id, self._log)
-        ra_angle = afw_geom.Angle(ra, afw_geom.degrees)
-        dec_angle = afw_geom.Angle(dec, afw_geom.degrees)
-        center_coord = afw_coord.Coord(ra_angle, dec_angle, 2000.0)
+        center_coord = afw_geom.SpherePoint(ra_deg, dec_deg, afw_geom.degrees)
         image = skymap.get(center_coord, width, height, filt, center_unit)
         return image
 
@@ -424,8 +421,9 @@ class ImageGetter_v1:
             # try to use the metadata
             wcs = afw_geom.makeSkyWcs(metadata, strip=False)
         if wcs is None:
-            raise Exception("WCS missing in source image")
-        radec = afw_coord.IcrsCoord(ra*afw_geom.degrees, dec*afw_geom.degrees)
+            # can't continue
+            raise Exception("wcs missing in source image")
+        radec = afw_geom.SpherePoint(ra, dec, afw_geom.degrees)
         xy_wcs = wcs.skyToPixel(radec)
         xy_center_x = xy_wcs.getX()
         xy_center_y = xy_wcs.getY()
