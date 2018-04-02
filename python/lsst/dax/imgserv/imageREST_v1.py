@@ -215,16 +215,14 @@ def _data_response(image):
 
     Parameters
     ----------
-    image: lsst.afw.image.Exposure  OR
-            lsst.afw.image.DecoratedImage
+    image: lsst.afw.image.Exposure
 
     Returns
     -------
     flask.send_file
         the image as FITS file attachement.
     """
-    if isinstance(image, (afwImage.ExposureF, afwImage.DecoratedImageU,
-        afwImage.ImageU)):
+    if isinstance(image, (afwImage.Exposure, afwImage.Image)):
         fp = tempfile.NamedTemporaryFile()
         image.writeFits(fp.name)
         res = send_file(fp.name,

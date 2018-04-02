@@ -430,7 +430,8 @@ class ImageGetter_v1:
         self._log.debug("ra=%f dec=%f xy_center=(%f,%f)",
                 ra, dec, xy_center_x, xy_center_y)
         if unit == 'pixel':
-            cutout = self._cutout_from_src(src_img,
+            cutout = self._cutout_from_src(data_id,
+                    src_img,
                     xy_center_x, xy_center_y,
                     width, height, wcs)
             return cutout
@@ -462,56 +463,34 @@ class ImageGetter_v1:
         pix_h = height * pixel_per_arcsec
         self._log.debug("ra=%f dec=%f xy_wcs=(%f,%f) xyCenter=(%f,%f)",
                 ra, dec, xy_wcs.getX(), xy_wcs.getY(), xy_center_x, xy_center_y)
-        cutout = self._cutout_from_src(src_img, xy_center_x, xy_center_y,
+        cutout = self._cutout_from_src(data_id, src_img, xy_center_x, xy_center_y,
                 pix_w, pix_h, wcs)
         return cutout
 
     def _metadata_from_data_id(self, data_id):
-        # Return the metadata for the query results in qResults and a butler.
-        if self._butler_keys == sorted(["run", "camcol", "field", "filter"]):
-            metadata = self._butler.get(self._imagedataset_md(),
-                    run=data_id["run"],
-                    camcol=data_id["camcol"],
-                    field=data_id["field"],
-                    filter=data_id["filter"])
-        elif self._butler_keys == sorted(["tract", "patch", "filter"]):
-            metadata = self._butler.get(self._imagedataset_md(),
-                    tract=data_id["tract"],
-                    patch=data_id["patch"],
-                    filter=data_id["filter"])
-        else:
-            # no metadata found for the specified data id
-            metadata = None
+        # Return the metadata for the query results in qResults.
+        metadata = self._butler.get(self._imagedataset_md(), dataId=data_id)
         return metadata
 
-    def _image_from_butler(self, data_id):
+    def _image_from_butler(self, data_id, bbox=None):
         # Retrieve the image through the Butler using data id.
         self._log.debug("_image_from_butler data_id:{}".format(data_id))
-        if self._butler_keys == sorted(["run", "camcol", "field", "filter"]):
-            run = data_id.get("run")
-            camcol = data_id.get("camcol")
-            field = data_id.get("field")
-            filtername = data_id.get("filter")
-            log.debug("_image_from_butler run={} camcol={} field={} "
-                      "filter={}".format(run, camcol, field, filtername))
-            image = self._butler.get(self._imagedataset_type, run=run,
-                                   camcol=camcol, field=field, filter=filtername)
-            return image
-        elif self._butler_keys == sorted(["tract", "patch", "filter"]):
-            tract = data_id.get("tract")
-            filtername = data_id.get("filter")
-            patch = data_id.get("patch")
-            self._log.debug("_image_from_butler tract={} patch={} "
-                            "filtername={}".format(tract, patch, filtername))
-            image = self._butler.get(self._imagedataset_type, tract=tract,
-                                   patch=patch, filter=filtername)
-            return image
+        if bbox:
+            image = self._butler.get(self._imagedataset_sub(), bbox=bbox,
+                    dataId=data_id, immediate=True)
+        else:
+            image = self._butler.get(self._imagedataset_type, dataId=data_id)
+        return image
 
     def _imagedataset_md(self):
         # Return the butler policy name to retrieve metadata
         return self._imagedataset_type + "_md"
 
-    def _cutout_from_src(self, src_image, xy_center_x, xy_center_y, width,
+    def _imagedataset_sub(self):
+        # Return the dataset type for sub-images
+        return self._imagedataset_type + "_sub"
+
+    def _cutout_from_src(self, data_id, src_image, xy_center_x, xy_center_y, width,
             height, wcs):
         # Returns an image cutout from the source image.
         # srcImage - Source image.
@@ -536,23 +515,12 @@ class ImageGetter_v1:
         if isinstance(src_image, afw_image.ExposureF):
             self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"
                   .format(pix_ulx, pix_ulx + width, pix_uly, pix_uly + height))
-            # img will keep wcs from source image
+            # image will keep wcs from source image
             image = afw_image.ExposureF(src_image, co_box)
+        elif isinstance(src_image, afw_image.ExposureU):
+            image = afw_image.ExposureU(src_image, co_box)
         else:
-            # hack for non-ExposureF, e.g. raw (DecoratedImage)
-            pix_ulx = co_box.getBeginX() - src_image.getX0()
-            pix_end_x = co_box.getEndX() - src_image.getX0()
-            pix_uly = co_box.getBeginY() - src_image.getY0()
-            pix_end_y = co_box.getEndY() - src_image.getY0()
-            self._log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} \
-                    pix_end_y={}".format(pix_ulx, pix_end_x, pix_uly, pix_end_y))
-            image = src_image[pix_ulx:pix_end_x, pix_uly:pix_end_y].clone()
-            # add back wcs for image types, e.g. raw
-            if wcs:
-                d_image = afw_image.DecoratedImageU(image)
-                _wcs = wcs.getFitsMetadata(precise=False)
-                d_image.setMetadata(_wcs)
-                return d_image
+            raise Exception("Unexpected source image object type")
         return image
 
     def _data_id_from_qr(self, qresults):
