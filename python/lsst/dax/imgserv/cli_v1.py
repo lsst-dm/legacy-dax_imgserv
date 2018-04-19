@@ -63,10 +63,10 @@ class ImageServCLI(object):
     def __init__(self, config_dir, out_dir):
         # load the configuration file
         if config_dir:
-            config = os.path.join(config_dir, "settings.json")
+            config = os.path.join(config_dir, "imgserv_conf.json")
         else:
             config_dir = os.path.join(ROOT, "config")
-            config = os.path.join(config_dir, "settings.json")
+            config = os.path.join(config_dir, "imgserv_conf.json")
         with open(config) as f:
             self._config = json.load(f)
             # strip /tests from dataroot if cur_dir is /tests
