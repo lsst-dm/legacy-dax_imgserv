@@ -1,6 +1,6 @@
 #
 # LSST Data Management System
-# Copyright 2017 LSST/AURA.
+# Copyright 2018, 2017 LSST/AURA.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -89,7 +89,6 @@ class MetaservGet:
                "corner1Ra, corner1Decl, corner2Ra, corner2Decl, "
                "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
-        self._log.debug(sql)
         self._log.debug("findNearest sql={}".format(sql))
         r = self._conn.execute(sql).fetchall()
         return r
