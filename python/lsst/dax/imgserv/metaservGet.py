@@ -1,6 +1,6 @@
 #
 # LSST Data Management System
-# Copyright 2017 LSST/AURA.
+# Copyright 2018, 2017 LSST/AURA.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -32,13 +32,14 @@ This module is used to fetch metadata based on astronomical parameters.
 @author: Kenny Lo, SLAC
 
 """
+from sqlalchemy import create_engine
 
 class MetaservGet:
     """Class to fetch image metadata based on astronomical parameters.
 
     """
 
-    def  __init__(self, conn, table, columns, logger):
+    def  __init__(self, image_meta_url, meta_db, table, columns, logger):
         """Instantiate MetaServGet for access to image medatadata.
 
         Parameters
@@ -51,12 +52,12 @@ class MetaservGet:
                 used for logging messages.
         """
         self._log = logger
-        self._conn = conn
         self._table = table
         self._columns = columns
+        self._conn = create_engine(image_meta_url+"/"+meta_db)
 
     def nearest_image_containing(self, ra, dec, filtername):
-        """Find nearest image containing the [ra, dec].
+        """Find nearest image containing the [ra, dec] using dax_metaserv.
 
         Parameters
         ----------
@@ -84,15 +85,13 @@ class MetaservGet:
             filterSql = "filtername = '{}' AND".format(filtername)
         cols.append(dist)
         col_str = ",".join(cols)
+        table = self._table
         sql = ("SELECT {} FROM {} WHERE {} "
                "scisql_s2PtInCPoly({}, {}, "
                "corner1Ra, corner1Decl, corner2Ra, corner2Decl, "
                "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
-               "order by distance LIMIT 1").format(col_str, self._table, filterSql, ra, dec)
-        self._log.debug(sql)
+               "order by distance LIMIT 1").format(col_str, table, filterSql, ra, dec)
         self._log.debug("findNearest sql={}".format(sql))
         r = self._conn.execute(sql).fetchall()
         return r
-
-
 

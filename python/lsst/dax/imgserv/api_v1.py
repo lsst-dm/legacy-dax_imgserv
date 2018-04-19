@@ -30,7 +30,7 @@ Corresponding URI: /image
 import os
 import tempfile
 import traceback
-import json
+
 from jsonschema import validate, ValidationError
 
 from flask import Blueprint, make_response, request, current_app, jsonify
@@ -46,54 +46,61 @@ from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .dispatch_v1 import Dispatcher
 from .jsonutil import get_params
 
-imageRESTv1 = Blueprint("imageRESTv1", __name__, static_folder="static",
+ACCEPT_TYPES = ["application/json", "text/html"]
+
+image_api_v1 = Blueprint("api_image_v1", __name__, static_folder="static",
                         template_folder="templates")
 
 
 # To be called from webserv
-def load_imgserv_config(config_path, db_auth_conf):
+def load_imgserv_config(config_path, metaserv_url):
     """Load configuration info into ImageServ."""
     if config_path is None:
-        # use default root_path for imageRESTv1
-        config_path = imageRESTv1.root_path+"/config/"
-    f_json = os.path.join(config_path, "settings.json")
+        # use default root_path for image_api_v1
+        config_path = image_api_v1.root_path+"/config/"
+    f_json = os.path.join(config_path, "imgserv_conf.json")
     # load the general config file
     current_app.config.from_json(f_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
-    current_app.config["DAX_IMG_DBCONF"] = db_auth_conf
+    current_app.config["DAX_IMG_META_URL"] = metaserv_url
     current_app.config["DAX_IMG_CONFIG"] = config_path
     current_app.config["imageREST_v1"]=os.path.join(config_path,
     "imageREST_v1.schema")
     # create cache for butler instances
     current_app.butler_instances = {}
 
-@imageRESTv1.route("/")
+
+@image_api_v1.route("/")
 def index():
-    return make_response(render_template("index_v1.html"))
+    fmt = request.accept_mimetypes.best_match(ACCEPT_TYPES)
+    # if fmt == "text/hmtl":
+    return make_response(render_template("api_image_v1.html"))
+    # else:
+    #    return make_response(jsonify({"DAX IMAGE v1": "available"}))
 
 
-@imageRESTv1.route("/availability", methods=["GET"])
+@image_api_v1.route("/availability", methods=["GET"])
 def getimage_avail():
     return _getimage_avail(request)
 
 
-@imageRESTv1.route("/capabilities", methods=["GET"])
+@image_api_v1.route("/capabilities", methods=["GET"])
 def getimage_capabilities():
     return _getimage_capabilities(request)
 
 
-@imageRESTv1.route("/<db_id>", methods=["GET", "PUT", "POST"])
+@image_api_v1.route("/<db_id>", methods=["GET", "PUT", "POST"])
 def getimage_sync(db_id):
     return _getimage(request, db_id)
 
 
-@imageRESTv1.route("/<db_id>/async", methods=["POST"])
+@image_api_v1.route("/<db_id>/async", methods=["POST"])
 def getimage_async(db_id):
     return _getimage_async(request)
 
 
-@imageRESTv1.errorhandler(Exception)
+@image_api_v1.errorhandler(Exception)
 def handle_unhandled_exceptions(error):
     err = {
         "exception": error.__class__.__name__,
@@ -114,21 +121,20 @@ def _getimage_async(_req):
 
 def _getimage_avail(_req):
     """Return availability status."""
-    fmt = _req.accept_mimetypes.best_match(["application/json", "text/html"])
+    fmt = _req.accept_mimetypes.best_match(ACCEPT_TYPES)
     if fmt == "text/html":
         resp = "<h1> Image Web Service v1 </h1> <p> \
                 Service is accepting queries."
     else:
-        resp = json.dumps({
-            "status": "ImageServ v1 is accepting queries.",
-            "available": 'true'
-        })
+        resp = jsonify({
+            "status": "ImageServ v1 is accepting queries",
+            "available": "true"})
     return make_response(resp)
 
 
 def _getimage_capabilities(_req):
     """Return capabilities of this service."""
-    fmt = _req.accept_mimetypes.best_match(["application/json", "text/html"])
+    fmt = _req.accept_mimetypes.best_match(ACCEPT_TYPES)
     if fmt == "text/html":
         resp = "<h1> Image Web Service v1 </h1> <p> \
                 <a href='availability'> \
@@ -138,7 +144,7 @@ def _getimage_capabilities(_req):
                 <a href='capabilities'> \
                 check capabilities </a>"
     else:
-        resp = json.dumps({
+        resp = jsonify({
                 "availability": {
                     "url": "availability"
                 },
@@ -178,6 +184,7 @@ def _getimage(_req, db_id):
         else:
             # GET
             params = _req.args.copy()
+    current_app.config["DAX_IMG_META_DB"] = db_id
     params["db"] = db_id
     ds = params["ds"]
     if ds is None:
