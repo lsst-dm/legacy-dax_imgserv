@@ -178,6 +178,7 @@ def _getimage(_req, db_id):
         else:
             # GET
             params = _req.args.copy()
+    current_app.config["DAX_IMG_META_DB"] = db_id
     params["db"] = db_id
     ds = params["ds"]
     if ds is None:
