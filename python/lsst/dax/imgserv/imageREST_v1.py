@@ -51,17 +51,17 @@ imageRESTv1 = Blueprint("imageRESTv1", __name__, static_folder="static",
 
 
 # To be called from webserv
-def load_imgserv_config(config_path, db_auth_conf):
+def load_imgserv_config(config_path, metaserv_url):
     """Load configuration info into ImageServ."""
     if config_path is None:
         # use default root_path for imageRESTv1
         config_path = imageRESTv1.root_path+"/config/"
-    f_json = os.path.join(config_path, "settings.json")
+    f_json = os.path.join(config_path, "imgserv_conf.json")
     # load the general config file
     current_app.config.from_json(f_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
-    current_app.config["DAX_IMG_DBCONF"] = db_auth_conf
+    current_app.config["DAX_IMG_META_URL"] = metaserv_url
     current_app.config["DAX_IMG_CONFIG"] = config_path
     current_app.config["imageREST_v1"]=os.path.join(config_path,
     "imageREST_v1.schema")
