@@ -1,9 +1,7 @@
 {
   "DEBUG": true,
   "DAX_IMG_VALIDATE": true,
-  "DAX_IMG_DBCONF": "~/.lsst/dbAuth-dbServ.ini",
   "DAX_IMG_DS": "/datasets/sdss/preprocessed/dr7/sdss_stripe82_00",  
-  "DAX_IMG_DB": "DC_W13_Stripe82",
   "DAX_IMG_TAB_SCICCDEXP": "Science_Ccd_Exposure",
   "DAX_IMG_TAB_DEEPCOADD": "DeepCoadd",
   "DAX_IMG_DR": "/datasets/sdss/preprocessed/dr7/runs",

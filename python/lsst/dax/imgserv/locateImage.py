@@ -42,17 +42,13 @@ import time
 
 from flask import current_app
 
-from sqlalchemy.exc import SQLAlchemyError
-
 import lsst.daf.base as dafBase
 import lsst.log as log
-from lsst.db.engineFactory import getEngineFromFile
 from lsst.obs.sdss import sdssMapper
 
 from .getimage.imagegetter_v1 import ImageGetter_v1
 from .butlerGet import  ButlerGet
 from .metaservGet import MetaservGet
-
 
 def image_open_v1(W13db, config, logger=log):
     """Open access to specified images (raw, calexp,
@@ -79,17 +75,15 @@ class W13Db:
         To be used for accessing images.
     """
 
-    def __init__(self, credFileName, database, table, columns, dataRoot,
+    def __init__(self, config, table, columns, dataRoot,
             butlerPolicy, butlerKeys, logger):
         """Instantiate W13Db object with credential for database, butler
         configuration, and logger.
 
         Parameters
         ----------
-        credFileName : str
-            The connection for accessing image metadata
-        database : str
-            the datbase connection string.
+        config: Dict
+            configuration file for this imgserv instance.
         table : str
             The table name.
         columns : str
@@ -99,22 +93,16 @@ class W13Db:
         bulterPolicy : str
             The butler policy.
         butlerKeys : str
-                      The bulter keys for this image data source.
+                     The butler keys for this image data source.
         logger : obj
             The logger to be used.
 
         """
-        self._log = logger
-        self.conn = getEngineFromFile(credFileName, database=database).connect()
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
-        self.metaservget = MetaservGet(self.conn, table, columns, logger)
-        try:
-            sql = "SET time_zone = '+0:00'"
-            self._log.info(sql)
-            self.conn.execute(sql)
-        except SQLAlchemyError as e:
-            self._log.error("Db engine error %s" % e)
-
+        self.metaservget = MetaservGet(
+                config["DAX_IMG_META_URL"],
+                config["DAX_IMG_META_DB"],
+                table, columns, logger)
 
 class W13RawDb(W13Db):
     """This class is used to connect to the DC_W13_Stripe82 Raw database.
@@ -130,8 +118,7 @@ class W13RawDb(W13Db):
     def __init__(self, config, logger=log):
         """Instantiate W13RawDb object with DB credential info and logger."""
         W13Db.__init__(self,
-                       credFileName=config["DAX_IMG_DBCONF"],
-                       database=config["DAX_IMG_DB"],
+                       config,
                        table=config["DAX_IMG_TAB_SCICCDEXP"],
                        columns=config["DAX_IMG_COLUMNS1"],
                        dataRoot=config["DAX_IMG_DR"],
@@ -157,8 +144,7 @@ class W13CalexpDb(W13RawDb):
         """Instantiate W13CalexpDb object with DB credential info and
         logger."""
         W13Db.__init__(self,
-                       credFileName=config["DAX_IMG_DBCONF"],
-                       database=config["DAX_IMG_DB"],
+                       config,
                        table=config["DAX_IMG_TAB_SCICCDEXP"],
                        columns=config["DAX_IMG_COLUMNS1"],
                        dataRoot=config["DAX_IMG_DS"]+"/calexps",
@@ -181,8 +167,7 @@ class W13DeepCoaddDb(W13Db):
     def __init__(self, config, logger=log):
         """Instantiate W13DeepCoaddDb object with DB credential and logger."""
         W13Db.__init__(self,
-                       credFileName=config["DAX_IMG_DBCONF"],
-                       database=config["DAX_IMG_DB"],
+                       config,
                        table=config["DAX_IMG_TAB_DEEPCOADD"],
                        columns=config["DAX_IMG_COLUMNS2"],
                        dataRoot=config["DAX_IMG_DS"]+"/coadd",
