@@ -20,7 +20,6 @@ python/lsst/dax/imgserv/imgservLib.py
 python/lsst/dax/imgserv/imgservLib_wrap.cc
 python/lsst/dax/imgserv/imgservLib_wrap.os
 python/lsst/dax/imgserv/utilsLib.py
-python/lsst/dax/imgserv/version.py
 ups/dax_imgserv.cfgc
 .idea
 _build.*
