@@ -21,5 +21,5 @@
     }
   },
   "api_id": [ "db", "ds", "skymap_id", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit" ],
-  "check": { "sha256": "3437dc42477c9930acacf73fb3d72157c231d7ef4886e7f5ef4860bbee53ee4d" }
+  "check": { "sha256": "fad80eb622eaf76faf53b74cb7ad7f3cd759eb10dbb471a9dbd612967990091c" }
 }

@@ -36,6 +36,8 @@ import click
 
 import lsst.log as log
 
+from configparser import RawConfigParser, NoSectionError
+
 from lsst.dax.imgserv.locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
 from lsst.dax.imgserv.dispatch_v1 import Dispatcher
@@ -44,6 +46,17 @@ from lsst.dax.imgserv.jsonutil import flatten_json
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
+defaults_file = os.environ.get("WEBSERV_CONFIG", "~/.lsst/webserv.ini")
+
+# Initialize configuration
+webserv_parser = RawConfigParser()
+webserv_parser.optionxform = str
+
+with open(os.path.expanduser(defaults_file)) as cfg:
+    webserv_parser.readfp(cfg, defaults_file)
+
+webserv_config = dict(webserv_parser.items("webserv"))
+imgserv_meta_url = webserv_config.get("dax.imgserv.meta.url")
 
 @click.command()
 @click.option("--config", type=click.Path(exists=True))
@@ -77,6 +90,7 @@ class ImageServCLI(object):
         self._dispatcher = Dispatcher(config_dir)
         self._schema = os.path.join(config_dir, "imageREST_v1.schema")
         self._validate =  self._config["DAX_IMG_VALIDATE"]
+        self._config["DAX_IMG_META_URL"] = imgserv_meta_url
 
     def process_request(self, in_req):
         """ Process the request.
@@ -91,6 +105,7 @@ class ImageServCLI(object):
             raise Exception("parse error in req")
         w13db = self._get_ds(req)
         if w13db:
+            self._config["DAX_IMG_META_DB"] = req["image"]["db"]
             img_getter = image_open_v1(w13db, self._config)
             result = self._dispatch(img_getter, req)
             name = req["name"]
