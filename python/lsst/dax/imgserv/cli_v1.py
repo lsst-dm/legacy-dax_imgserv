@@ -36,16 +36,13 @@ import click
 
 import lsst.log as log
 
+from configparser import RawConfigParser, NoSectionError
+
 from lsst.dax.imgserv.locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
 from lsst.dax.imgserv.dispatch_v1 import Dispatcher
 from lsst.dax.imgserv.hashutil import Hasher
 from lsst.dax.imgserv.jsonutil import flatten_json
-
-try:
-    from ConfigParser import RawConfigParser, NoSectionError
-except ImportError:
-    from configparser import RawConfigParser, NoSectionError
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
