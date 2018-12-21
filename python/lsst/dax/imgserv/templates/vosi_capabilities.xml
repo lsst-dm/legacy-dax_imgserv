@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/css" href= "{{ url_for('api_image_soda.static', filename='style.css') }}"?>
+<vosi:capabilities
+   xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1">
+
+    <h2>
+    <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full">
+                {{ url_vosi_capabilities }}
+            </accessURL>
+        </interface>
+    </capability>
+    </h2>
+
+    <h2>
+    <capability standardID="ivo://ivoa.net/std/DALI#examples">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full">
+                {{ url_dali_examples }}
+            </accessURL>
+        </interface>
+    </capability>
+    </h2>
+
+    <h2>
+    <capability standardID="ivo://ivoa.net/std/VOSI#availability">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full">
+                {{ url_vosi_availability }}
+            </accessURL>
+        </interface>
+    </capability>
+    </h2>
+
+    <h2>
+    <capability standardID="ivo://ivoa.net/std/VOSI#tables">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full">
+                {{ url_vosi_tables }}
+            </accessURL>
+    </interface>
+    </capability>
+    </h2>
+
+    <h2>
+    <capability xmlns:tr="http://www.ivoa.net/xml/TAPRegExt/v1.0"
+        standardID="ivo://ivoa.net/std/TAP" xsi:type="tr:TableAccess">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full">
+                {{ url_dal_sia }}
+            </accessURL>
+        </interface>
+        <!-- service details from TAPRegExt go here -->
+    </capability>
+    </h2>
+
+</vosi:capabilities>

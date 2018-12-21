@@ -1,0 +1,20 @@
+{
+  "name": "deepcoadd_i13",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "deepcoadd",
+    "image_id": {
+        "nearest": {
+          "center": { 
+            "x": 19.36995, 
+            "y": -0.3146,
+            "unit": "deg"
+          },
+          "filter": "r"
+      }
+    }
+  },
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "center.unit" ],
+  "check_output": { "md5": "09d77121c129b895e5b52ab3a0c96d20" }
+}

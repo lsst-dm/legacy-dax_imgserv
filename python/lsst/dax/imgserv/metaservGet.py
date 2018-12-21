@@ -1,9 +1,10 @@
+# This file is part of dax_imgserv.
 #
-# LSST Data Management System
-# Copyright 2018, 2017 LSST/AURA.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (http://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,11 +16,9 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
-#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # This code is used to to select an image or a cutout of an image
 # that has its center closest to the specified RA and Dec. The
 # image is retrieved using the Data Butler.
@@ -54,7 +53,7 @@ class MetaservGet:
         self._log = logger
         self._table = table
         self._columns = columns
-        self._conn = create_engine(image_meta_url+"/"+meta_db)
+        self._engine = create_engine(image_meta_url+"/"+meta_db)
 
     def nearest_image_containing(self, ra, dec, filtername):
         """Find nearest image containing the [ra, dec] using dax_metaserv.
@@ -92,6 +91,6 @@ class MetaservGet:
                "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, table, filterSql, ra, dec)
         self._log.debug("findNearest sql={}".format(sql))
-        r = self._conn.execute(sql).fetchall()
+        r = self._engine.execute(sql).fetchall()
         return r
 

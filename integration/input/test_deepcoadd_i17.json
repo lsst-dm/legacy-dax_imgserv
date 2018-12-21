@@ -1,0 +1,32 @@
+{
+  "name": "deepcoadd_i17",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "deepcoadd",
+    "cutout": {
+      "image_id": {
+        "nearest": { 
+          "center": {
+            "x": 19.62322, 
+            "y": -0.2978,
+            "unit": "deg"
+          },
+          "filter": "r"
+        } 
+      },
+      "center": { 
+        "x": 19.62322, 
+        "y": -0.2978,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
+      }
+    }
+  },
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit" ],
+  "check_output": { "md5": "d1d476827842606ba16268c8a7091f52" }
+}

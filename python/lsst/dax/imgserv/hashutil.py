@@ -1,9 +1,10 @@
+# This file is part of dax_imgserv.
 #
-# LSST Data Management System
-# Copyright 2017 LSST/AURA.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (http://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,27 +16,58 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
-This module implements the command line interface (CLI) to ImageServ.
-
-@author: Kenny Lo, SLAC
-
-'''
+"""
+This module wraps the standard hash functions to generate message
+digests.
+"""
 
 import hashlib
 
 class Hasher(object):
-    """ Hasher is simple wrapper to sha256 functionality.
+    """ Hasher is wrapper to hash functions
     """
 
-    _hasher = hashlib.sha256
-
+    ""
     @classmethod
-    def hash(cls, data):
-        return cls._hasher(data)
+    def md5(cls, data):
+        """ Function to return the message digest with MD5.
 
+        Appropriate for use with non-science data.
 
+        Parameters
+        ----------
+        data : 'Iterable'
+
+        Returns
+        -------
+        hash : `str`
+
+        """
+        if isinstance(data, (bytes, bytearray)):
+            return hashlib.md5(data).hexdigest()
+        else:
+            return hashlib.md5(str(data).encode("utf-8")).hexdigest()
+
+    ""
+    @classmethod
+    def sha256(cls, data):
+        """ Function to return the message digest with sha256.
+
+        Recommended for usage with scientific data.
+
+        Parameters
+        ----------
+        data : 'Iterable'
+
+        Returns
+        -------
+        hash : `str`
+
+        """
+        if isinstance(data, (bytes, bytearray)):
+            return hashlib.sha256(data).hexdigest()
+        else:
+            return hashlib.sha256(str(data).encode("utf-8")).hexdigest()

@@ -1,1 +1,4 @@
-curl -o ./output/post_raw_i1.fits -X POST -H "Content-Type: application/json" -d @../input_v1/test_raw_i1_v1.json http://localhost:5000/image/v1/DC_W13_Stripe82
+curl -o ./output/post_raw_i1.fits -X POST \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer $LSP_TOKEN" \
+-d @../input/test_raw_i1.json http://$IS_EP/api/image/v1/DC_W13_Stripe82

@@ -1,0 +1,32 @@
+{
+  "name": "raw_i5",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "cutout": {
+      "image_id": {
+        "nearest": { 
+          "center": { 
+            "x": 359.195, 
+            "y": -0.1055,
+            "unit": "deg"
+          },
+          "filter": "r"
+        }
+      },
+      "center": {
+        "x": 359.195,
+        "y": -0.1055,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
+      }
+    }
+  },
+  "api_id": [ "db", "ds", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit" ],
+  "check_output": { "md5": "392cafffa082b7103545a6fd78be3b15" }
+}

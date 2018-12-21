@@ -1,0 +1,25 @@
+{
+  "name": "raw_i19",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "cutout": {
+      "image_id": {
+        "ccd_exp_id": 5646240694
+      },
+      "center": { 
+        "x": 37.6292, 
+        "y": 0.104625,
+        "unit": "deg"
+      },
+      "size": {
+        "x": 100,
+        "y": 100,
+        "unit": "pixel"
+      }
+    }
+  },
+  "api_id": [ "db", "ds", "ccd_exp_id", "center.x", "center.y", "size.x", "size.y", "size.unit" ],
+  "check_output": { "md5": "c16be52aeb75d9df305cd5b94a41de25" }
+}

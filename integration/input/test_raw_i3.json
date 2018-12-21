@@ -1,0 +1,13 @@
+{
+  "name": "raw_i3",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "raw",
+    "image_id": {
+      "ccd_exp_id": 3325410171
+    }
+  },
+  "api_id": [ "db", "ds", "ccd_exp_id" ],
+  "check_output": { "md5": "acaae120945b57a4ad3357c1015fb99a" }
+}

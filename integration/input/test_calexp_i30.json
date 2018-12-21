@@ -1,0 +1,16 @@
+{
+  "name": "calexp_i30_brect",
+  "API": "SODA",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "calexp",
+    "cutout": {
+      "image_id": {
+        "ID": "DC_W13_Stripe82.calexp.r"
+      },
+      "POS": "BRECT 37.6444598 0.104625 100 100 PIXEL"
+    }
+  },
+  "api_id": [ "db", "ds", "ID", "POS" ],
+  "check_output": { "md5": "b0a552b046d88f2e68efe2c397795d19" }
+}

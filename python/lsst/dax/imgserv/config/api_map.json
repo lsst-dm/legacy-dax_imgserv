@@ -1,69 +1,72 @@
 {
   "$comment": [
     "Version: 1.0",
-    "Source: https://lsst.org/schemas/imgserv_api_v1.schema",
-    "Note: this file is being maintained manually, but can be automated/deduced w/schema info.",
-    "HashOp: hashlib.sha256(str(sorted(api_id)).encode('utf-8')).hexdigest()"
+    "Source: https://lsst.org/schemas/imgserv_api.schema",
+    "HashOp: hashlib.md5(str(sorted(api_id)).encode('utf-8')).hexdigest()"
   ],
-  "2ca69ed8aa69c9f01469617000a6a30d5df02d3843677330c6b457eef0e5b0d9": { 
+  "42c52a0ecba167867ee99bba94ce3518": {
     "api": "Image.full_nearest",
-    "api_id": ["db", "ds", "filter", "center.x", "center.y", "center.unit"]
+    "api_id": ["db", "ds", "filter", "center.x", "center.y"]
   },
-  "1697b5040cb4fb249ab5152412cc95a3b7f5a9d74dd5ed5666cacb1e420fb539": {
+  "6c57f5e4848215e7b7876eabdc26a973": {
     "api": "Image.full_from_data_id",
     "api_id": ["db", "ds", "run", "camcol", "field", "filter"]
   },
-  "fd2dd2f42cbf6670533e20932165e4dbe7d9718c9ebcca8a48dc7afff21234d4": {
+  "907ab501ecb2f569ab4ab1523da8d0f6": {
     "api": "Image.full_from_data_id",
     "api_id": ["db", "ds", "tract", "patch_x", "patch_y", "filter"]
   },
-  "124ad4bde6e752bbc6e9d688b2c775adaaa59df6e1e53230b6302f165ccd7629": {
+  "4e1bcf00252c343a96bd8ea6e60ec5a4": {
     "api": "Image.full_from_data_id",
     "api_id": ["db", "ds", "tract", "patch", "filter"]
   },
-  "e51592ddb763072f5f8a348eb0bd5841d4d9ffa2b38c4b3d5b4bc263b7af4904": {
-    "api": "Image.full_from_science_id",
-    "api_id": ["db", "ds", "science_id"]
+  "c682961c25f0d8a56a524bf42780538b": {
+    "api": "Image.full_from_ccd_exp_id",
+    "api_id": ["db", "ds", "ccd_exp_id"]
   },
-  "415d9f7798aff2a6a60e6d0835d1d470119e057f7a3164b5cc1148cfba2c467a": {
+  "326fd80756a88553ebf7ba88b1233f79": {
     "api": "Image.cutout_from_nearest",
-    "api_id": ["db", "ds", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+    "api_id": ["db", "ds", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "d27cb5beabb1aa858c6d7f29a744a44b33477d72e14068f2ac66749b1b1bb348": {
+  "ff161e5cf18b2b8cbec16595452ce5c9": {
     "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "run", "camcol", "field", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+    "api_id": ["db", "ds", "run", "camcol", "field", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "60dc8a4a68ca2c7590399b264bcaeb2f1df4860d2a89b3885290621873544348": {
+  "b2e5dae7803d1dcc743b48bf8411e665": {
     "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch_x","patch_y", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+    "api_id": ["db", "ds", "tract", "patch_x","patch_y", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "bb6ba9ee8e783b3a28f462e6221184dfb38c6a2a98adce1c69f75f119cd2de8d": {
+  "55560e07dec2ed69b7ea578ceaf41006": {
     "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+    "api_id": ["db", "ds", "tract", "patch", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "9cb6dfea190b56e39b2dbdc9af008eafad33ec3f6275b60a38f2e760920e7f15": {
-    "api": "Image.cutout_from_science_id",
-    "api_id": ["db", "ds", "science_id", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+  "4deade13a38fc426d0ae9dd3b2898cdf": {
+    "api": "Image.cutout_from_ccd_exp_id",
+    "api_id": ["db", "ds", "ccd_exp_id", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "b7f532768eaa35770d49825c046839565db3602381d1d82f7360634b28c45ae4": {
+  "76190ef407b8be9613d8ccafabd01758": {
     "api": "Image.cutout_from_skymap_id",
-    "api_id": ["db", "ds", "skymap_id", "filter", "center.x", "center.y", "center.unit", "size.x", "size.y", "size.unit"]
+    "api_id": ["db", "ds", "skymap_id", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
   },
-  "c2fff892176dd369ebc84ba4324b88fd6b3ed69a9abfab4d690a6c944b468294": {
-    "api": "Image.dataid_from_scienceid",
-    "api_id": ["db", "ds", "get_dataid", "ccdexpid"]
+  "d6a0b3ccae8ba47e919c16894a57b8f1": {
+    "api": "Image.data_id_from_science_id",
+    "api_id": ["db", "ds", "get_data_id", "ccd_exp_id"]
   },
-  "ea07625cc21d16ce8afc500813511165ddb9286dc33d6ae7faaa0599ccd34a8e": {
-    "api": "Image.scienceid_from_dataid",
-    "api_id": ["db", "ds", "get_ccdexpid", "run", "camcol", "field", "filter"]
+  "b5ed4469c890eeaa242214cf07fbb28a": {
+    "api": "Image.science_id_from_data_id",
+    "api_id": ["db", "ds", "get_ccdexp_id", "run", "camcol", "field", "filter"]
   },
-  "4932f5e8208d8bb4e112b49834dcaab89a0c609379395c6f494df9283394da9c": {
-    "api": "Image.scienceid_from_dataid",
-    "api_id": ["db", "ds", "get_ccdexpid", "tract", "patch", "filter"]
+  "977d2a46b9cfb98853064e63f3c50260": {
+    "api": "Image.science_id_from_data_id",
+    "api_id": ["db", "ds", "get_ccdexp_id", "tract", "patch", "filter"]
   },
-  "8d71b4ab8864461f5e7fd8c5e3a638851e3ee3734a654533d769ecd0cea81c9a": {
-    "api": "Image.scienceid_from_dataid",
-    "api_id": ["db", "ds", "get_ccdexpid", "tract", "patch_x", "patch_y", "filter"]
+  "038724032f5750049181b8b8ea8c58f1": {
+    "api": "Image.science_id_from_data_id",
+    "api_id": ["db", "ds", "get_ccdexp_id", "tract", "patch_x", "patch_y", "filter"]
+  },
+  "bacbec145481aceffd5b5e98a215758e": {
+    "api": "Image.cutout_from_pos",
+    "api_id": ["db", "ds", "filter", "ID", "POS"]
   }
 }
 
