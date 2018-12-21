@@ -30,20 +30,20 @@ Corresponding URI: /image
 import os
 import tempfile
 import traceback
+import json
 
-from jsonschema import validate, ValidationError
+from jsonschema import validate
 
 from flask import Blueprint, make_response, request, current_app, jsonify
 from flask import render_template, send_file
 
 import lsst.log as log
-import lsst.afw.fits as fits
 import lsst.afw.image as afwImage
 
-from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
-from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from http import HTTPStatus
+from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
-from .dispatch_v1 import Dispatcher
+from .dispatch import Dispatcher
 from .jsonutil import get_params
 
 ACCEPT_TYPES = ["application/json", "text/html"]
@@ -110,7 +110,7 @@ def handle_unhandled_exceptions(error):
     if len(error.args) > 1:
         err["more"] = [str(arg) for arg in error.args[1:]]
     response = jsonify(err)
-    response.status_code = INTERNAL_SERVER_ERROR
+    response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     return response
 
 
@@ -196,7 +196,7 @@ def _getimage(_req, db_id):
     w13db = _get_ds(ds.strip())
     if w13db is None:
         return _db_not_found()
-    img_getter = image_open_v1(w13db, current_app.config)
+    img_getter = image_open(w13db, current_app.config)
     if img_getter is None:
         raise Exception("Failed to instantiate ImageGetter")
     image = api(img_getter, params)
@@ -246,7 +246,7 @@ def _image_not_found(message=None):
     if not message:
         message = "Image Not Found"
     response = jsonify({"exception": IOError.__name__, "message": message})
-    response.status_code = NOT_FOUND  # ValueError == BAD REQUEST
+    response.status_code = HTTPStatus.NOT_FOUND  # ValueError == BAD REQUEST
     return response
 
 
@@ -255,7 +255,7 @@ def _db_not_found(message=None):
     if not message:
         message = "Db Not Found"
     response = jsonify({"exception": IOError.__name__, "message": message})
-    response.status_code = NOT_FOUND
+    response.status_code = HTTPStatus.NOT_FOUND
     return response
 
 

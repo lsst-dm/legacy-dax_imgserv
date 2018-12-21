@@ -33,24 +33,18 @@ This module is used to locate and retrieve various images
 @author: Kenny Lo, SLAC
 
 """
-
-import gzip
-import math
-import os
-import sys
-import time
-
 from flask import current_app
 
-import lsst.daf.base as dafBase
 import lsst.log as log
-from lsst.obs.sdss import sdssMapper
+import lsst.afw.image as afwImage
 
-from .getimage.imagegetter_v1 import ImageGetter_v1
-from .butlerGet import  ButlerGet
+from .getimage.imageget import ImageGetter
+from .butlerGet import ButlerGet
 from .metaservGet import MetaservGet
+from .dispatch import Dispatcher
 
-def image_open_v1(W13db, config, logger=log):
+
+def image_open(W13db, config, logger=log):
     """Open access to specified images (raw, calexp,
     deepCoadd,etc) of specified image repository.
 
@@ -61,7 +55,35 @@ def image_open_v1(W13db, config, logger=log):
 
     """
     imagedb = W13db(config, logger)
-    return ImageGetter_v1(imagedb.butlerget, imagedb.metaservget, logger)
+    return ImageGetter(imagedb.butlerget, imagedb.metaservget, logger)
+
+
+def get_image(params, config) -> afwImage:
+    """Get the image per query request synchronously (default).
+    Parameters:
+        request the request object
+        db  image database string
+    """
+    config["DAX_IMG_META_DB"] = params["db"]
+    ds = params["ds"]
+    if ds is None:
+        return "Missing ds parameter"
+    dispatcher = Dispatcher(current_app.config["DAX_IMG_CONFIG"])
+    api, api_params = dispatcher.find_api(params)
+    if api is None:
+        raise Exception("Dispatcher failed to find matching API")
+    w13db = _get_ds(ds.strip())
+    if w13db is None:
+        return "db not found"
+    try:
+        img_getter = image_open(w13db, current_app.config)
+    except Exception as e:
+        print(e)
+
+    if img_getter is None:
+        raise Exception("Failed to instantiate ImageGetter")
+    image = api(img_getter, api_params)
+    return image
 
 
 class W13Db:
@@ -175,3 +197,15 @@ class W13DeepCoaddDb(W13Db):
                        butlerKeys=config["DAX_IMG_BUTLER_KEYS2"],
                        logger=logger)
 
+
+def _get_ds(image_type):
+    # use lower case
+    it = image_type.lower()
+    if it == "raw":
+        return W13RawDb
+    elif it == "calexp":
+        return W13CalexpDb
+    elif it == "deepcoadd":
+        return W13DeepCoaddDb
+    else:
+        return None

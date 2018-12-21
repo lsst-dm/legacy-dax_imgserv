@@ -36,6 +36,7 @@ appropriate butler instance.
 from flask import current_app, has_app_context
 import lsst.daf.persistence as dafPersist
 
+
 class ButlerGet(object):
     """Instantiate and hold onto instance of Butler for ImageGetter.
     """
@@ -55,11 +56,11 @@ class ButlerGet(object):
         """Get butler instance from cache if available and instantiate if not.
         """
         if has_app_context():
-           # flask application context
-           butler_instances = current_app.butler_instances
+            # flask application context
+            butler_instances = current_app.butler_instances
         else:
             # CLI context
-            butler_instances =  ButlerGet._butler_instances
+            butler_instances = ButlerGet._butler_instances
         butler = butler_instances.get(datarepo_id)
         if not butler:
             # new butler instance needed

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<vosi:capabilities
+   xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1">
+
+    <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full">
+                {{ url_vosi_capabilities }}
+            </accessURL>
+        </interface>
+    </capability>
+
+    <capability standardID="ivo://ivoa.net/std/VOSI#availability">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full">
+                {{ url_vosi_availability }}
+            </accessURL>
+        </interface>
+    </capability>
+
+    <capability standardID="ivo://ivoa.net/std/VOSI#tables">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full">
+                {{ url_vosi_tables }}
+            </accessURL>
+    </interface>
+    </capability>
+
+    <capability xmlns:tr="http://www.ivoa.net/xml/TAPRegExt/v1.0"
+        standardID="ivo://ivoa.net/std/TAP" xsi:type="tr:TableAccess">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full">
+                {{ url_dal_sia }}
+            </accessURL>
+        </interface>
+        <!-- service details from TAPRegExt go here -->
+    </capability>
+
+</vosi:capabilities>

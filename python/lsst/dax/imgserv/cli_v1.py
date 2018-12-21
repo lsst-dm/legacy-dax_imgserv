@@ -36,11 +36,12 @@ import click
 
 import lsst.log as log
 
-from configparser import RawConfigParser, NoSectionError
+from configparser import RawConfigParser
 
-from lsst.dax.imgserv.locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from lsst.dax.imgserv.locateImage import image_open, W13DeepCoaddDb, \
+    W13RawDb, W13CalexpDb
 
-from lsst.dax.imgserv.dispatch_v1 import Dispatcher
+from lsst.dax.imgserv.dispatch import Dispatcher
 from lsst.dax.imgserv.hashutil import Hasher
 from lsst.dax.imgserv.jsonutil import flatten_json
 
@@ -106,7 +107,7 @@ class ImageServCLI(object):
         w13db = self._get_ds(req)
         if w13db:
             self._config["DAX_IMG_META_DB"] = req["image"]["db"]
-            img_getter = image_open_v1(w13db, self._config)
+            img_getter = image_open(w13db, self._config)
             result = self._dispatch(img_getter, req)
             name = req["name"]
             fp_image = self._save_result(result, name)

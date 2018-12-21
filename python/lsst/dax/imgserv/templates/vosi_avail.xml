@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vosi:availability
+  xmlns:vosi="http://www.ivoa.net/xml/VOSIAvailability/v1.0">
+  <vosi:available>{{ service_status }}</vosi:available>
+  <vosi:note>{{ dal_service_name }} Service is available here.</vosi:note>
+</vosi:availability>

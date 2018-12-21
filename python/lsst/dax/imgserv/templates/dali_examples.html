@@ -1,0 +1,13 @@
+<!doctype html>
+<title>LSST Image SODA Service</title>
+<link rel=stylesheet type=text/css
+      href="{{ url_for('api_image_soda.static', filename='style.css') }}">
+<div>
+<h1> LSST Image SODA Service </h1>
+<b>Sample Queries:</b><br/>
+    <a
+            href="http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=BRECT+37.644598+0.104625+100+100+pixel">SODA Query 1 (BRECT, pixel)</a>
+    <br>
+    <a
+            href="http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=BRECT+37.644598+0.104625+80+80+arcsec">SODA Query 2 (BRECT, arcsec)</a>
+</div>

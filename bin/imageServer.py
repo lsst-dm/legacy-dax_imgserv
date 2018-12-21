@@ -29,11 +29,11 @@ Web Service, e.g., through webserv/bin/server.py
 """
 import sys
 from flask import Flask
-from lsst.dax.imgserv import imageREST_v0
+from lsst.dax.imgserv import imageREST_v1
 
 app = Flask(__name__)
 
-app.register_blueprint(imageREST_v0.imageREST, url_prefix='/image')
+app.register_blueprint(imageREST_v1.imageREST, url_prefix='/image')
 app.config["dax.imgserv.default_source"] = "/datasets/gapon/data/DC_2013/coadd"
 
 if __name__ == '__main__':

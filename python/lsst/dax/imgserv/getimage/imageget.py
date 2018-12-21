@@ -36,14 +36,13 @@ cutout dimensions, via the appropriate Butler object passed in.
 
 import math
 
-import lsst.afw
 import lsst.afw.geom as afw_geom
 import lsst.afw.image as afw_image
 import lsst.log as log
 
 from .skymapImage import SkymapImage
 
-class ImageGetter_v1:
+class ImageGetter:
     """Provide operations to retrieve images including cutouts from the specified
     image repository through the passed-in butler and metaserv.
 

@@ -1,0 +1,10 @@
+{
+   "base": "http://127.0.0.1:5000",
+   "status": "TBD",
+   "message": "Image SODA Service is available here.",
+   "vosi-capabilities":  "/api/image/soda/capabilities",
+   "vosi-availability": "/api/image/soda/availability",
+   "dali-examples": "/api/image/soda/examples",
+   "vosi-tables": "/api/image/soda/tables",
+   "dal-sia": "/api/image/sia"
+}

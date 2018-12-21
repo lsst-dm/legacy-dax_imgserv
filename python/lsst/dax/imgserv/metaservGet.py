@@ -54,7 +54,7 @@ class MetaservGet:
         self._log = logger
         self._table = table
         self._columns = columns
-        self._conn = create_engine(image_meta_url+"/"+meta_db)
+        self._engine = create_engine(image_meta_url+"/"+meta_db)
 
     def nearest_image_containing(self, ra, dec, filtername):
         """Find nearest image containing the [ra, dec] using dax_metaserv.
@@ -92,6 +92,6 @@ class MetaservGet:
                "corner3Ra, corner3Decl, corner4Ra, corner4Decl) = 1 "
                "order by distance LIMIT 1").format(col_str, table, filterSql, ra, dec)
         self._log.debug("findNearest sql={}".format(sql))
-        r = self._conn.execute(sql).fetchall()
+        r = self._engine.execute(sql).fetchall()
         return r
 

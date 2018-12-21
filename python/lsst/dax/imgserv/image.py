@@ -1,6 +1,6 @@
 #
 # LSST Data Management System
-# Copyright 2017 LSST/AURA.
+# Copyright 2017-2019 LSST/AURA.
 #
 # This product includes software developed by the
 # LSST Project (http://www.lsst.org/).
@@ -20,19 +20,18 @@
 # see <http://www.lsstcorp.org/LegalNotices/>.
 
 """
-This module implements the Image class that uses imagegetter
-to retrieve images per request specification.
-
-@author: Kenny Lo, SLAC
+This module implements the Image class that uses passed-in imagegetter
+to retrieve the image/cutout as specified.
 
 """
+
 
 class Image(object):
     """ Image module maps a request and its parameters per JSON schema to the
         corresponding imagegetter method.
     """
-    def __init__(cls):
-       pass
+    def __init__(self):
+        pass
 
     @classmethod
     def full_nearest(cls, image_getter, params):
@@ -41,7 +40,8 @@ class Image(object):
         Parameters
         ----------
         image_getter : getimage.imagegetter.ImageGetter
-        center.x, center.y, center.unit, filter
+        params: dict
+            center.x, center.y, center.unit, filter
 
         Returns
         -------
@@ -121,9 +121,8 @@ class Image(object):
         Parameters
         ----------
         image_getter : getimage.imagegetter.ImageGetter
-        center.x, center.y, center-unit
-        size.x, size.y, size.unit
-        filter
+        params: dict
+            center.x, center.y, center-unit, size.x, size.y, size.unit, filter
 
         Returns
         -------
@@ -137,8 +136,9 @@ class Image(object):
         size_y = float(params.get("size.y"))
         size_unit = params.get("size.unit")
         filt = params.get("nearest.filter") or params.get("filter")
-        image = image_getter.cutout_from_nearest(center_x, center_y, center_unit,
-                size_x, size_y, size_unit, filt)
+        image = image_getter.cutout_from_nearest(center_x, center_y,
+                                                 center_unit, size_x, size_y,
+                                                 size_unit, filt)
         return image
 
     @classmethod

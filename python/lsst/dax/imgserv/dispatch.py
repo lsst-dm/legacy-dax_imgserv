@@ -22,14 +22,12 @@
 """
 This module implements the API dispatch logic.
 
-@author: Kenny Lo, SLAC
-
 """
 
 import os
 import json
 
-from .image_v1 import Image
+from .image import Image
 from .hashutil import Hasher
 
 
@@ -57,8 +55,11 @@ class Dispatcher(object):
         api: function
             the matching API method of the Image class.
         """
-        self._map_url_params(req_params)
-        ids = sorted(req_params.keys())
+        if req_params["API"]== "SODA":
+            api_params = self._map_soda_params(req_params)
+        else: # default
+            api_params = self._map_url_params(req_params)
+        ids = sorted(api_params.keys())
         api_id = Hasher.hash(str(ids).encode("utf-8")).hexdigest()
         entry = self.api_map[api_id]
         if entry:
@@ -66,41 +67,62 @@ class Dispatcher(object):
             # example for api_str: 'Image.cutout'
             mod_name, func_name = mod_func.split(".")
             api = getattr(Image, func_name)
-            return api
+            return api, api_params
 
-    def _map_url_params(self, req_params):
-        # map ra,dec into cente.x,center.y
-        ra = req_params.pop("ra", None)
+    @staticmethod
+    def _map_url_params(req_params):
+        api_params = {}
+        # map ra,dec into center.x,center.y
+        ra = req_params["ra"]
         if ra:
-            req_params["center.x"] = ra
-        dec = req_params.pop("dec", None)
+            api_params["center.x"] = ra
+        dec = req_params["dec"]
         if dec:
-            req_params["center.y"] = dec
+            api_params["center.y"] = dec
         if ra or dec:
-            req_params["center.unit"] = "deg"
+            api_params["center.unit"] = "deg"
             filt = None
             if "run" in req_params or "tract" in req_params:
                 # check for data id before renaming filter
                 pass
             else:
-                filt = req_params.pop("filter", None)
+                filt = req_params["filter"]
             if filt:
-                req_params["filter"] = filt
-        sid = req_params.pop("sid", None)
+                api_params["filter"] = filt
+        sid = req_params["sid"]
         if sid:
-            req_params["science_id"] = sid
-        width = req_params.pop("width", None)
+            api_params["science_id"] = sid
+        width = req_params["width"]
         if width:
-            req_params["size.x"] = width
-        height = req_params.pop("height", None)
+            api_params["size.x"] = width
+        height = req_params["height"]
         if height:
-            req_params["size.y"] = height
-        unit = req_params.pop("unit", None)
+            api_params["size.y"] = height
+        unit = req_params["unit"]
         if unit:
-            req_params["size.unit"] = unit
-        patch = req_params.pop("patch", None)
+            api_params["size.unit"] = unit
+        patch = req_params["patch"]
         if patch:
             patch_x, patch_y = patch.split(",")
-            req_params["patch_x"] = patch_x
-            req_params["patch_y"] = patch_y
+            api_params["patch_x"] = patch_x
+            api_params["patch_y"] = patch_y
+        return api_params
+
+    @staticmethod
+    def _map_soda_params(req_params):
+        box = req_params["POS"]
+        shape, ra, dec, w, h, unit = box.split()
+        filt = req_params["filter"]
+        api_params = {
+            "db": req_params["db"],
+            "ds": req_params["ds"],
+            "center.x": ra,
+            "center.y": dec,
+            "center.unit":  "deg",
+            "filter": filt,
+            "size.x": w,
+            "size.y": h,
+            "size.unit": unit
+        }
+        return api_params
 
