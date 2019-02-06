@@ -52,21 +52,24 @@ Param_Datatype =  {
 
 """ Note: values to be escaped by '+' """
 
-I = TypeVar('I', bound=object)
+img = TypeVar('img', bound=object)
 
 
 class SODA(DAL):
     """ Interface defined for SODA to extract image cutouts.
-
-    Parameters
-    ----------
-    http_params : `dict`
-
-    Returns
-    -------
-    I : `object`
     """
-    def handle_pos(self, params: dict) -> I:
+    def handle_pos(self, params: dict) -> img:
+        """"
+        Parameters
+        ----------
+        params: `dict`
+            the request parameters.
+
+        Returns
+        -------
+        img : `object`
+            the image object.
+        """
         shape = params["POS"].split()
         if shape[0] == "CIRCLE":
             return self.get_circle(params)
@@ -77,12 +80,23 @@ class SODA(DAL):
         return self.handle_default(params)
 
     @abstractmethod
-    def handle_default(self, params: dict) -> I:
-        """ Default handler: To be implemented by subclass"""
+    def handle_default(self, params: dict) -> img:
+        """ Default handler: To be implemented by subclass
+
+        Parameters
+        ----------
+        params: `dict`
+            the request parameters.
+
+        Returns
+        -------
+        img : `object`
+            the image object.
+        """
         pass
 
     @abstractmethod
-    def get_circle(self, params: dict) -> I:
+    def get_circle(self, params: dict) -> img:
         """ Implement this method in subclass to retrieve image cutout
         specified in CIRCLE.
 
@@ -98,14 +112,14 @@ class SODA(DAL):
 
         Returns
         -------
-        I : `object`
+        img : `object`
             the image object.
 
         """
         pass
 
     @abstractmethod
-    def get_range(self, params: dict) -> I:
+    def get_range(self, params: dict) -> img:
         """ Implmement this method to in subclass to retrieve image cutout
         specified in RANGE.
 
@@ -122,13 +136,13 @@ class SODA(DAL):
 
         Returns
         -------
-        I : `object`
+        img : `object`
             the image object.
         """
         pass
 
     @abstractmethod
-    def get_polygon(self, params: dict) -> I:
+    def get_polygon(self, params: dict) -> img:
         """ Implement this method in subclass to retrieve image cutout
             specified in RANGE.
 
@@ -143,7 +157,7 @@ class SODA(DAL):
 
         Returns
         -------
-        I : `object`
+        img : `object`
             the image object.
 
         """

@@ -49,7 +49,7 @@ class ImageSODA(SODA):
         self._config = config
         self._dashboard = dashboard
 
-    def do_sync(self, params: dict) -> str:
+    def do_sync(self, params: dict) -> object:
         """ Do sync operation.
 
         Parameters
@@ -63,13 +63,18 @@ class ImageSODA(SODA):
         else:
             return "Unsupported Request"
 
-    def do_async(self, params: dict) -> str:
+    def do_async(self, params: dict) -> object:
         """ Do async operation.
 
         Parameters
         ----------
         params : `dict`
-            the HTTP paramters.
+            the HTTP parameters.
+
+        Returns
+        -------
+        xml: `str`
+
         """
         resp = "OK"
         return resp
@@ -80,6 +85,11 @@ class ImageSODA(SODA):
         Parameters
         ----------
         params : `dict`
+
+        Returns
+        -------
+        xml: `str`
+
         """
         return super().get_examples(params)
 
@@ -89,9 +99,14 @@ class ImageSODA(SODA):
         Parameters
         ---------
         params : `dict`
+
+        Returns
+        -------
+        xml: `str`
+
         """
         params["status"] = "ACTIVE"
-        params["service_name"] = "ImageServe SODA"
+        params["service_name"] = "Image SODA"
         return super().get_availability(params)
 
     def get_capabilities(self, params: dict) -> str:
@@ -101,6 +116,11 @@ class ImageSODA(SODA):
         ----------
         params : `dict`
             the HTTP paramters.
+
+        Returns
+        -------
+        xml: `str`
+
         """
         params["base"] = self._dashboard["base"]
         params["vosi-availability"] = self._dashboard["vosi-availability"]

@@ -80,32 +80,30 @@ class DAL(ABC):
         response: `str`
             the response in xml.
         """
-        resp = ""
-        return resp
+        return ""
 
-    def do_sync(self, params: dict) -> str:
+    def do_sync(self, params: dict) -> object:
         """ Perform a sync operation.
 
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the parameters.
 
         Returns
         -------
-        response: `str`
+        response: `object`
             the response in xml.
         """
-        resp = " "
-        return resp
+        return None
 
-    def do_async(self, params: dict) -> str:
+    def do_async(self, params: dict) -> object:
         """ Perform an async operation.
 
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters.
 
         Returns
         -------
@@ -124,6 +122,7 @@ class DAL(ABC):
         Parameters
         ----------
         params : `dict`
+            the request parameters.
 
         Returns
         -------
@@ -140,7 +139,7 @@ class DAL(ABC):
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters.
 
         Returns
         -------
@@ -159,7 +158,7 @@ class DAL(ABC):
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters.
 
         Returns
         -------
@@ -171,11 +170,13 @@ class DAL(ABC):
         url_cap =  urljoin(url_base, params["vosi-capabilities"])
         url_avail = urljoin(url_base, params["vosi-availability"])
         url_tables = urljoin(url_base, params["vosi-tables"])
-        url_sia  = urljoin(url_base, params["dal-sia"])
+        url_examples = urljoin(url_base, params["dali-examples"])
+        url_sia = urljoin(url_base, params["dal-sia"])
         resp = render_template("vosi_capabilities.xml",
                                url_vosi_capabilities=url_cap,
                                url_vosi_availability=url_avail,
                                url_vosi_tables=url_tables,
+                               url_dali_examples=url_examples,
                                url_dal_sia=url_sia)
         return resp
 
