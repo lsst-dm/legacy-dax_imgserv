@@ -29,10 +29,10 @@ This module implements the command line interface (CLI) to ImageServ.
 import hashlib
 
 class Hasher(object):
-    """ Hasher is simple wrapper to sha256 functionality.
+    """ Hasher is simple wrapper to md5 functionality.
     """
 
-    _hasher = hashlib.sha256
+    _hasher = hashlib.md5
 
     @classmethod
     def hash(cls, data):

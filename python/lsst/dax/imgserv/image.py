@@ -30,9 +30,6 @@ class Image(object):
     """ Image module maps a request and its parameters per JSON schema to the
         corresponding imagegetter method.
     """
-    def __init__(self):
-        pass
-
     @classmethod
     def full_nearest(cls, image_getter, params):
         """Get image nearest center.
@@ -263,7 +260,7 @@ class Image(object):
 
     @classmethod
     def scienceid_from_dataid(cls, image_getter, params):
-        """The the science id for the corresponding data id.
+        """The science id for the corresponding data id.
 
         Parameters
         ----------
@@ -278,6 +275,11 @@ class Image(object):
         data_id = cls._get_data_id(params)
         science_id = image_getter.scienceid_from_dataid(data_id)
         return science_id
+
+    @classmethod
+    def cutout_from_pos(cls, image_getter, params):
+        """ This implements the shapes per SODA """
+    #ToDo
 
     @classmethod
     def _get_data_id(cls, params):
@@ -301,4 +303,5 @@ class Image(object):
         else:
             raise Exception("invalid data id input")
         return data_id
+
 
