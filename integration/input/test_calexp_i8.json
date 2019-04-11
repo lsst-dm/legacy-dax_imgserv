@@ -1,0 +1,13 @@
+{
+  "name": "calexp_i8",
+  "API": "v1",
+  "image": {
+    "db": "DC_W13_Stripe82",
+    "ds": "calexp",
+    "image_id": {
+      "ccd_exp_id": 3325410171
+    }
+  },
+  "api_id": [ "db", "ds", "ccd_exp_id" ],
+  "check_output": { "md5": "4c0a2221f27992777570bd15fde70583" }
+}

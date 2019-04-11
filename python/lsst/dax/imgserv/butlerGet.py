@@ -1,9 +1,10 @@
+# This file is part of dax_imgserv.
 #
-# LSST Data Management System
-# Copyright 2017 LSST/AURA.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (http://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,14 +16,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
-#
-# This code is used to to select an image or a cutout of an image
-# that has its center closest to the specified RA and Dec. The
-# image is retrieved using the Data Butler.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 This module is used to instantiate or fetch from cache the
@@ -35,6 +30,7 @@ appropriate butler instance.
 """
 from flask import current_app, has_app_context
 import lsst.daf.persistence as dafPersist
+
 
 class ButlerGet(object):
     """Instantiate and hold onto instance of Butler for ImageGetter.
@@ -55,11 +51,11 @@ class ButlerGet(object):
         """Get butler instance from cache if available and instantiate if not.
         """
         if has_app_context():
-           # flask application context
-           butler_instances = current_app.butler_instances
+            # flask application context
+            butler_instances = current_app.butler_instances
         else:
             # CLI context
-            butler_instances =  ButlerGet._butler_instances
+            butler_instances = ButlerGet._butler_instances
         butler = butler_instances.get(datarepo_id)
         if not butler:
             # new butler instance needed

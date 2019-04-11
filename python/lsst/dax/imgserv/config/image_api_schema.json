@@ -1,0 +1,193 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "$ucd": "https://lsst.org/schemas/vo_ucd.schema",
+  "namespace": "lsst.dax.imgserv",
+  "ucd": "obs.image",
+  "description": "ImageServ API",
+  "version": "1",
+  "definitions":
+  {
+    "orientation": {
+      "type": "string",
+      "ucd": "pos",
+      "enum": [
+        "Pixel_Coordinate",
+        "Equatorial_J2000",
+        "Equatorial_B1950",
+        "Ecliptic_J2000",
+        "Ecliptic_B1950",
+        "Galactic",
+        "Super_Galactic"
+      ]
+    },
+    "ra": {
+      "type": "number",
+      "unit": "deg",
+      "minimum": 0,
+      "maximum": 360,
+      "ucd": "pos.eq.ra"
+    },
+    "dec": {
+      "type": "number",
+      "unit": "deg",
+      "minimum": -90,
+      "maximum": 90,
+      "ucd": "pos.eq.dec"
+    },
+    "size": {
+      "type": "object",
+      "ucd": "lsst;image.size",
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "unit": {
+          "enum": ["px", "pix", "pixel", "pixels", "arcsec", "arcmin", "deg"]
+        }
+      },
+      "required": ["x", "y", "unit"]
+    },
+    "circle": {
+      "type": "object",
+      "ucd": "phys.angArea;obs",
+      "properties": {
+        "unit": {"type": "string", "enum": ["deg"]},
+        "radius": {"type": "number", "ucd": "phys.angSize"}
+      },
+      "required": ["unit", "radius"]
+    },
+    "range": {
+      "type": "object",
+      "ucd": "phys.angArea;obs",
+      "properties": {
+        "long1": {"type": "number", "ucd": "phys.angSize"},
+        "lat1": {"type": "number", "ucd": "phys.angSize"},
+        "long2": {"type": "number", "ucd": "phys.angSize"},
+        "lat2": {"type": "number", "ucd": "phys.angSize"}
+      },
+      "required": ["long1", "lat1", "long2", "lat2"]
+    },
+    "polygon": {
+      "type": "object",
+      "ucd": "phys.angArea;obs",
+      "properties": {
+        "sides": {
+          "type": "array",
+          "minItems": 3,
+          "items": {"type": "number", "ucd": "phys.angSize"}
+        },
+        "unit": {
+          "type": "string",
+          "enum": ["arsec", "arcmin", "deg"]
+        }
+      },
+      "required": ["sides", "unit"]
+    },
+    "filter": {
+      "type": "string",
+      "ucd": "phys.transmission;instr.filter",
+      "enum": ["u", "g", "r", "i", "z", "y"]
+    },
+    "data_id": {
+      "type": "object",
+      "ucd": "meta.id",
+      "properties": {
+        "run": {"type": "integer"},
+        "camcol": {"type": "integer"},
+        "field": {"type": "integer"},
+        "tract": {"type": "integer"},
+        "patch_x": {"type": "integer"},
+        "patch_y": {"type": "integer"},
+        "filter": {"$ref": "#/definitions/filter"}
+      },
+      "oneOf": [
+        {"required": ["run", "camcol", "field", "filter"]},
+        {"required": ["tract", "patch_x", "patch_y", "filter"]}
+      ]
+    },
+    "center": {
+      "type": "object",
+      "ucd": "lsst;image.center",
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "unit": {
+          "type": "string",
+          "enum": ["px", "pix", "pixel", "pixels", "arcsec", "arcmin", "deg"]
+        }
+      },
+      "required": ["x", "y", "unit"]
+    },
+    "nearest": {
+      "type": "object",
+      "ucd": "lsst;image.nearest",
+      "properties": {
+        "center": {"$ref": "#/definitions/center"},
+        "filter": {"$ref": "#/definitions/filter"}
+      },
+      "required": ["center", "filter"]
+    },
+    "cutout": {
+      "type": "object",
+      "ucd": "lsst;image.cutout",
+      "properties": {
+        "image_id": {"$ref": "#/definitions/image_id"},
+        "center": {"$ref": "#/definitions/center"},
+        "POS": {
+            "type": "string",
+            "ucd": "meta.id;obs.image"
+        },
+        "size": {"$ref": "#/definitions/size"}
+      },
+      "oneOf": [
+        {"required": ["image_id", "center", "size"]},
+        {"required": ["image_id", "POS"]}
+      ]
+    },
+    "image_id": {
+        "type": "object",
+        "ucd": "meta.id;obs.image",
+        "properties": {
+          "ID": {
+            "type": "string"
+          },
+          "nearest": {"$ref": "#/definitions/nearest"},
+          "data_id": {"$ref": "#/definitions/data_id"},
+          "ccd_exp_id": {
+            "type": "integer",
+            "ucd": "lsst;image.ccd_exp_id"
+          },
+          "skymap_id": {
+            "type": "string",
+            "ucd": "lsst;image.skymap_id"
+          }
+        },
+        "oneOf": [
+          {"required": ["ID"]},
+          {"required": ["nearest"]},
+          {"required": ["data_id"]},
+          {"required": ["ccd_exp_id"]},
+          {"required": ["skymap_id"]}
+        ]
+    },
+    "image": {
+      "properties": {
+        "db": {"type": "string"},
+        "ds": {
+          "type": "string",
+          "ucd": "meta.ref.url;meta.curation",
+          "enum": ["raw", "calexp", "deepcoadd"]
+        },
+        "cutout": {"$ref": "#/definitions/cutout"},
+        "image_id": {"$ref": "#/definitions/image_id"}
+      },
+      "oneOf": [
+        {"required": ["db", "ds", "image_id"]},
+        {"required": ["db", "ds", "cutout"]}
+      ]
+    }
+  },
+  "properties": {
+    "image": { "$ref": "#/definitions/image" }
+  },
+  "required": [ "image" ]
+}

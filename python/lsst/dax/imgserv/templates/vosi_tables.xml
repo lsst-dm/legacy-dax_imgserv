@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<vosi:tableset
+  xmlns:vosi="http://www.ivoa.net/xml/VOSITables/v1.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:vs="http://www.ivoa.net/xml/VODataService/v1.1"
+  version="1.1">
+
+  <schema>
+    <name>SODA</name>
+    <table type="output">
+      <name>Image SODA Service</name>
+      <column>
+        <name>cfhtlsID </name>
+        <dataType xsi:type="vs:TAP" size="30">adql:VARCHAR </dataType>
+      </column>
+      <column>
+        <name>survey </name>
+        <dataType xsi:type="vs:TAP" size="6">adql:VARCHAR </dataType>
+      </column>
+      <column>
+        <name>field </name>
+        <dataType xsi:type="vs:TAP" size="2">adql:VARCHAR </dataType>
+      </column>
+      <column>
+        <name>pointing </name>
+        <dataType xsi:type="vs:TAP" size="6">adql:VARCHAR </dataType>
+      </column>
+      <column>
+        <name>selectionFilter </name>
+        <dataType xsi:type="vs:TAP" size="2">adql:VARCHAR </dataType>
+      </column>
+    </table>
+  </schema>
+
+</vosi:tableset>
+
+

@@ -1,8 +1,10 @@
-# LSST Data Management System
-# Copyright 2017 AURA/LSST.
+# This file is part of dax_imgserv.
 #
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (http://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,13 +16,12 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 This module implements the RESTful interface for Image Cutout Service.
-Corresponding URI: /image
+Corresponding URI: /api/image/v1
 
 @author: John Gates, SLAC
 @author: Brian Van Klaveren, SLAC
@@ -30,20 +31,20 @@ Corresponding URI: /image
 import os
 import tempfile
 import traceback
+import json
 
-from jsonschema import validate, ValidationError
+from jsonschema import validate
 
 from flask import Blueprint, make_response, request, current_app, jsonify
 from flask import render_template, send_file
 
 import lsst.log as log
-import lsst.afw.fits as fits
 import lsst.afw.image as afwImage
 
-from http.client import BAD_REQUEST, INTERNAL_SERVER_ERROR, NOT_FOUND
-from .locateImage import image_open_v1, W13DeepCoaddDb, W13RawDb, W13CalexpDb
+from http import HTTPStatus
+from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 
-from .dispatch_v1 import Dispatcher
+from .dispatch import Dispatcher
 from .jsonutil import get_params
 
 ACCEPT_TYPES = ["application/json", "text/html"]
@@ -66,7 +67,7 @@ def load_imgserv_config(config_path, metaserv_url):
     current_app.config["DAX_IMG_META_URL"] = metaserv_url
     current_app.config["DAX_IMG_CONFIG"] = config_path
     current_app.config["imageREST_v1"]=os.path.join(config_path,
-    "imageREST_v1.schema")
+                                                    "image_api_schema.json")
     # create cache for butler instances
     current_app.butler_instances = {}
 
@@ -110,12 +111,11 @@ def handle_unhandled_exceptions(error):
     if len(error.args) > 1:
         err["more"] = [str(arg) for arg in error.args[1:]]
     response = jsonify(err)
-    response.status_code = INTERNAL_SERVER_ERROR
+    response.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
     return response
 
 
 def _getimage_async(_req):
-    # ToDo: TBD
     raise NotImplementedError("async endpoint not yet implemented")
 
 
@@ -166,17 +166,15 @@ def _getimage(_req, db_id):
         db  image database string
     """
     if _req.is_json:
-        r_data =  _req.get_json()
+        r_data = _req.get_json()
         # schema validation check
         check = current_app.config["DAX_IMG_VALIDATE"]
         if check:
-            f_schema = current_app.config["imageREST_v1"]
+            f_schema = current_app.config["imgserv_api"]
             with open(f_schema) as f:
                 schema = json.load(f)
-                f.close()
             validate(r_data, schema)
         params = get_params(r_data)
-        ds = r_data["image"]["ds"]
     else:
         if _req.content_type and "form" in _req.content_type:
             # e.g. Content-Type: application/www-form-urlencoded
@@ -186,20 +184,18 @@ def _getimage(_req, db_id):
             params = _req.args.copy()
     current_app.config["DAX_IMG_META_DB"] = db_id
     params["db"] = db_id
-    ds = params["ds"]
+    ds = params.get("ds", None)
     if ds is None:
-        return _db_not_found("Mising ds parameter")
+        return _db_not_found("Missing ds parameter")
     dispatcher = Dispatcher(current_app.config["DAX_IMG_CONFIG"])
-    api = dispatcher.find_api(params)
-    if api is None:
-        raise Exception("Dispatcher failed to find matching API")
+    api, api_params = dispatcher.find_api(params)
     w13db = _get_ds(ds.strip())
     if w13db is None:
         return _db_not_found()
-    img_getter = image_open_v1(w13db, current_app.config)
+    img_getter = image_open(w13db, current_app.config)
     if img_getter is None:
         raise Exception("Failed to instantiate ImageGetter")
-    image = api(img_getter, params)
+    image = api(img_getter, api_params)
     if image:
         return _data_response(image)
     else:
@@ -242,20 +238,18 @@ def _data_response(image):
 
 
 def _image_not_found(message=None):
-    # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
     if not message:
         message = "Image Not Found"
     response = jsonify({"exception": IOError.__name__, "message": message})
-    response.status_code = NOT_FOUND  # ValueError == BAD REQUEST
+    response.status_code = HTTPStatus.NOT_FOUND  # ValueError == BAD REQUEST
     return response
 
 
 def _db_not_found(message=None):
-    # HTTP 404 - NOT FOUND, RFC2616, Section 10.4.5
     if not message:
         message = "Db Not Found"
     response = jsonify({"exception": IOError.__name__, "message": message})
-    response.status_code = NOT_FOUND
+    response.status_code = HTTPStatus.NOT_FOUND
     return response
 
 

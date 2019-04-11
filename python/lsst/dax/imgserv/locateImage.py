@@ -1,9 +1,10 @@
+# This file is part of dax_imgserv.
 #
-# LSST Data Management System
-# Copyright 2015 LSST/AURA.
-#
-# This product includes software developed by the
-# LSST Project (http://www.lsst.org/).
+# Developed for the LSST Data Management System.
+# This product includes software developed by the LSST Project
+# (http://www.lsst.org).
+# See the COPYRIGHT file at the top-level directory of this distribution
+# for details of code ownership.
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -15,14 +16,8 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 #
-# You should have received a copy of the LSST License Statement and
-# the GNU General Public License along with this program.  If not,
-# see <http://www.lsstcorp.org/LegalNotices/>.
-#
-#
-# This code is used to to select an image or a cutout of an image
-# that has its center closest to the specified RA and Dec. The
-# image is retrieved using the Data Butler.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """
 This module is used to locate and retrieve various images
@@ -34,25 +29,18 @@ This module is used to locate and retrieve various images
 
 """
 
-import gzip
-import math
-import os
-import sys
-import time
-
-from flask import current_app
-
-import lsst.daf.base as dafBase
 import lsst.log as log
-from lsst.obs.sdss import sdssMapper
+import lsst.afw.image as afw_image
 
-from .getimage.imagegetter_v1 import ImageGetter_v1
-from .butlerGet import  ButlerGet
+from .getimage.imageget import ImageGetter
+from .butlerGet import ButlerGet
 from .metaservGet import MetaservGet
+from .dispatch import Dispatcher
 
-def image_open_v1(W13db, config, logger=log):
-    """Open access to specified images (raw, calexp,
-    deepCoadd,etc) of specified image repository.
+
+def image_open(W13db, config, logger=log):
+    """Open access to specified images (raw, calexp, deepCoadd,etc) of
+    specified image repository.
 
     Returns
     -------
@@ -61,7 +49,62 @@ def image_open_v1(W13db, config, logger=log):
 
     """
     imagedb = W13db(config, logger)
-    return ImageGetter_v1(imagedb.butlerget, imagedb.metaservget, logger)
+    return ImageGetter(imagedb.butlerget, imagedb.metaservget, logger)
+
+
+def get_image(params, config) -> afw_image:
+    """Get the image per query request synchronously (default).
+
+    Parameters
+    ----------
+    params : `dict`
+        the request parameters.
+    config : `dict`
+        the config file.
+
+    Returns
+    -------
+    image : afw_image
+        the requested image if found.
+
+    """
+    dispatcher = Dispatcher(config["DAX_IMG_CONFIG"])
+    api, api_params = dispatcher.find_api(params)
+    config["DAX_IMG_META_DB"] = api_params.get("db", None)
+    ds = api_params.get("ds", None)
+    if ds is None:
+        raise Exception("Missing ds parameter")
+    w13db = get_ds(ds.strip())
+    img_getter = image_open(w13db, config)
+    if img_getter is None:
+        raise Exception("Failed to instantiate ImageGetter")
+    image = api(img_getter, api_params)
+    return image
+
+
+def get_ds(image_type):
+    """ Get the database corresponding to the image type.
+
+    Parameters
+    ----------
+    image_type: `str`
+        the image type.
+
+    Returns
+    -------
+    ds : 'w13Db`
+        the database object, if found.
+
+    """
+    it = image_type.lower()
+    if it == "raw":
+        return W13RawDb
+    elif it == "calexp":
+        return W13CalexpDb
+    elif it == "deepcoadd":
+        return W13DeepCoaddDb
+    else:
+        raise Exception("Invalid ds parameter")
 
 
 class W13Db:
@@ -174,4 +217,5 @@ class W13DeepCoaddDb(W13Db):
                        butlerPolicy=config["DAX_IMG_BUTLER_POL2"],
                        butlerKeys=config["DAX_IMG_BUTLER_KEYS2"],
                        logger=logger)
+
 
