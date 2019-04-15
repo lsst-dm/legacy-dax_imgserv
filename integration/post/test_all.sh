@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-echo  "Enter ImgServ Endpoint (e.g. localhost:5000)"
+echo  "Enter ImgServ Endpoint (e.g. localhost:5000):"
 read IS_EP
 export IS_EP
-echo "Enter token"
+echo "Enter token:"
 read LSP_TOKEN
 export LSP_TOKEN
 # raw
