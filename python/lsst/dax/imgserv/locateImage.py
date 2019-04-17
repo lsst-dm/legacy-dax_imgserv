@@ -133,7 +133,7 @@ class W13Db:
             The database columns.
         dataRoot : str
             root for the butler.
-        bulterPolicy : str
+        butlerPolicy : str
             The butler policy.
         butlerKeys : str
                      The butler keys for this image data source.
@@ -143,9 +143,10 @@ class W13Db:
         """
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
         self.metaservget = MetaservGet(
-                config["DAX_IMG_META_URL"],
+                config["dax.imgserv.meta.url"],
                 config["DAX_IMG_META_DB"],
                 table, columns, logger)
+
 
 class W13RawDb(W13Db):
     """This class is used to connect to the DC_W13_Stripe82 Raw database.

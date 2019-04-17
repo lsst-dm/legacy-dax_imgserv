@@ -45,17 +45,15 @@ image_soda = Blueprint("api_image_soda", __name__, static_folder="static",
                            template_folder="templates")
 
 
-def load_imgserv_config(config_path, metaserv_url):
-    """ Load configuration info into ImageServ. To be called from webserv.
-        The metaserv_url is used to access image metadata, e.g. image search per
-        parameters in spatial geometry.
+def load_imgserv_config(config_path=None, metaserv_url=None):
+    """ Load service configuration into ImageServ.
 
     Parameters
     ----------
     config_path : `str`
-        configuration directory of this service.
+        configuration location of this service.
     metaserv_url : `str`
-        the location of the image metadata service.
+        service url of the metaserv instance.
     """
     if config_path is None:
         # use default root_path for app
@@ -65,8 +63,9 @@ def load_imgserv_config(config_path, metaserv_url):
     current_app.config.from_json(f_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
-    current_app.config["DAX_IMG_META_URL"] = metaserv_url
     current_app.config["DAX_IMG_CONFIG"] = config_path
+    if metaserv_url is not None:
+        current_app.config["dax.imgserv.meta.url"] = metaserv_url
     current_app.config["imgserv_api"]=os.path.join(config_path,
                                                    "image_api_schema.json")
     # create cache for butler instances
