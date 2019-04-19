@@ -32,6 +32,8 @@ This module is used to fetch metadata based on astronomical parameters.
 
 """
 from sqlalchemy import create_engine
+from sqlalchemy import exc
+
 
 class MetaservGet:
     """Class to fetch image metadata based on astronomical parameters.
@@ -43,16 +45,23 @@ class MetaservGet:
 
         Parameters
         ----------
-        conn :
-                the connection to database server.
-        columns :
+        image_meta_url : `str`
+                the database connection string.
+        meta_db : `str`
+                the database name.
+        table: `str`
+                the table name.
+        columns: `list`
                 the database columns.
-        logger: obj
+        logger: `lsst.log`
                 used for logging messages.
         """
         self._log = logger
         self._table = table
         self._columns = columns
+        if "pymysql" not in image_meta_url:
+            # FIXME: Using pymysql to bypass the SSL_CTX_set_tmp_dh error
+            image_meta_url = image_meta_url.replace("mysql", "mysql+pymysql")
         self._engine = create_engine(image_meta_url+"/"+meta_db)
 
     def nearest_image_containing(self, ra, dec, filtername):

@@ -1,2 +1,2 @@
-jsonschema
-flask
+jsonschema == 3.0.1
+flask == 1.0.2
