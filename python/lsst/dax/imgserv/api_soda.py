@@ -28,6 +28,7 @@ import os
 import traceback
 import tempfile
 import json
+import base64
 from http import HTTPStatus
 
 from flask import Blueprint, make_response, request, current_app
@@ -42,7 +43,30 @@ from .vo.imageSODA import ImageSODA
 from .jsonutil import get_params
 
 image_soda = Blueprint("api_image_soda", __name__, static_folder="static",
-                           template_folder="templates")
+                       template_folder="templates")
+
+
+# log the user name of the auth token
+@image_soda.before_request
+def check_auth():
+    """ Data Formats
+    HTTP Header
+        Authorization: Bearer <JWT token>
+    JWT token
+        header.payload.signature[optional])
+    """
+    auth_header = request.headers.get("Authorization")
+    if auth_header:
+        try:
+            auth_header_parts = auth_header.split(" ")
+            atk = auth_header_parts[1]
+            p = atk.split(".")[1]
+            p = p + ('=' * (len(p) % 4)) # padding for b64
+            p = base64.urlsafe_b64decode(p)
+            user_name = json.loads(p).get("uid")
+            log.info("JWT received for user: {}".format(user_name))
+        except(UnicodeDecodeError, TypeError, ValueError):
+            log.info("unexpected error in JWT")
 
 
 def load_imgserv_config(config_path=None, metaserv_url=None):
