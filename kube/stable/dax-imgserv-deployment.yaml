@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dax-imgserv-deployment
+  labels:
+    app: dax-imgserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dax-imgserv
+  template:
+    metadata:
+      labels:
+        app: dax-imgserv
+    spec:
+      containers:
+      - name: dax-imgserv
+        image: webserv/imgserv:dax_latest
+        env:
+        - name: IMGSERV_CONFIG
+          value: "/etc/dax-webserv/webserv.ini"
+        ports:
+        - containerPort: 5000 
+        volumeMounts:
+        - name: config
+          mountPath: "/etc/dax-webserv"
+          readOnly: true
+        - name: datasets
+          mountPath: "/datasets"
+          readOnly: true
+      volumes:
+      - name: config
+        secret:
+          secretName: dax-imgserv-config
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: dax-imgserv-datasets-claim

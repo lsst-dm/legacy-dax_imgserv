@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dax-stable-imgserv-datasets-volume
+  annotations:
+    volume.beta.kubernetes.io/mount-options: local_lock=all
+spec:
+  accessModes:
+  - ReadOnlyMany
+  capacity:
+    storage: 1100Ti
+  nfs:
+    path: /lsst/datasets
+    server: lsst-nfs.ncsa.illinois.edu
+  persistentVolumeReclaimPolicy: Retain
