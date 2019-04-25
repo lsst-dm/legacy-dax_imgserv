@@ -17,6 +17,7 @@ spec:
       containers:
       - name: dax-imgserv
         image: webserv/imgserv:dax_latest
+        imagePullPolicy: Always
         env:
         - name: IMGSERV_CONFIG
           value: "/etc/dax-webserv/webserv.ini"

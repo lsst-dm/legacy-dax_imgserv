@@ -17,6 +17,7 @@ spec:
       containers:
       - name: dax-imgserv
         image: webserv/imgserv:dax_latest
+        imagePullPolicy: Always
         env:
         - name: WEBSERV_CONFIG
           value: "/etc/dax-webserv/webserv.ini"
@@ -35,4 +36,4 @@ spec:
           secretName: dax-webserv-config
       - name: datasets
         persistentVolumeClaim:
-          claimName: dax-imgserv-datasets-claim
+          claimName: dax-webserv-datasets-claim
