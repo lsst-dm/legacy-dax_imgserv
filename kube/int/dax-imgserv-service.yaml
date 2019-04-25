@@ -1,7 +1,7 @@
 kind: Service
 apiVersion: v1
 metadata:
-  name: dax-imgerv-service
+  name: dax-imgserv-service
 spec:
   selector:
     app: dax-imgserv
