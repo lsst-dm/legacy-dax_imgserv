@@ -22,11 +22,11 @@
 import os
 import unittest
 
-from lsst.dax.imgserv.MetadataFitsDb import dbDestroyCreate
-from lsst.dax.imgserv.MetadataFitsDb import directoryCrawl
-from lsst.dax.imgserv.MetadataFitsDb import isFits
-from lsst.dax.imgserv.MetadataFitsDb import isFitsExt
-from lsst.dax.imgserv.MetadataFitsDb import MetadataFitsDb
+from .MetadataFitsDb import dbDestroyCreate
+from .MetadataFitsDb import directoryCrawl
+from .MetadataFitsDb import isFits
+from .MetadataFitsDb import isFitsExt
+from .MetadataFitsDb import MetadataFitsDb
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 testFile = os.path.join(ROOT, 'testData',
@@ -48,7 +48,8 @@ class MetaDataFitsTest(unittest.TestCase):
     def test_readInFits(self):
         credFile = os.path.expanduser('~/.mysqlAuthLSST')
         if not os.path.isfile(credFile):
-            raise unittest.SkipTest("Required file with credentials '{}' not found.".format(credFile))
+            raise unittest.SkipTest("Required file with credentials '{}' not "
+                                    "found.".format(credFile))
 
         # Destroy existing tables and re-create them
         dbDestroyCreate(credFile, "DELETE")
