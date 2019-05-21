@@ -1,7 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/css" href= "{{ url_for('api_image_soda.static', filename='style.css') }}"?>
-<vosi:availability
-  xmlns:vosi="http://www.ivoa.net/xml/VOSIAvailability/v1.0">
-  <vosi:available>{{ service_status }}</vosi:available>
-  <vosi:note>{{ dal_service_name }} Service is available here.</vosi:note>
-</vosi:availability>
+<VOTABLE version="1.3" xmlns="http://www.ivoa.net/xml/VOTable/v1.3" >
+  <RESOURCE name="availability">
+    <TABLE name="service_status">
+      <DESCRIPTION> Availability of {{ dal_service_name }}</DESCRIPTION>
+      <FIELD name="status" datatype="char" arraysize="*"
+             ucd="meta.id;meta.main">
+      </FIELD>
+      <DATA>
+        <TABLEDATA>
+          <TR><TD> {{ dal_service_name}} is READY </TD></TR>
+        </TABLEDATA>
+      </DATA>
+    </TABLE>
+  </RESOURCE>
+</VOTABLE>

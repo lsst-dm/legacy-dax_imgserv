@@ -21,8 +21,6 @@
 
 # The purpose of this is to read all the FITS files in a directory tree
 # and insert their header information into the metadata database.
-
-
 import gzip
 import os
 import sys
@@ -30,13 +28,13 @@ import time
 
 from sqlalchemy.exc import SQLAlchemyError
 
-import lsst.afw
 from lsst.afw.fits import readMetadata
 import lsst.daf.base as dafBase
 import lsst.log as log
-from lsst.db import utils
-from lsst.db.engineFactory import getEngineFromFile
-from lsst.dax.imgserv.fitsMetadataSchema import schemaToCreate
+from .utils import listTables, createDb, dropDb
+from .engineFactory import getEngineFromFile
+from .fitsMetadataSchema import schemaToCreate
+
 
 def isDateFormatValid(dt):
     try:
@@ -45,13 +43,14 @@ def isDateFormatValid(dt):
     except ValueError:
         return False
 
+
 def executeInsertList(conn, table, columnValues, logger=log):
-    '''Insert the columnValues into 'table'
+    """Insert the columnValues into 'table'
     columnValue is a list of column name and value pairs.
     Values are sanitized.
 
-    Returns lastrowid or None
-    '''
+
+    """
     if len(columnValues) < 1:
         return None
     sql_1 = "INSERT INTO {} (".format(table)
@@ -69,21 +68,24 @@ def executeInsertList(conn, table, columnValues, logger=log):
             colStr += ", {}".format(col)
             valStr += ", %s"
     sql = sql_1 + colStr + ") Values (" + valStr + ")"
-    # '%s' in sql causes lsst.log to have problems, so we log its component pieces.
+    # '%s' in sql causes lsst.log to have problems, so we log its component
+    # pieces.
     logger.debug("InsertList %s %s) VALUES (%s)", sql_1, colStr, values)
     results = conn.execute(sql, values)
     return results.lastrowid
 
+
 class ExpectedHduError(Exception):
     def __init__(self):
-        self.value = "Next HDU not found, which is expected but could be hiding a more serious C error."
+        self.value = "Next HDU not found, which is expected but could be " \
+                     "hiding a more serious C error."
 
     def __str__(self):
         return repr(self.value)
 
 
 class MetadataFits:
-    '''Class for reading FITS headers and temporary storage of header values'''
+    """Class for reading FITS headers and temporary storage of header values"""
     def __init__(self, fileName, logger=log):
         self._fileName = fileName
         self._hdus = 1
@@ -109,8 +111,9 @@ class MetadataFits:
         return self._hdus
 
     def scanFile(self, hdu):
-        # The only way to tell that the last HDU has been read is there is a C++ error.
-        # We catch all exceptions and assume it's the 'past end of file' error.
+        # The only way to tell that the last HDU has been read is there is a C++
+        # error.We catch all exceptions and assume it's the 'past end of file'
+        # error.
         try:
             meta = readMetadata(self._fileName, hdu)
         except:
@@ -120,37 +123,39 @@ class MetadataFits:
         names = metaPl.getOrderedNames()
         lineNum = 0
         for name in names:
-             data = metaPl.get(name)
-             comment = metaPl.getComment(name)
-             self._entries[(name,hdu)] = (data, lineNum, comment)
-             # Increment the line number by 1 for each value so they can be expanded later
-             # in insertMetadataFits.
-             if isinstance(data, tuple):
-                 lineNum += len(data)
-             else:
-                 lineNum += 1
-        #try:
+            data = metaPl.get(name)
+            comment = metaPl.getComment(name)
+            self._entries[(name,hdu)] = (data, lineNum, comment)
+            # Increment the line number by 1 for each value so they can be
+            # expanded later in insertMetadataFits.
+            if isinstance(data, tuple):
+                lineNum += len(data)
+            else:
+                lineNum += 1
+        # try:
         #    wcs = afwGeom.makeSkyWcs(metaPl)
-        #except:
+        # except:
         #    pass
 
     def dump(self):
         s = "File:{} HDUs:{}\n".format(self._fileName, self._hdus)
         for key, value in self._entries.items():
-            s += "( {}:{} ) = ({}, {}, {})\n".format(key[0], key[1], value[0], value[1], value[2])
+            s += "( {}:{} ) = ({}, {}, {})\n".format(key[0], key[1], value[0],
+                                                     value[1], value[2])
         return s
 
 
 class MetadataPosition:
-    '''Insert the position information for the FITS file/hdu into the database.
-    '''
+    """Insert the position information for the FITS file/hdu into the database.
+    """
     def __init__(self, fileId, hdu, conn, entries, logger=log):
         self._fileId = fileId
         self._hdu = hdu
         self._conn = conn
         self._entries = entries
-        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"), ("pDec","PDEC"),
-                           ("rotAng","ROTANG"), ("pDate","DATE"))
+        self._columnKeys = (("equinox","EQUINOX"), ("pRa","PRA"),
+                            ("pDec", "PDEC"), ("rotAng","ROTANG"),
+                            ("pDate","DATE"))
         self._log = logger
 
     def _insert(self):
@@ -188,7 +193,8 @@ class MetadataPosition:
                         columns[column] = float(value)
                     except:
                         pass
-        # if any column values were successfully defined, insert the row into the table
+        # if any column values were successfully defined, insert the row into
+        # the table
         if len(columns) > 0:
             colVal = [("fitsFileId", self._fileId), ("hdu", self._hdu)]
             for col, val in columns.items():
@@ -196,12 +202,10 @@ class MetadataPosition:
             executeInsertList(self._conn, "FitsPositions", colVal, self._log)
 
 
-
-
 class MetadataFitsDb:
-    '''This class is used to collect Metadata from FITS header information
+    """This class is used to collect Metadata from FITS header information
        and place it in the database.
-    '''
+    """
     def __init__(self, credFileName, logger=log):
         self._log = logger
         engine = getEngineFromFile(credFileName)
@@ -216,7 +220,7 @@ class MetadataFitsDb:
             self._log.info("Db engine error %s", e)
 
     def showColumnsInTables(self):
-        tables = utils.listTables(self._conn)
+        tables = listTables(self._conn)
         s = str(tables)
         for tbl in tables:
             ret = self._conn.execute("SHOW COLUMNS from %s" % tbl)
@@ -224,14 +228,15 @@ class MetadataFitsDb:
         return s
 
     def _insertFitsValue(self, fitsFileId, key, value, lineNum, comment):
-        '''Insert a Fits row entry into the FitsKeyValues table
+        """Insert a Fits row entry into the FitsKeyValues table
            for all keywords found in the table.
            The calling function is expected to handle exceptions.
-        '''
-        colVal = [("fitsFileId", fitsFileId), ("fitsKey", key[0]), ("hdu", key[1]),
-                  ("stringValue", value), ("lineNum", lineNum), ("comment", comment) ]
-        intValue = 'NULL'
-        doubleValue = 'NULL'
+        """
+        colVal = [("fitsFileId", fitsFileId), ("fitsKey", key[0]),
+                  ("hdu",  key[1]), ("stringValue", value),
+                  ("lineNum", lineNum), ("comment", comment)]
+        intValue = None
+        doubleValue = None
         try:
             # Converting floats to int results in very inaccurate
             # integer values in some cases, so it is avoided.
@@ -248,11 +253,11 @@ class MetadataFitsDb:
         executeInsertList(self._conn, "FitsKeyValues", colVal, self._log)
 
     def insertFile(self, fileName):
-        '''Insert the header information for 'fileName' into the
+        """Insert the header information for 'fileName' into the
         MetadataDatabase metaDb, but only if it is a FITS file.
         It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
         was added.
-        '''
+        """
         returnVal = -1
         if isFits(fileName):
             mdFits = MetadataFits(fileName)
@@ -261,8 +266,8 @@ class MetadataFitsDb:
         return returnVal
 
     def isFileInDb(self, fileName):
-        '''Test if this filename in the database
-        '''
+        """Test if this filename in the database
+        """
         sql = ("SELECT 1 FROM FitsFiles WHERE "
                "fileName = %s")
         self._log.debug(sql, fileName)
@@ -270,12 +275,11 @@ class MetadataFitsDb:
         r = results.fetchall()
         return len(r) >= 1
 
-
     def insertMetadataFits(self, metadata):
-        '''Insert this FITS file's and its key:value pairs into the database.
+        """Insert this FITS file's and its key:value pairs into the database.
         It returns the FitsFiles.fitsFileId of the file added, or -1 if nothing
         was added.
-        '''
+        """
         fileName = metadata.getFileName()
         hdus     = metadata.getHdus()
         entries  = metadata._entries
@@ -289,41 +293,46 @@ class MetadataFitsDb:
                 r = results.fetchall()
                 # Nothing found, so it needs to be added.
                 if len(r) < 1:
-                    #If this fails for any reason, we do not want the database altered.
-                    # Insert the file into the file table.
+                    # If this fails for any reason, we do not want the database
+                    # altered. Insert the file into the file table.
                     colVal = [("fileName", fileName), ("hduCount", hdus)]
-                    lastFitsFileId = executeInsertList(self._conn, "FitsFiles", colVal, self._log)
+                    lastFitsFileId = executeInsertList(self._conn, "FitsFiles",
+                                                       colVal, self._log)
                     for key, entry in entries.items():
                         value, lineNum, comment = entry
                         # Put in one entry for each element of the tuple
                         if isinstance(value, tuple):
                             num = lineNum
                             for v in value:
-                                # scanFile should be skipping line numbers when it sees a tuple,
-                                # so that there are no duplicates.
-                                self._insertFitsValue(lastFitsFileId, key, v, num, comment)
+                                # scanFile should be skipping line numbers when
+                                # it sees a tuple, so that there are no
+                                # duplicates.
+                                self._insertFitsValue(lastFitsFileId, key, v,
+                                                      num, comment)
                                 num += 1
                         else:
-                            self._insertFitsValue(lastFitsFileId, key, value, lineNum, comment)
+                            self._insertFitsValue(lastFitsFileId, key, value,
+                                                  lineNum, comment)
                     for hdu in range(1,hdus+1):
-                        metadataPosition = MetadataPosition(lastFitsFileId, hdu, self._conn, entries)
+                        metadataPosition = MetadataPosition(lastFitsFileId, hdu,
+                                                            self._conn, entries)
                         metadataPosition._insert()
         except SQLAlchemyError as e:
             self._log.error( "Insert not done due to db ERROR %s -- %s", e, sql)
         return lastFitsFileId
 
-def dbDestroyCreate(credFile, code, logger=log):
-    '''Open the database userDb, delete tables, then re-create them.
-       Returns dbName (or None if code was not passed)
-    '''
 
+def dbDestroyCreate(credFile, code, logger=log):
+    """Open the database userDb, delete tables, then re-create them.
+       Returns dbName (or None if code was not passed)
+    """
     conn = getEngineFromFile(credFile).connect()
     dbName = "{}_fitsTest".format(conn.engine.url.username)
 
-    if (code == "DELETE"):
-        utils.dropDb(conn, dbName, mustExist=False)
+    if code == "DELETE":
+        dropDb(conn, dbName, mustExist=False)
 
-    utils.createDb(conn, dbName)
+    createDb(conn, dbName)
     conn = getEngineFromFile(credFile, database=dbName).connect()
     for q in schemaToCreate:
         logger.info(q)
@@ -332,8 +341,8 @@ def dbDestroyCreate(credFile, code, logger=log):
 
 
 def isFitsExt(fileName):
-    '''Return True if the file extension is reasonable for a FITS file.
-    '''
+    """Return True if the file extension is reasonable for a FITS file.
+    """
     nameSplit = fileName.split('.')
     length = len(nameSplit)
     if length < 2:
@@ -346,9 +355,9 @@ def isFitsExt(fileName):
     return False
 
 def isFits(fileName):
-    '''Return True if a quick peeks says that this is a FITS file.
-    Returns False if the named file does not exist.
-    '''
+    """Return True if a quick peeks says that this is a FITS file.
+       Returns False if the named file does not exist.
+    """
     if not isFitsExt(fileName):
         return False
     if not os.path.exists(fileName):
@@ -363,10 +372,12 @@ def isFits(fileName):
         return True
     return False
 
+
 def directoryCrawl(rootDir, metaDb):
-    '''Crawl throught the directory tree looking for FITS files.
-       Parse the FITS headers for each FITS file found and put them in the database.
-    '''
+    """Crawl throught the directory tree looking for FITS files.
+       Parse the FITS headers for each FITS file found and put them in the
+       database.
+    """
     logger = metaDb._log
     for dirName, subdirList, fileList in os.walk(rootDir):
         logger.info('Found directory: %s', dirName)
@@ -377,8 +388,7 @@ def directoryCrawl(rootDir, metaDb):
 
 
 def test(rootDir="~/test_metadata"):
-    '''This test only works on specific servers and uses a large dataset.
-    '''
+    """This test only works on specific servers and uses a large dataset."""
     credFile = "~/.lsst/dbAuth-dbServ.ini"
 
     # Destroy existing tables and re-create them
@@ -393,10 +403,12 @@ def test(rootDir="~/test_metadata"):
     log.debug(rootDir)
     directoryCrawl(rootDir, metadataFits)
 
+
 def deleteTestDb():
     credFile = "~/.lsst/dbAuth-dbServ.ini"
     # Destroy existing tables and re-create them
     dbDestroyCreate(credFile, "DELETE")
+
 
 if __name__ == "__main__":
     log.setLevel("", log.DEBUG)
