@@ -25,3 +25,4 @@ ups/dax_imgserv.cfgc
 _build.*
 .cache/
 tests/.tests
+webserv.ini
