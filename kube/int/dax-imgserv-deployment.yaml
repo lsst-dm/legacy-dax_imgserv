@@ -33,7 +33,7 @@ spec:
       volumes:
       - name: config
         secret:
-          secretName: dax-webserv-config
+          secretName: dax-imgserv-config
       - name: datasets
         persistentVolumeClaim:
-          claimName: dax-webserv-datasets-claim
+          claimName: datasets-lsst-lsp-int-dax-claim
