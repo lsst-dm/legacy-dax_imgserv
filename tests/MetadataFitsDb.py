@@ -25,6 +25,7 @@ import gzip
 import os
 import sys
 import time
+import unittest
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -202,7 +203,7 @@ class MetadataPosition:
             executeInsertList(self._conn, "FitsPositions", colVal, self._log)
 
 
-class MetadataFitsDb:
+class MetadataFitsDb():
     """This class is used to collect Metadata from FITS header information
        and place it in the database.
     """
@@ -390,10 +391,10 @@ def directoryCrawl(rootDir, metaDb):
 def test(rootDir="~/test_metadata"):
     """This test only works on specific servers and uses a large dataset."""
     credFile = "~/.lsst/dbAuth-dbServ.ini"
-
+    if not os.path.isfile(credFile):
+        raise unittest.SkipTest("Required file with credentials not found")
     # Destroy existing tables and re-create them
     dbDestroyCreate(credFile, "DELETE")
-
     # Open a connection to the database.
     metadataFits = MetadataFitsDb(credFile)
 
