@@ -1,60 +1,64 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?xml-stylesheet type="text/css" href= "{{ url_for('api_image_soda.static', filename='style.css') }}"?>
 <vosi:capabilities
    xmlns:vosi="http://www.ivoa.net/xml/VOSICapabilities/v1.0"
    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-   xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1">
+   xmlns:vod="http://www.ivoa.net/xml/VODataService/v1.1"
+   xmlns:sia="http://www.ivoa.net/xml/SIA/v1.1">
 
-    <h2>
-    <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
-        <interface xsi:type="vod:ParamHTTP">
-            <accessURL use="full">
-                {{ url_vosi_capabilities }}
-            </accessURL>
-        </interface>
-    </capability>
-    </h2>
-
-    <h2>
-    <capability standardID="ivo://ivoa.net/std/DALI#examples">
-        <interface xsi:type="vod:ParamHTTP">
-            <accessURL use="full">
-                {{ url_dali_examples }}
-            </accessURL>
-        </interface>
-    </capability>
-    </h2>
-
-    <h2>
     <capability standardID="ivo://ivoa.net/std/VOSI#availability">
         <interface xsi:type="vod:ParamHTTP" role="std">
-            <accessURL use="full">
-                {{ url_vosi_availability }}
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_availability', _external=True)  }}
             </accessURL>
         </interface>
     </capability>
-    </h2>
 
-    <h2>
+    <capability standardID="ivo://ivoa.net/std/VOSI#capabilities">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_capabilities', _external=True) }}
+            </accessURL>
+        </interface>
+    </capability>
+
+    <capability standardID="ivo://ivoa.net/std/SODA#sync-1.0">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full">{{
+                url_for('api_image_soda.img_sync', _external=True) }}
+            </accessURL>
+        </interface>
+    </capability>
+
+    <capability standardID="ivo://ivoa.net/std/SODA#async-1.0">
+        <interface xsi:type="vod:ParamHTTP" role="std">
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_async', _external=True) }}
+            </accessURL>
+        </interface>
+    </capability>
+
+    <capability standardID="ivo://ivoa.net/std/DALI#examples">
+        <interface xsi:type="vod:ParamHTTP">
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_examples', _external=True) }}
+            </accessURL>
+        </interface>
+    </capability>
+
     <capability standardID="ivo://ivoa.net/std/VOSI#tables">
         <interface xsi:type="vod:ParamHTTP">
-            <accessURL use="full">
-                {{ url_vosi_tables }}
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_tables', _external=True) }}
             </accessURL>
     </interface>
     </capability>
-    </h2>
 
-    <h2>
-    <capability xmlns:tr="http://www.ivoa.net/xml/TAPRegExt/v1.0"
-        standardID="ivo://ivoa.net/std/TAP" xsi:type="tr:TableAccess">
+    <capability standardID="ivo://ivoa.net/std/SIA">
         <interface xsi:type="vod:ParamHTTP" role="std">
-            <accessURL use="full">
-                {{ url_dal_sia }}
+            <accessURL use="full"> {{
+                url_for('api_image_soda.img_sia', _external=True) }}
             </accessURL>
         </interface>
-        <!-- service details from TAPRegExt go here -->
     </capability>
-    </h2>
 
 </vosi:capabilities>
