@@ -19,21 +19,16 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import unittest
 
-class DALUnitTest(unittest.TestCase):
-    """Unit tests for DAL service components
-
-    TODO: implement these tests for generic SODA
-    """
-
-    def test_1(self):
-        return
-
-    def test_2(self):
-        return
+def test_soda_1():
+    # ToDo: update this once SODA operations ready for unit testing
+    ret = True
+    assert(ret is True)
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_soda_2():
+    # ToDo: update this once SODA operations ready for unit testing
+    ret = True
+    assert(ret is True)
+
 

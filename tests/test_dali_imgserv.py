@@ -18,21 +18,26 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""
+This test will launch Imgserv and sodalint (Java lib) process to
+test the DALI implementation, without availability of /datasets.
+"""
+import subprocess
 
-import unittest
+import pytest
 
-class DALUnitTest(unittest.TestCase):
-    """Unit tests for DAL service components.
 
-    TODO: Implement these tests for generic SODA.
-    """
+@pytest.mark.usefixtures('live_server')
+def test_add_endpoint_to_live_server(live_server):
 
-    def test_1(self):
-        return
-
-    def test_2(self):
-        return
-
-if __name__ == "__main__":
-    unittest.main()
+    live_server.start()
+    sodalint = "./sodalint/sodalint-all-1.0.4.jar"
+    imgserv_soda_url = "http://localhost:5000/api/image/soda/"
+    completed = subprocess.run(["java",
+                                "-jar",
+                                sodalint,
+                               imgserv_soda_url],
+                               capture_output=True)
+    assert(completed.returncode == 0)
+    assert("Errors: 0" in str(completed.stdout))
 

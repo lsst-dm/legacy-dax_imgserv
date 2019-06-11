@@ -39,7 +39,7 @@ Shape:
     POLYGON <ra1> <dec1> ... (at least 3 pairs)
 """
 
-Param_Datatype =  {
+Param_Datatype = {
     "Name": [ "UCD", "Unit", "Semantics" ],
     "ID": [ "meta.ref.url;meta.curation", "", "cf. sect. 3.2.1" ],
     "CIRCLE": [ "pos.outline;obs", "deg", "cf. sect. 3.3.2" ],

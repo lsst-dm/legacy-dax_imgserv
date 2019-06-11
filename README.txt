@@ -10,12 +10,10 @@ sudo aptitude install python-flask
   python bin/imageServer.py
 
   # and fetch the urls:
-  http://localhost:5000/api/image
-  http://localhost:5000//api/image/v1/DC_W13_Strip82?ds=raw&ra=359.195&dec=-0.1055&filter=r
-  http://localhost:5000/api/image/v1/DC_W13_Strip82?ds=raw&ra=359.195&dec=-0.1055&filter=r&width=30.0&height=45.0&unit=arcsec
-  http://localhost:5000/api/image/v1/DC_W13_Strip82?ds=raw&ra=359.195&dec=-0.1055&filter=r&width=30&height=45&unit=pixel
-  http://localhost:5000/api/image/v1/DC_W13_Strip82?ds=deepcoadd&ra=19.36995&dec=-0.3146&filter=r
-  http://localhost:5000/api/image/v1/DC_W13_Strip82?ds=deepcoadd&ra=19.36995&dec=-0.3146&filter=r&width=115&height=235&unit=arcsec
-  http://localhost:5000/api/image/v1/DC_W13_Strip82?ds=deepcoadd&ra=19.36995&dec=-0.3146&filter=r&width=115&height=235&unit=pixel
-
-  # more coming soon...
+  http://localhost:5000/api/image/soda/availability
+  http://localhost:5000/api/image/soda/capabilities
+  http://localhost:5000/api/image/soda/examples
+  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=CIRCLE+37.644598+0.104625+100
+  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=RANGE+37.616820222+37.67235778+0.07684722222+0.132402777
+  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=POLYGON+37.6580803+0.0897081+37.6580803+0.1217858+37.6186104+0.1006648
+  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=BRECT+37.644598+0.104625+100+100+pixel

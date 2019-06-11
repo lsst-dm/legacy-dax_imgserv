@@ -143,7 +143,7 @@ class W13Db:
         """
         self.butlerget = ButlerGet(dataRoot, butlerPolicy, butlerKeys, logger)
         self.metaservget = MetaservGet(
-                config["dax.imgserv.meta.url"],
+                config["DAX_IMG_META_URL"],
                 config["DAX_IMG_META_DB"],
                 table, columns, logger)
 
