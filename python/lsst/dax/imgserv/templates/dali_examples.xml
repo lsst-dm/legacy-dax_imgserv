@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<div vocab="http://www.ivoa.net/rdf/examples">
+
+    <div id="brect" resource="#brect" typeof="example">
+    <p> Example 1: <h3 property="name">Synchronous Query by BRECT </h3>
+        <a href="{{ url_for('api_image_soda.img_sync', _external=True) }}">
+            Query by BRECT, pixel
+        </a>
+        <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
+        <span property="generic-parameter" typeof="keyval">
+            <span property="key">ID</span>
+            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="key">POS</span>
+            <span property="value">BRECT 37.644598 104625 100 100 pixel</span>
+        </span>
+    </p>
+    </div>
+
+    <div id="circle" resource="#circle" typeof="example">
+    <p> Example 2: <h3 property="name">Synchronous Query by CIRCLE </h3>
+        <a href="{{ url_for('api_image_soda.img_sync', _external=True) }}">
+            Query by CIRCLE
+        </a>
+        <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
+        <span property="generic-parameter" typeof="keyval">
+            <span property="key">ID</span>
+            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="key">POS</span>
+            <span property="value">CIRCLE 37.6444598 0.104625 100</span>
+        </span>
+    </p>
+    </div>
+
+    <div id="range" resource="#range" typeof="example">
+    <p> Example 3: <h3 property="name">Synchronous Query by RANGE</h3>
+        <a href="{{ url_for('api_image_soda.img_sync', _external=True) }}">
+            Query by RANGE
+        </a>
+        <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
+        <span property="generic-parameter" typeof="keyval">
+            <span property="key">ID</span>
+            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="key">POS</span>
+            <span property="value">RANGE 37.6168202222 37.67235778
+                0.07684722222 0.13240277777</span>
+        </span>
+    </p>
+    </div>
+
+    <div id="polygon" resource="#polygon" typeof="example">
+    <p> Example 4: <h3 property="name">Synchronous Query by POLYGON</h3>
+        <a href="{{ url_for('api_image_soda.img_sync', _external=True) }}">
+            Query by POLYGON
+        </a>
+        <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
+        <span property="generic-parameter" typeof="keyval">
+            <span property="key">ID</span>
+            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="key">POS</span>
+            <span property="value"> POLYGON 37.6580803 0.0897081 37.6580803
+                0.1217858 37.6186104 0.1006648</span>
+        </span>
+    </p>
+    </div>
+
+</div>

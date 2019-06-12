@@ -47,9 +47,8 @@ class ImageSODA(SODA):
         Z : 818 - 922
         Y : 948 - 1060
     """
-    def __init__(self, config, dashboard):
+    def __init__(self, config):
         self._config = config
-        self._dashboard = dashboard
 
     def do_sync(self, params: dict) -> object:
         """ Do sync operation.
@@ -85,6 +84,21 @@ class ImageSODA(SODA):
         """
         raise NotImplementedError("ImageSODA.do_async()")
 
+    def do_sia(self, params: dict) -> object:
+        """ Do async operation.
+
+        Parameters
+        ----------
+        params : `dict`
+            the HTTP parameters.
+
+        Returns
+        -------
+        xml: `str`
+
+        """
+        raise NotImplementedError("ImageSODA.do_sia()")
+
     def get_examples(self, params:dict) -> str:
         """ Get examples for this service.
 
@@ -97,8 +111,21 @@ class ImageSODA(SODA):
         xml: `str`
 
         """
-        params.update(self._dashboard)
         return super().get_examples(params)
+
+    def get_tables(self, params:dict) -> str:
+        """ Get examples for this service.
+
+        Parameters
+        ----------
+        params : `dict`
+
+        Returns
+        -------
+        xml: `str`
+
+        """
+        raise NotImplementedError("ImageSODA.get_tables()")
 
     def get_availability(self, params: dict) -> str:
         """ Get the service availability status.
@@ -112,7 +139,7 @@ class ImageSODA(SODA):
         xml: `str`
 
         """
-        params["status"] = "ACTIVE"
+        params["status"] = "true"  # xsd:boolean type
         params["service_name"] = "Image SODA"
         return super().get_availability(params)
 
@@ -129,7 +156,6 @@ class ImageSODA(SODA):
         xml: `str`
 
         """
-        params.update(self._dashboard)
         return super().get_capabilities(params)
 
     def handle_default(self, params: dict) -> afw_image:

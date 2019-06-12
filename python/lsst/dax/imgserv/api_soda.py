@@ -32,7 +32,7 @@ import base64
 from http import HTTPStatus
 
 from flask import Blueprint, make_response, request, current_app
-from flask import render_template, send_file, jsonify
+from flask import render_template, send_file, jsonify, url_for
 from werkzeug.exceptions import HTTPException
 
 from jsonschema import validate
@@ -88,48 +88,61 @@ def load_imgserv_config(config_path=None, metaserv_url=None):
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_CONFIG"] = config_path
-    if metaserv_url is not None:
-        current_app.config["dax.imgserv.meta.url"] = metaserv_url
+    if metaserv_url:
+        current_app.config["DAX_IMG_META_URL"] = metaserv_url
     current_app.config["imgserv_api"]=os.path.join(config_path,
                                                    "image_api_schema.json")
     # create cache for butler instances
     current_app.butler_instances = {}
     # create SODA service
-    f_dashboard = os.path.join(config_path, "dashboard.json")
-    with open(f_dashboard, "r") as f:
-        dashboard = json.load(f)
-    current_app.soda = ImageSODA(current_app.config, dashboard)
+    current_app.soda = ImageSODA(current_app.config)
 
 
 @image_soda.route("/")
-def index():
+def img_index():
     return make_response(render_template("api_image_soda.html"))
 
 
 @image_soda.route("/availability", methods=["GET"])
-def imagesoda_availability():
+def img_availability():
     xml = current_app.soda.get_availability(_getparams())
     resp = make_response(xml)
-    resp.headers["Content_Type"] = "text/xml"
+    resp.headers["Content-Type"] = "text/xml"
     return resp
 
 
 @image_soda.route("/capabilities", methods=["GET"])
-def imagesoda_capabilities():
+def img_capabilities():
     xml = current_app.soda.get_capabilities(_getparams())
     resp = make_response(xml)
-    resp.headers["Content_Type"] = "text/xml"
+    resp.headers["Content-Type"] = "text/xml"
     return resp
 
 
 @image_soda.route("/examples", methods=["GET"])
-def imagesoda_examples():
+def img_examples():
     html = current_app.soda.get_examples(_getparams())
     return make_response(html)
 
 
+@image_soda.route("/tables", methods=["GET"])
+def img_tables():
+    xml = current_app.soda.get_tables(_getparams())
+    return make_response(xml)
+
+
+@image_soda.route("/sia", methods=["GET"])
+def img_sia():
+    resp = current_app.soda.do_sia(_getparams())
+    return make_response(resp)
+
+
 @image_soda.route("/sync", methods=["GET", "PUT", "POST"])
-def imagesoda_sync():
+def img_sync():
+    if not request.args:
+        soda_url = url_for('api_image_soda.img_sync', _external=True)
+        # no parameters present, return service status
+        return _service_response(soda_url)
     image = current_app.soda.do_sync(_getparams())
     if image:
         return _data_response(image)
@@ -137,10 +150,13 @@ def imagesoda_sync():
         return _image_not_found()
 
 
-@image_soda.route("/async", methods=["POST"])
-def imagesoda_async():
-    params = _getparams()
-    xml = current_app.soda.do_async(params)
+@image_soda.route("/async", methods=["GET", "POST"])
+def img_async():
+    if not request.args:
+        # no parameters present, return service status
+        soda_url = url_for('api_image_soda.img_async', _external=True)
+        return _service_response(soda_url)
+    xml = current_app.soda.do_async(_getparams())
     resp = make_response(xml)
     resp.headers["Content_Type"] = "text/xml"
     return resp
@@ -148,7 +164,7 @@ def imagesoda_async():
 
 @image_soda.errorhandler(HTTPException)
 @image_soda.errorhandler(Exception)
-def imagesoda_unhandled_exceptions(error):
+def unhandled_exceptions(error):
     err = {
         "exception": error.__class__.__name__,
         "message": error.args[0],
@@ -161,13 +177,24 @@ def imagesoda_unhandled_exceptions(error):
     return resp
 
 
+def _service_response(soda_url):
+    """ Return service info using DALI template.
+    """
+    resp = make_response(render_template("soda_descriptor.xml",
+                                         soda_ep=soda_url),
+                         HTTPStatus.OK)
+    resp.headers["Content-Type"] = "text/xml"
+    return resp
+
+
 @image_soda.errorhandler(HTTPStatus.NOT_FOUND)
 def _image_not_found():
     """ Return a generic error using DALI template.
     """
     message = "Image Not Found"
-    resp = make_response(render_template("dali_error.xml",
-                                         dali_error_msg=message),
+    resp = make_response(render_template("dali_response.xml",
+                                         dali_resp_state="Error",
+                                         dali_resp_msg=message),
                          HTTPStatus.NOT_FOUND)
     resp.headers["Content-Type"] = "text/xml"
     return resp
@@ -191,7 +218,7 @@ def _getparams():
         else:
             # GET
             params = request.args.copy()
-    # Mark the API version for later reference
+    # Mark the API variant for later reference
     params["API"] = "SODA"
     return params
 

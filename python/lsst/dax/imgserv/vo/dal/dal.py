@@ -18,11 +18,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-import socket
 from abc import ABC
 
-from flask import render_template
+from flask import render_template, url_for, request
 
 """
 This module provides REST implementation of DALI/VOSI for resources as defined
@@ -127,9 +125,7 @@ class DAL(ABC):
             the response in xml.
 
         """
-        sync_url = "https://" + socket.getfqdn() + params["base"]+"/sync"
-        resp = render_template("dali_examples.html",
-                               url_dali_sync=sync_url)
+        resp = render_template("dali_examples.xml")
         return resp
 
     def get_availability(self, params: dict) -> str:
@@ -165,17 +161,5 @@ class DAL(ABC):
             the response in xml.
 
         """
-        service_ep = socket.getfqdn()
-        url_base = "https://"+service_ep + params["base"]
-        url_cap = url_base + params["vosi-capabilities"]
-        url_avail = url_base + params["vosi-availability"]
-        url_tables = url_base + params["vosi-tables"]
-        url_examples = url_base + params["dali-examples"]
-        url_sia = url_base + params["dal-sia"]
-        resp = render_template("vosi_capabilities.xml",
-                               url_vosi_capabilities=url_cap,
-                               url_vosi_availability=url_avail,
-                               url_vosi_tables=url_tables,
-                               url_dali_examples=url_examples,
-                               url_dal_sia=url_sia)
+        resp = render_template("vosi_capabilities.xml")
         return resp

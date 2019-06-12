@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VOTABLE version="1.3"
+	xmlns="http://www.ivoa.net/xml/VOTable/v1.3" >
+	<RESOURCE type="meta" utype="adhoc:service" name="this">
+		<PARAM name="standardID" datatype="char" arraysize="*"
+			value="ivo://ivoa.net/std/SODA#sync-1.0" />
+		<PARAM name="accessURL" datatype="char" arraysize="*"
+			value="{{ soda_ep }}" />
+		<GROUP name="inputParams">
+			<PARAM name="ID" ucd="meta.ref.url;meta.curation" datatype="char"
+				arraysize="*" />
+			<PARAM name="POS" ucd="phys.angArea;obs" datatype="char"
+				arraysize="*" xtype="region">
+			</PARAM>
+			<PARAM name="CIRCLE" ucd="phys.angArea;obs" unit="deg" datatype="double"
+				arraysize="3" xtype="circle">
+			</PARAM>
+			<PARAM name="POLYGON" ucd="phys.angArea;obs" unit="deg" datatype="double"
+				arraysize="*" xtype="polygon">
+			</PARAM>
+			<PARAM name="BAND" ucd="em.wl" unit="m" datatype="double"
+				arraysize="2" xtype="interval">
+			</PARAM>
+			<PARAM name="TIME" ucd="time.interval;obs.exposure" unit="d"
+				datatype="double" arraysize="2" xtype="interval">
+			</PARAM>
+			<PARAM name="POL" ucd="meta.code;phys.polarization" datatype="char"
+				arraysize="*">
+			</PARAM>
+		</GROUP>
+	</RESOURCE>
+</VOTABLE>
