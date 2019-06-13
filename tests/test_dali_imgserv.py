@@ -22,6 +22,7 @@
 This test will launch Imgserv and sodalint (Java lib) process to
 test the DALI implementation, without availability of /datasets.
 """
+import os
 import subprocess
 
 import pytest
@@ -29,15 +30,15 @@ import pytest
 
 @pytest.mark.usefixtures('live_server')
 def test_add_endpoint_to_live_server(live_server):
-
     live_server.start()
-    sodalint = "./sodalint/sodalint-all-1.0.4.jar"
-    imgserv_soda_url = "http://localhost:5000/api/image/soda/"
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+    jar_file_path = dir_path + "/sodalint/sodalint-all-1.0.4.jar"
+    soda_base_url = live_server.url("/api/image/soda/")
     completed = subprocess.run(["java",
                                 "-jar",
-                                sodalint,
-                               imgserv_soda_url],
-                               capture_output=True)
+                                jar_file_path,
+                                soda_base_url], capture_output=True)
     assert(completed.returncode == 0)
     assert("Errors: 0" in str(completed.stdout))
+    live_server.stop()
 

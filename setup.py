@@ -10,6 +10,6 @@ setup(
               'lsst.dax.imgserv.vo.dal', 'lsst.dax.imgserv.vo.soda'],
     zip_safe=False,
     use_scm_version={'version_scheme': 'post-release'},
-    setup_requires=['setuptools_scm'],
-    tests_require=['pytest-flask'],
+    setup_requires=['setuptools_scm', 'pytest-flask', 'pytest-runner'],
+    tests_require=['pytest'],
 )
