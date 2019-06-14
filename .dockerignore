@@ -6,6 +6,7 @@
 *Lib.py
 *~
 core.*
+pytest_session.txt
 .pytest_cache/
 .sconf_temp
 .sconsign.dblite
@@ -25,5 +26,16 @@ ups/dax_imgserv.cfgc
 .idea
 _build.*
 .cache/
-tests/.tests
+.coverage
+.dockerignore
+imgserv.egg-info
+kube
+log/
+build/
+dist/
+examples/
+tests/pytest_session.txt
+tests/.tests/
+tests/__init__.pyc
+tests/.pytest_cache/
 **/__pycache__
