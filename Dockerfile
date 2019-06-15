@@ -20,6 +20,10 @@ ADD /rootfs /
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
    pip install .'
 
+# Run unit tests
+RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
+   /app/lsst-dm-ci/run_tests.sh'
+
 ENV UWSGI_THREADS=40
 ENV UWSGI_PROCESSES=1
 ENV UWSGI_OFFLOAD_THREADS=10

@@ -26,6 +26,9 @@
 set -e
 
 # Build and push container image for ImgServ production version
+if [ -z "$DOCKER_REPO" ]; then
+    DOCKER_REPO="webserv/imgserv"
+fi
 
 TAG="$DOCKER_REPO:dax_latest"
 DOCKERDIR="../"
@@ -33,6 +36,9 @@ DOCKERDIR="../"
 # Build the image
 printf "Building image %s from %s\n" "$TAG" "$DOCKERDIR"
 docker build --tag="$TAG" "$DOCKERDIR"
+# printf "Running unit tests ..."
+# docker run -it "$TAG" /app/lsst-dm-ci/run_tests.sh
+printf "Push the image ..."
 docker push "$TAG"
 
 printf "Image %s built successfully\n" "$TAG"
