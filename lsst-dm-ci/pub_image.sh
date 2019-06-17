@@ -32,9 +32,7 @@ fi
 
 TAG="$DOCKER_REPO:dax_latest"
 
-cd /opt/lsst/software/stack
-source ./loadLSST.bash
-setup lsst_distrib
-cd /app/tests
-pytest
-printf "Image %s tested successfully\n" "$TAG"
+printf "Push/publish the image ..."
+docker push "$TAG"
+
+printf "Image %s pushed successfully\n" "$TAG"
