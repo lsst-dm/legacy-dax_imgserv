@@ -11,7 +11,7 @@ RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
 
 ADD requirements.txt .
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
-   pip install -r requirements.txt'
+   pip install --user -r requirements.txt'
 
 # Add the code in
 ADD . /app
