@@ -18,6 +18,7 @@ ADD . /app
 ADD /rootfs /
 
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
+   setup lsst_distrib; \
    pip install .'
 
 ENV UWSGI_THREADS=40
