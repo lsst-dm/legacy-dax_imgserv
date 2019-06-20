@@ -19,7 +19,7 @@ ADD /rootfs /
 
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
    setup lsst_distrib; \
-   pip install ---no-cache-dir-user .'
+   pip install --no-cache-dir --user .'
 
 ENV UWSGI_THREADS=40
 ENV UWSGI_PROCESSES=1
