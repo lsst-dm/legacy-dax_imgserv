@@ -11,14 +11,14 @@ RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
 
 ADD requirements.txt .
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
-   pip install --user -r requirements.txt'
+   pip install --no-cache-dir --user -r requirements.txt'
 
 # Add the code in
 ADD . /app
 ADD /rootfs /
 
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
-   pip install .'
+   pip install --no-cache-dir --user .'
 
 ENV UWSGI_THREADS=40
 ENV UWSGI_PROCESSES=1
