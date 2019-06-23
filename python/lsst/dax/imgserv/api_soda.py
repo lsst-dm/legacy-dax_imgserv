@@ -90,8 +90,11 @@ def load_imgserv_config(config_path=None, metaserv_url=None):
     current_app.config["DAX_IMG_CONFIG"] = config_path
     if metaserv_url:
         current_app.config["DAX_IMG_META_URL"] = metaserv_url
-    current_app.config["imgserv_api"]=os.path.join(config_path,
-                                                   "image_api_schema.json")
+    else:
+        current_app.config["DAX_IMG_META_URL"] = current_app.config[
+            "dax.imgserv.meta.url"]
+    current_app.config["imgserv_api"] = os.path.join(config_path,
+                                                     "image_api_schema.json")
     # create cache for butler instances
     current_app.butler_instances = {}
     # create SODA service
