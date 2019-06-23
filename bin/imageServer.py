@@ -71,7 +71,8 @@ app.config.update(webserv_config)
 imgserv_config_path = os.path.join(app.instance_path, "imgserv")
 with app.app_context():
     # imgserv_config_path only prep for use of instance folder later
-    is_api_soda.load_imgserv_config()
+    is_api_soda.load_imgserv_config(metaserv_url=webserv_config[
+        "dax.imgserv.meta.url"])
 
 # Extract werkzeug options, if necessary
 # It's okay that we put them into app.config above
