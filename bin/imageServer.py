@@ -61,17 +61,17 @@ with open(os.path.expanduser(defaults_file)) as cfg:
 webserv_config = dict(imgserv_parser.items("webserv"))
 default_db_url = webserv_config.get("dax.webserv.db.url")
 
-# Initialize configuration for ImageServ
-imgserv_config_path = os.path.join(app.instance_path, "imgserv")
-with app.app_context():
-    # imgserv_config_path only prep for use of instance folder later
-    is_api_soda.load_imgserv_config()
-
 # Execute this last, we can overwrite anything we don't like
 app.config["default_engine"] = create_engine(default_db_url,
                                              pool_size=10,
                                              pool_recycle=3600)
 app.config.update(webserv_config)
+
+# Initialize configuration for ImageServ
+imgserv_config_path = os.path.join(app.instance_path, "imgserv")
+with app.app_context():
+    # imgserv_config_path only prep for use of instance folder later
+    is_api_soda.load_imgserv_config()
 
 # Extract werkzeug options, if necessary
 # It's okay that we put them into app.config above
