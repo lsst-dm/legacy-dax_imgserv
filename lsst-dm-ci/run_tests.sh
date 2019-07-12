@@ -25,6 +25,8 @@
 
 set -e
 
+USER="lsst"
+
 # Build and push container image for ImgServ production version
 if [[ -z "$DOCKER_REPO" ]]; then
     DOCKER_REPO="webserv/imgserv"
