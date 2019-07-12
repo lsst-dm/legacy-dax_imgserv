@@ -32,7 +32,7 @@ if [[ -z "$DOCKER_REPO" || "$DOCKER_REPO" == '$repo' ]]; then
 fi
 
 TAG="$DOCKER_REPO:dax_latest"
-DOCKERDIR="../"
+DOCKERDIR="."
 
 # Build the image
 printf "Building image %s from %s\n" "$TAG" "$DOCKERDIR"
