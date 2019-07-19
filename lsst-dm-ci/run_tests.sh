@@ -25,18 +25,17 @@
 
 set -e
 
-USER="lsst"
-
-# Build and push container image for ImgServ production version
-if [[ -z "$DOCKER_REPO" ]]; then
-    DOCKER_REPO="webserv/imgserv"
-fi
-
-TAG="$DOCKER_REPO:dax_latest"
-
+# setup lsst stack
 cd /opt/lsst/software/stack
 source ./loadLSST.bash
 setup lsst_distrib
+
+# setup imgserv
+cd /app
+pip install --no-cache-dir --user -r requirements.txt
+pip install --no-cache-dir --user .
+
+#run pytest
 cd /app/tests
 pytest
 printf "Image %s tested successfully\n" "$TAG"
