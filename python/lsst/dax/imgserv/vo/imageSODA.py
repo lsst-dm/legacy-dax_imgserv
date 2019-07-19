@@ -24,6 +24,8 @@ import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
 from .soda.soda import SODA
+from ..taskqueue.tasks import get_image_task
+from ..hashutil import Hasher
 
 """ This module implements the IVOA's SODA v1.0 for DAX ImageServ.
 
@@ -70,7 +72,8 @@ class ImageSODA(SODA):
                                       "Request")
 
     def do_async(self, params: dict) -> object:
-        """ Do async operation.
+        """ Do async operation. Create a task for the request and enqueue for
+        processing, then return the URL for user to retrieve the result.
 
         Parameters
         ----------
@@ -79,10 +82,14 @@ class ImageSODA(SODA):
 
         Returns
         -------
-        xml: `str`
+        resp: `str`
+            the status.
 
         """
-        raise NotImplementedError("ImageSODA.do_async()")
+        req_key = Hasher.md5(params)
+        task = get_image_task.delay(params)
+        resp = {"req_key": req_key, "task_id": task.id}
+        return resp
 
     def do_sia(self, params: dict) -> object:
         """ Do async operation.

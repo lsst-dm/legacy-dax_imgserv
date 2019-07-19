@@ -165,6 +165,41 @@ def img_async():
     return resp
 
 
+@image_soda.route("/async-jobs", methods=["GET"])
+def img_async_jobs():
+
+    return
+
+@image_soda.route("/async-jobs:/<id>", methods=["GET"])
+def img_async_jobs_id(id):
+
+    return
+
+
+@image_soda.route("/async-jobs/<id>/parameters", methods=["GET"])
+def img_async_jobs_parameters(id):
+
+    return
+
+
+@image_soda.route("/async-jobs/<id>/results", methods=["GET"])
+def img_async_jobs_results(id):
+
+    return
+
+
+@image_soda.route("/async-jobs/<id>/results/result", methods=["GET"])
+def img_async_jobs_result(id):
+
+    return
+
+
+@image_soda.route("/async-jobs/<id>/error", methods=["GET"])
+def img_async_jobs_error(id):
+
+    return
+
+
 @image_soda.errorhandler(HTTPException)
 @image_soda.errorhandler(Exception)
 def unhandled_exceptions(error):
