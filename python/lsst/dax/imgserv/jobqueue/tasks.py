@@ -25,7 +25,6 @@ from celery import Celery
 
 from flask import current_app
 from ..vo.imageSODA import ImageSODA
-from ..hashutil import Hasher
 
 
 def make_celery(app):
@@ -51,17 +50,23 @@ def get_image_task(params: dict, task_id=None):
         the unique task id assigned by celery
     Returns
     -------
-    image: `lsst.afw.image`
-        the image object
+    image: `str`
+        the query result status
     """
-    req_key = Hasher.md5(params)
+    rd = redis.Redis()
+    qr = rd.get(task_id)
+    qr["phase"] = "EXECUTING"
+    rd.set(task_id, qr)
     soda = ImageSODA(current_app.config)
     image = soda.do_async(params)
-    # save image in a temp file
-    fp = tempfile.NamedTemporaryFile()
-    image.writeFits(fp.name)
-    # store file in Redis
-    r = redis.Redis()
-    result = {"task_id": task_id, "req": req_key, "image_result": fp.name}
-    r.mset(result)
-    return result
+    if image:
+        # save image in a temp file
+        fp = tempfile.NamedTemporaryFile()
+        image.writeFits(fp.name)
+        # store file in Redis
+        qr["image_location"] = fp.name
+        qr["phase"] = "COMPLETED"
+    else:
+      qr["phase"] = "ERROR"
+    rd.set(task_id, qr)
+    return qr

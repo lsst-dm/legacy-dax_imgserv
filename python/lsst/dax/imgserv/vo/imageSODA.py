@@ -24,7 +24,7 @@ import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
 from .soda.soda import SODA
-from ..taskqueue.tasks import get_image_task
+# from ..jobqueue.tasks import get_image_task
 from ..hashutil import Hasher
 
 """ This module implements the IVOA's SODA v1.0 for DAX ImageServ.
@@ -87,8 +87,11 @@ class ImageSODA(SODA):
 
         """
         req_key = Hasher.md5(params)
-        task = get_image_task.delay(params)
-        resp = {"req_key": req_key, "task_id": task.id}
+    #    task = get_image_task.delay(params)
+        resp = {"req_key": req_key,
+                # "job_id": task.id,
+                "job_id": "123",
+                "phase": "PENDING"}
         return resp
 
     def do_sia(self, params: dict) -> object:

@@ -32,7 +32,7 @@ import base64
 from http import HTTPStatus
 
 from flask import Blueprint, make_response, request, current_app
-from flask import render_template, send_file, jsonify, url_for
+from flask import render_template, send_file, jsonify, url_for, redirect
 from werkzeug.exceptions import HTTPException
 
 from jsonschema import validate
@@ -41,6 +41,7 @@ import lsst.log as log
 
 from .vo.imageSODA import ImageSODA
 from .jsonutil import get_params
+import redis
 
 image_soda = Blueprint("api_image_soda", __name__, static_folder="static",
                        template_folder="templates")
@@ -159,44 +160,67 @@ def img_async():
         # no parameters present, return service status
         soda_url = url_for('api_image_soda.img_async', _external=True)
         return _service_response(soda_url)
-    xml = current_app.soda.do_async(_getparams())
-    resp = make_response(xml)
-    resp.headers["Content_Type"] = "text/xml"
-    return resp
+    new_job = current_app.soda.do_async(_getparams())
+    return redirect(url_for('api_image_soda.img_async_jobs_id',
+                            job_id = new_job.job_id,
+                            _external=True))
 
 
 @image_soda.route("/async-jobs", methods=["GET"])
 def img_async_jobs():
-
-    return
-
-@image_soda.route("/async-jobs:/<id>", methods=["GET"])
-def img_async_jobs_id(id):
-
+    # return all jobs in the system
     return
 
 
-@image_soda.route("/async-jobs/<id>/parameters", methods=["GET"])
-def img_async_jobs_parameters(id):
+@image_soda.route("/async-jobs/<job_id>", methods=["GET"])
+def img_async_jobs_id(job_id):
+    # return the job info
+    r = redis.Redis()
+    result = r.get(job_id)
+    resp = ""
+    if result:
 
+        return resp
+
+
+@image_soda.route("/async-jobs/<job_id>/parameters", methods=["GET", "POST"])
+def img_async_jobs_parameters(job_id):
+    rd = redis.Redis()
+    qr = rd.get(job_id)
+    if request.method == "POST":
+        return
+
+    if qr.phase == "PENDING" and request.method == "POST":
+        # PENDING: can update the parameters
+        qr.params = _getparams()
+    return
+
+@image_soda.route("/async-jobs/<job_id>/results", methods=["GET"])
+def img_async_jobs_results(job_id):
+    # return the list of result URI(s)
     return
 
 
-@image_soda.route("/async-jobs/<id>/results", methods=["GET"])
-def img_async_jobs_results(id):
+@image_soda.route("/async-jobs/<job_id>/results/<result_id>", methods=["GET"])
+def img_async_jobs_result(job_id, result_id):
+    # retrieve the image result
+    rd = redis.Redis()
+    res = rd.get(job_id)
+    if result_id in res.results:
+        image_file =res.results["result_id"]
+    if res.phase == "COMPLETED":
+        resp = send_file(image_file,
+                    mimetype="image/fits",
+                    as_attachment=True,
+                    attachment_filename="image.fits")
+        return resp
+    else:
+        return _uws_job_response(res.job_url)
 
-    return
 
-
-@image_soda.route("/async-jobs/<id>/results/result", methods=["GET"])
-def img_async_jobs_result(id):
-
-    return
-
-
-@image_soda.route("/async-jobs/<id>/error", methods=["GET"])
-def img_async_jobs_error(id):
-
+@image_soda.route("/async-jobs/<job_id>/error", methods=["GET"])
+def img_async_jobs_error(job_id):
+    # return the error info
     return
 
 
@@ -220,6 +244,16 @@ def _service_response(soda_url):
     """
     resp = make_response(render_template("soda_descriptor.xml",
                                          soda_ep=soda_url),
+                         HTTPStatus.OK)
+    resp.headers["Content-Type"] = "text/xml"
+    return resp
+
+
+def _uws_job_response(uws_job_result_url):
+    """ Return job info using UWS template.
+    """
+    resp = make_response(render_template("uws_job_result.xml",
+                                         job_result_url=uws_job_result_url),
                          HTTPStatus.OK)
     resp.headers["Content-Type"] = "text/xml"
     return resp

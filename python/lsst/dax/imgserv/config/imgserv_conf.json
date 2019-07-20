@@ -12,5 +12,7 @@
   "DAX_IMG_BUTLER_POL0": "fpC",
   "DAX_IMG_BUTLER_POL1": "calexp",
   "DAX_IMG_BUTLER_POL2": "deepCoadd",
-  "DAX_IMG_SKYMAP_DEEPCOADD": "deepCoadd_skyMap"
+  "DAX_IMG_SKYMAP_DEEPCOADD": "deepCoadd_skyMap",
+  "CELERY_RESULT_BACKEND": "redis://localhost:6379/0",
+  "CELERY_BROKER_URL": "amqp://guest:guest@localhost:5672//"
 }
