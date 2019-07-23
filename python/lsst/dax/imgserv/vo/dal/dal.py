@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 from abc import ABC
 
-from flask import render_template, url_for, request
+from flask import render_template
 
 """
 This module provides REST implementation of DALI/VOSI for resources as defined
@@ -163,3 +163,20 @@ class DAL(ABC):
         """
         resp = render_template("vosi_capabilities.xml")
         return resp
+
+    def get_jobs(self, params: dict) -> str:
+        """ Get the service capabilities.
+
+        Parameters
+        ----------
+        params : `dict`
+            the request parameters.
+
+        Returns
+        -------
+        response: `str`
+            the response in xml.
+
+        """
+        # TODO: Need to keep track of user and associated jobs somehow
+        raise NotImplemented("DAL.get_jobs()")

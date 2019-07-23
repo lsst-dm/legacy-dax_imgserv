@@ -24,8 +24,8 @@ import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
 from .soda.soda import SODA
-# from ..jobqueue.tasks import get_image_task
-from ..hashutil import Hasher
+# use following format for circular reference
+import lsst.dax.imgserv.jobqueue.imageworker as celery_q
 
 """ This module implements the IVOA's SODA v1.0 for DAX ImageServ.
 
@@ -86,13 +86,9 @@ class ImageSODA(SODA):
             the status.
 
         """
-        req_key = Hasher.md5(params)
-    #    task = get_image_task.delay(params)
-        resp = {"req_key": req_key,
-                # "job_id": task.id,
-                "job_id": "123",
-                "phase": "PENDING"}
-        return resp
+        # enqueue the request
+        task = celery_q.get_image_task.delay(params)
+        return task.task_id
 
     def do_sia(self, params: dict) -> object:
         """ Do async operation.

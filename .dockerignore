@@ -39,3 +39,4 @@ tests/.tests/
 tests/__init__.pyc
 tests/.pytest_cache/
 **/__pycache__
+dump.rdb

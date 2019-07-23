@@ -1,1 +1,1 @@
-__all__ = ['getimage', 'vo']
+__all__ = ['getimage', 'vo', 'jobqueue']

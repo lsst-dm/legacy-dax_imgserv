@@ -2,7 +2,7 @@
 <uws:job xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0">
   <uws:jobId>{{ uws_job_id }}</uws:jobId>
   <uws:runId>test</uws:runId>
-  <uws:ownerId xsi:nil="true" />
+  <uws:ownerId/>
   <uws:phase>{{ uws_job_phase }}</uws:phase>
   <uws:startTime/>
   <uws:endTime/>

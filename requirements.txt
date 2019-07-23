@@ -1,5 +1,5 @@
 jsonschema >= 3.0.1
 flask >= 1.1.1
 pytest-flask >= 0.10.0
-celery
-redis
+celery >= 4.3.0
+redis >= 3.3.2
