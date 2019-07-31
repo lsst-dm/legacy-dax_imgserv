@@ -47,16 +47,16 @@ image_soda = Blueprint("api_image_soda", __name__, static_folder="static",
                        template_folder="templates")
 
 # map state (celery) to phase(IVOA UWS)
-map_phase_from_state = {"COMPLETED": "SUCCESS",
+map_phase_from_state = {"SUCCESS": "COMPLETED",
                         "PENDING": "PENDING",
                         "QUEUED": "QUEUED",
-                        "EXECUTING": "STARTED",
-                        "ERROR": "FAILURE",
-                        "ABORTED": "REVOKED",
-                        "UNKNOWN": "NA",
-                        "HELD": "NA",
-                        "SUSPENDED": "NA",
-                        "ARCHIVED": "NA"
+                        "STARTED": "EXECUTING",
+                        "FAILURE": "ERROR",
+                        "REVOKED": "ABORTED",
+                        "RETRY": "UNKNOWN",
+                        "HELD": "HELD",            # ToDo: define HELD
+                        "SUSPENDED": "SUSPENDED",  # ToDo: define SUSPENDED
+                        "ARCHIVED": "ARCHIVED"     # ToDo: define ARCHIVED
                         }
 
 # log the user name of the auth token
@@ -204,7 +204,7 @@ def img_async():
 @image_soda.route("/async-jobs", methods=["GET"])
 def img_async_jobs():
     """ Get all the jobs of the user in the system. """
-    if session["user"]:
+    if session.get("user"):
         xml = current_app.soda.get_jobs(_getparams())
         resp = make_response(xml)
         resp.headers["Content-Type"] = "text/xml"
@@ -270,7 +270,7 @@ def img_async_job_duration(job_id: str):
     xml: `str`
         the job duration info.
     """
-    raise NotImplemented("/executionduration not implemented")
+    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
 
 
 @image_soda.route("/async-jobs/<job_id>/destruction", methods=["GET"])
@@ -286,7 +286,7 @@ def img_async_job_destruction(job_id: str):
     xml : `str`
         the destruction instant for the job.
     """
-    raise NotImplemented("/destruction not implemented")
+    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
 
 
 @image_soda.route("/async-jobs/<job_id>/error", methods=["GET"])
@@ -319,12 +319,31 @@ def img_async_job_quote(job_id: str):
     xml : `str`
         the quote info for the job.
     """
-    raise NotImplemented("/quote not implemented")
+    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
 
 
 @image_soda.route("/async-jobs/<job_id>/results", methods=["GET"])
 def img_async_job_results(job_id: str):
-    """ Get the result(s) for the job.
+    """ Get the results for the job.
+
+    Parameters
+    ----------
+    job_id : `str`
+
+    Returns
+    -------
+    xml : `str`
+        the job results.
+    """
+    # For now redirect to single result
+    return redirect(url_for('api_image_soda.img_async_job_results_result',
+                            job_id=job_id,
+                            _external=True))
+
+
+@image_soda.route("/async-jobs/<job_id>/results/result", methods=["GET"])
+def img_async_job_results_result(job_id: str):
+    """ Get the single result for the job.
 
     Parameters
     ----------
@@ -337,7 +356,7 @@ def img_async_job_results(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     if ar.state == "SUCCESS":
-        result = ar.get()  # get image file and remove task from celery
+        result = ar.get()  # retrieve path to the image output
         resp = send_file(result,
                          mimetype="image/fits",
                          as_attachment=True,
@@ -362,10 +381,13 @@ def img_async_job_parameters(job_id: str):
         the job parameters.
     """
     ar = app_celery.AsyncResult(job_id)
-    params=ar.args
+    if ar.state in ["PENDING", "STARTED"]:
+        params=str(ar.args)
+    else:
+        params = "NOT AVAILABLE"
     if ar.state == "PENDING" and request.method == "POST":
-        # ToDo: update the job parameters in PENDING state
-        params = _getparams()
+        # TODO: update the job parameters in PENDING state
+        new_params = _getparams()
     return _uws_job_response_plain("PARAMS="+params)
 
 
@@ -383,7 +405,9 @@ def img_async_job_owner(job_id: str):
         the job owner.
     """
     ar = app_celery.AsyncResult(job_id)
-    user = session["user"] if session["user"] else "UNKNOWN"
+    # ideally owner should be stored somewhere along with the job_id
+    # and assert session against that.
+    user = session["user"] if session.get("user") else "UNKNOWN"
     return _uws_job_response_plain("OWNER="+user)
 
 
