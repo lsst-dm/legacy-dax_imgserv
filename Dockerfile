@@ -2,6 +2,17 @@ FROM lsstsqre/centos:w_latest
 
 MAINTAINER Kenny Lo <kennylo@slac.stanford.edu>
 
+# Add user for testing in jenkins
+USER root
+ARG USERNAME=jenkins
+ARG UID=48435
+ARG GID=202
+RUN groupadd -g $GID -o $USERNAME
+RUN useradd -m -u $UID -g $GID -o -s /bin/bash $USERNAME
+
+# switch to user
+USER lsst
+
 WORKDIR /app
 
 # Setup Dependencies
