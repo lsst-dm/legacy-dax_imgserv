@@ -37,26 +37,17 @@ import click
 
 import lsst.log as log
 
-from configparser import RawConfigParser
-
 from lsst.dax.imgserv.locateImage import image_open
 from lsst.dax.imgserv.dispatch import Dispatcher
 from lsst.dax.imgserv.hashutil import Hasher
 from lsst.dax.imgserv.jsonutil import flatten_json
 from lsst.dax.imgserv.locateImage import get_ds
 
+import etc.imgserv.imgserv_config as imgserv_config
+
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
-defaults_file = os.environ.get("WEBSERV_CONFIG", "~/.lsst/webserv.ini")
-
-# Initialize configuration
-webserv_parser = RawConfigParser()
-webserv_parser.optionxform = str
-
-with open(os.path.expanduser(defaults_file)) as cfg:
-    webserv_parser.readfp(cfg, defaults_file)
-
-webserv_config = dict(webserv_parser.items("webserv"))
+webserv_config = imgserv_config.webserv_config
 imgserv_meta_url = webserv_config.get("dax.imgserv.meta.url")
 
 
@@ -77,11 +68,9 @@ class ImageServCLI(object):
     """
     def __init__(self, config_dir, out_dir):
         # load the configuration file
-        if config_dir:
-            config = os.path.join(config_dir, "imgserv_conf.json")
-        else:
+        if not config_dir:
             config_dir = os.path.join(ROOT, "config")
-            config = os.path.join(config_dir, "imgserv_conf.json")
+        config = imgserv_config.config_json
         with open(config) as f:
             self._config = json.load(f)
         # configure the log file (log4cxx)

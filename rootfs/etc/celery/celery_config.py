@@ -28,4 +28,13 @@ broker_url = "redis://localhost:6379"
 # Use redis for storing the results
 result_backend = "redis://localhost:6379/0"
 
+# worker event setting
+worker_send_task_events = True
+
+# task event setting
+task_send_sent_event = True
+
+# Enable STARTED state
+task_track_started = True
+
 task_annotations = {"jobqueue.imageworker": {"description": "ImgServ Worker"}}

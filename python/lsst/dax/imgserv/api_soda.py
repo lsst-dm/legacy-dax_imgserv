@@ -42,6 +42,7 @@ import lsst.log as log
 from .vo.imageSODA import ImageSODA
 from .jsonutil import get_params
 from .jobqueue.imageworker import make_celery, app_celery
+import etc.imgserv.imgserv_config as imgserv_config
 
 image_soda = Blueprint("api_image_soda", __name__, static_folder="static",
                        template_folder="templates")
@@ -54,9 +55,9 @@ map_phase_from_state = {"SUCCESS": "COMPLETED",
                         "FAILURE": "ERROR",
                         "REVOKED": "ABORTED",
                         "RETRY": "UNKNOWN",
-                        "HELD": "HELD",            # ToDo: define HELD
-                        "SUSPENDED": "SUSPENDED",  # ToDo: define SUSPENDED
-                        "ARCHIVED": "ARCHIVED"     # ToDo: define ARCHIVED
+                        "HELD": "HELD",            # TODO: DM-20852
+                        "SUSPENDED": "SUSPENDED",  # Define HELD,SUSPENDED
+                        "ARCHIVED": "ARCHIVED"     # and ARCHIVED
                         }
 
 # log the user name of the auth token
@@ -96,7 +97,7 @@ def load_imgserv_config(config_path=None, metaserv_url=None):
     if config_path is None:
         # use default root_path for app
         config_path = image_soda.root_path+"/config/"
-    f_json = os.path.join(config_path, "imgserv_conf.json")
+    f_json = imgserv_config.config_json
     # load the general config file
     current_app.config.from_json(f_json)
     # configure the log file (log4cxx)
@@ -215,7 +216,7 @@ def img_async_jobs():
 
 @image_soda.route("/async-jobs/<job_id>", methods=["GET"])
 def img_async_jobs_job(job_id: str):
-    """ Get the job info, else path to the result if ready.
+    """ Get the job info, including path to result if ready.
 
     Parameters
     ----------
@@ -227,16 +228,25 @@ def img_async_jobs_job(job_id: str):
         the job description.
     """
     ar = app_celery.AsyncResult(job_id)
-    if ar.state == "SUCCESS":
-        return redirect(url_for('api_image_soda.img_async_job_results',
-                                job_id=job_id,
-                                _external=True))
-
+    phase = map_phase_from_state[ar.state]
+    if ar.ready():
+        params = str(ar.args)
+        result = ar.get()
+        duration = result.get("job_duration")
+        start_time = result.get("job_start_time")
+        end_time = result.get("job_end_time")
     else:
-        job_result_url = url_for('api_image_soda.img_async_job_results',
-                                 job_id = job_id,
-                                 _external=True)
-        return _uws_job_response(job_result_url)
+        params, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+    resp = make_response(render_template("uws_job_descriptor.xml",
+                                         job_id=job_id,
+                                         job_phase=phase,
+                                         job_start_time=start_time,
+                                         job_end_time=end_time,
+                                         job_duration=duration,
+                                         soda_pos=params),
+                         HTTPStatus.OK)
+    resp.headers["Content-Type"] = "text/xml"
+    return resp
 
 
 @image_soda.route("/async-jobs/<job_id>/phase", methods=["GET"])
@@ -270,12 +280,18 @@ def img_async_job_duration(job_id: str):
     xml: `str`
         the job duration info.
     """
-    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
+    ar = app_celery.AsyncResult(job_id)
+    if ar.ready():
+        result = ar.get()
+        duration = result.get("job_duration", "NA")
+        return _uws_job_response_plain("DURATION=" + duration)
+    else:
+        return _uws_job_response_plain("INFO=NOT_AVAILABLE")
 
 
 @image_soda.route("/async-jobs/<job_id>/destruction", methods=["GET"])
 def img_async_job_destruction(job_id: str):
-    """ Get the destruction instant for the job.
+    """ Get the destruction time for the job.
 
     Parameters
     ----------
@@ -286,7 +302,7 @@ def img_async_job_destruction(job_id: str):
     xml : `str`
         the destruction instant for the job.
     """
-    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
+    return _uws_job_response_plain("INFO=NOT_IMPLEMENTED")
 
 
 @image_soda.route("/async-jobs/<job_id>/error", methods=["GET"])
@@ -319,7 +335,7 @@ def img_async_job_quote(job_id: str):
     xml : `str`
         the quote info for the job.
     """
-    return _uws_job_response_plain("INFO=NOT IMPLEMENTED")
+    return _uws_job_response_plain("INFO=NOT_IMPLEMENTED")
 
 
 @image_soda.route("/async-jobs/<job_id>/results", methods=["GET"])
@@ -335,10 +351,32 @@ def img_async_job_results(job_id: str):
     xml : `str`
         the job results.
     """
+    # TODO: DM-20853 Handle multiple results per job
     # For now redirect to single result
-    return redirect(url_for('api_image_soda.img_async_job_results_result',
-                            job_id=job_id,
-                            _external=True))
+    ar = app_celery.AsyncResult(job_id)
+    if ar.ready():
+        params = str(ar.args)
+        result = ar.get()
+        duration = result.get("job_duration")
+        start_time = result.get("job_start_time")
+        end_time = result.get("job_end_time")
+    else:
+        params, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+    phase = map_phase_from_state[ar.state]
+    result_url = url_for('api_image_soda.img_async_job_results_result',
+                         job_id=job_id,
+                         _external=True)
+    resp = make_response(render_template("uws_job_result.xml",
+                                         job_id=job_id,
+                                         job_phase=phase,
+                                         job_start_time=start_time,
+                                         job_end_time=end_time,
+                                         job_duration=duration,
+                                         soda_pos=params,
+                                         job_result=result_url),
+                         HTTPStatus.OK)
+    resp.headers["Content-Type"] = "text/xml"
+    return resp
 
 
 @image_soda.route("/async-jobs/<job_id>/results/result", methods=["GET"])
@@ -355,9 +393,10 @@ def img_async_job_results_result(job_id: str):
         the job results.
     """
     ar = app_celery.AsyncResult(job_id)
-    if ar.state == "SUCCESS":
+    if ar.ready():
         result = ar.get()  # retrieve path to the image output
-        resp = send_file(result,
+        fn_out = result.get("job_result")
+        resp = send_file(fn_out,
                          mimetype="image/fits",
                          as_attachment=True,
                          attachment_filename=os.path.basename(result))
@@ -386,7 +425,8 @@ def img_async_job_parameters(job_id: str):
     else:
         params = "NOT AVAILABLE"
     if ar.state == "PENDING" and request.method == "POST":
-        # TODO: update the job parameters in PENDING state
+        # TODO: DM-20852
+        # Should be able to update the job parameters in PENDING state
         new_params = _getparams()
     return _uws_job_response_plain("PARAMS="+params)
 
@@ -434,25 +474,6 @@ def _service_response(soda_url):
     """
     resp = make_response(render_template("soda_descriptor.xml",
                                          soda_ep=soda_url),
-                         HTTPStatus.OK)
-    resp.headers["Content-Type"] = "text/xml"
-    return resp
-
-
-def _uws_job_response(uws_job_result_url: str):
-    """ Get the job info using UWS template.
-
-    Parameters
-    ----------
-    uws_job_result_url : `str'
-
-    Returns
-    -------
-    resp : `str`
-        the response in XML.
-    """
-    resp = make_response(render_template("uws_job_result.xml",
-                                         job_result_url=uws_job_result_url),
                          HTTPStatus.OK)
     resp.headers["Content-Type"] = "text/xml"
     return resp

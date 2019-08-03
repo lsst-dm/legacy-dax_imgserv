@@ -25,17 +25,20 @@ import lsst.afw.image as afw_image
 from ..locateImage import get_image
 from .soda.soda import SODA
 # use following format for circular reference
-import lsst.dax.imgserv.jobqueue.imageworker as celery_q
+import lsst.dax.imgserv.jobqueue.imageworker as imageworker
 
-""" This module implements the IVOA's SODA v1.0 for DAX ImageServ.
+""" This module implements the IVOA's SODA v1.0 per LSST requirements.
 
     All ra,dec values are expressed in ICRS degrees, by default.
 
-    Shape:
+    Shape parameters:
         CIRCLE <ra> <dec> <radius>
         RANGE <ra1> <ra2> <dec1> <dec2>
         POLYGON <ra1> <dec1> ... (at least 3 pairs)
         BRECT <ra> <dec> <w> <h> <filter> <unit>
+       
+    The parameters are represented in `dict`, for example: 
+        {'ID': 'DC_W13_Stripe82.calexp.r', 'CIRCLE 37.644598 0.104625 100'}
 """
 
 
@@ -52,18 +55,23 @@ class ImageSODA(SODA):
     def __init__(self, config):
         self._config = config
 
-    def do_sync(self, params: dict) -> object:
+    def do_sync(self, params: dict) -> afw_image:
         """ Do sync operation.
 
         Parameters
         ---------
         params : `dict`
-            the HTTP parameters
+            the request parameters (See Shape requirements above)
+
+        Returns
+        -------
+        resp: `lsst.afw.image`
+            the image object.
         """
         if "POS" in params:
             resp = super().handle_pos(params)
             if isinstance(resp, tuple):
-                # image is first element of the tuple
+                # image object is first element of the tuple
                 return resp[0]
             else:
                 return resp
@@ -71,23 +79,23 @@ class ImageSODA(SODA):
             raise NotImplementedError("ImageSODA.do_sync(): Unsupported "
                                       "Request")
 
-    def do_async(self, params: dict) -> object:
-        """ Do async operation. Create a task for the request and enqueue for
-        processing, then return the URL for user to retrieve the result.
+    def do_async(self, params: dict) -> str:
+        """ For async operation, create a new task for the request, enqueue for
+        later processing, then return the task_id for tracking it.
 
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters. (See Shape parameters above)
 
         Returns
         -------
-        resp: `str`
-            the status.
+        task.task_id: `str`
+            the newly created task/job id.
 
         """
-        # enqueue the request
-        task = celery_q.get_image_task.delay(params)
+        # enqueue the request for imageworker
+        task = imageworker.get_image_async.delay(params)
         return task.task_id
 
     def do_sia(self, params: dict) -> object:
@@ -96,7 +104,7 @@ class ImageSODA(SODA):
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters.
 
         Returns
         -------
@@ -191,7 +199,7 @@ class ImageSODA(SODA):
 
         Returns
         -------
-        image : `afw_image`
+        cutout : `lsst.afw.image`
 
         """
         cutout = get_image(params, self._config)
@@ -217,7 +225,7 @@ class ImageSODA(SODA):
 
         Returns
         -------
-        image : `afw_image`
+        cutout : `lsst.afw.image`
 
         """
         cutout = get_image(params, self._config)
@@ -241,7 +249,7 @@ class ImageSODA(SODA):
 
         Returns
         -------
-        image : `afw_image`
+        image : `lsst.afw.image`
 
         """
         cutout = get_image(params, self._config)
@@ -271,8 +279,8 @@ class ImageSODA(SODA):
 
         Returns
         -------
-        image : afw_image
-
+        cutout : `lsst.afw.image`
+i
         """
         cutout = get_image(params, self._config)
         return cutout

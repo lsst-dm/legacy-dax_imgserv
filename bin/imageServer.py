@@ -35,7 +35,8 @@ from sqlalchemy import create_engine
 from lsst.dax.imgserv import api_v1 as is_api_v1
 from lsst.dax.imgserv import api_soda as is_api_soda
 
-from configparser import RawConfigParser
+# for access to webserv.ini
+import etc.imgserv.imgserv_config as imgserv_config
 
 ACCEPT_TYPES = ["application/json", "text/html"]
 
@@ -44,21 +45,13 @@ log.basicConfig(
     datefmt='%m/%d/%Y %I:%M:%S',
     level=log.DEBUG)
 
-defaults_file = os.environ.get("WEBSERV_CONFIG", "~/.lsst/webserv.ini")
 WERKZEUG_PREFIX = "dax.webserv.werkzeug."
 
 # instance folder not under version control
 i_path=os.path.join(os.path.expanduser("~"), ".lsst/instance")
 app = Flask(__name__, instance_path=i_path)
 
-# Initialize configuration
-imgserv_parser = RawConfigParser()
-imgserv_parser.optionxform = str
-
-with open(os.path.expanduser(defaults_file)) as cfg:
-    imgserv_parser.read_file(cfg, defaults_file)
-
-webserv_config = dict(imgserv_parser.items("webserv"))
+webserv_config = imgserv_config.webserv_config
 default_db_url = webserv_config.get("dax.webserv.db.url")
 
 # Execute this last, we can overwrite anything we don't like

@@ -71,7 +71,7 @@ class DAL(ABC):
         Parameters
         ----------
         params : `dict`
-            the HTTP parameters.
+            the request parameters.
 
         Returns
         -------
@@ -86,7 +86,7 @@ class DAL(ABC):
         Parameters
         ----------
         params : `dict`
-            the parameters.
+            the request parameters.
 
         Returns
         -------
@@ -165,7 +165,7 @@ class DAL(ABC):
         return resp
 
     def get_jobs(self, params: dict) -> str:
-        """ Get the service capabilities.
+        """ Get info on the outstanding jobs for the user.
 
         Parameters
         ----------
@@ -178,5 +178,6 @@ class DAL(ABC):
             the response in xml.
 
         """
-        # TODO: Need to keep track of user and associated jobs somehow
+        # TODO: DM-20852
+        # Should keep track of user and associated jobs somehow
         raise NotImplemented("DAL.get_jobs()")

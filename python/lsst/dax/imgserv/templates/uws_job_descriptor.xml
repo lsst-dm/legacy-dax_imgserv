@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <uws:job xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0">
-  <uws:jobId>{{ uws_job_id }}</uws:jobId>
+  <uws:jobId>{{ job_id }}</uws:jobId>
   <uws:runId>test</uws:runId>
-  <uws:ownerId/>
-  <uws:phase>{{ uws_job_phase }}</uws:phase>
-  <uws:startTime/>
-  <uws:endTime/>
-  <uws:executionDuration>{{ uws_exec_duration }}</uws:executionDuration>
+  <uws:ownerId/> <!-- TODO: DM-20852 -->
+  <uws:phase>{{ job_phase }}</uws:phase>
+  <uws:startTime> {{ job_start_time }} </uws:startTime>
+  <uws:endTime> {{ job_end_time }} </uws:endTime>
+  <uws:executionDuration>{{ job_duration }}</uws:executionDuration>
   <uws:parameters>
     <uws:parameter id="LANG">SODA</uws:parameter>
-    <uws:parameter id="REQUEST">get_image</uws:parameter>
+    <uws:parameter id="REQUEST">get_image_async</uws:parameter>
     <uws:parameter id="POS">{{ soda_pos }}</uws:parameter>
   </uws:parameters>
   <uws:results/>
