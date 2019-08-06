@@ -25,6 +25,8 @@ Corresponding URI: /api/image/soda
 
 """
 import os
+from datetime import datetime
+
 import traceback
 import tempfile
 import json
@@ -97,9 +99,8 @@ def load_imgserv_config(config_path=None, metaserv_url=None):
     if config_path is None:
         # use default root_path for app
         config_path = image_soda.root_path+"/config/"
-    f_json = imgserv_config.config_json
     # load the general config file
-    current_app.config.from_json(f_json)
+    current_app.config.update(imgserv_config.config_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_CONFIG"] = config_path
@@ -229,21 +230,25 @@ def img_async_jobs_job(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     phase = map_phase_from_state[ar.state]
+    soda_pos, duration, start_time, end_time = "NA", "NA", "NA", "NA"
     if ar.ready():
-        params = str(ar.args)
         result = ar.get()
-        duration = result.get("job_duration")
-        start_time = result.get("job_start_time")
-        end_time = result.get("job_end_time")
-    else:
-        params, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+        start_time = datetime.fromtimestamp(result.get("job_start_time"))
+        end_time = datetime.fromtimestamp(result.get("job_end_time"))
+        duration = (end_time - start_time).total_seconds()
+        soda_pos = result.get("soda_params")["POS"]
+    result_url = url_for('api_image_soda.img_async_job_results_result',
+                         job_id=job_id,
+                         _external=True)
     resp = make_response(render_template("uws_job_descriptor.xml",
                                          job_id=job_id,
                                          job_phase=phase,
                                          job_start_time=start_time,
                                          job_end_time=end_time,
                                          job_duration=duration,
-                                         soda_pos=params),
+                                         job_result_id=job_id,
+                                         job_result=result_url,
+                                         soda_pos=soda_pos),
                          HTTPStatus.OK)
     resp.headers["Content-Type"] = "text/xml"
     return resp
@@ -278,13 +283,14 @@ def img_async_job_duration(job_id: str):
     Returns
     -------
     xml: `str`
-        the job duration info.
+        the execution duration parameter value for the job.
     """
     ar = app_celery.AsyncResult(job_id)
     if ar.ready():
         result = ar.get()
-        duration = result.get("job_duration", "NA")
-        return _uws_job_response_plain("DURATION=" + duration)
+        execution_duration = result.get("executionduration", "NA")
+        return _uws_job_response_plain("EXECUTION_DURATION=" +
+                                       execution_duration)
     else:
         return _uws_job_response_plain("INFO=NOT_AVAILABLE")
 
@@ -354,14 +360,13 @@ def img_async_job_results(job_id: str):
     # TODO: DM-20853 Handle multiple results per job
     # For now redirect to single result
     ar = app_celery.AsyncResult(job_id)
+    soda_pos, duration, start_time, end_time = "NA", "NA", "NA", "NA"
     if ar.ready():
-        params = str(ar.args)
         result = ar.get()
-        duration = result.get("job_duration")
-        start_time = result.get("job_start_time")
-        end_time = result.get("job_end_time")
-    else:
-        params, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+        start_time = datetime.fromtimestamp(result.get("job_start_time"))
+        end_time = datetime.fromtimestamp(result.get("job_end_time"))
+        duration = (end_time - start_time).total_seconds()
+        soda_pos = result.get("soda_params")["POS"]
     phase = map_phase_from_state[ar.state]
     result_url = url_for('api_image_soda.img_async_job_results_result',
                          job_id=job_id,
@@ -372,7 +377,8 @@ def img_async_job_results(job_id: str):
                                          job_start_time=start_time,
                                          job_end_time=end_time,
                                          job_duration=duration,
-                                         soda_pos=params,
+                                         soda_pos=soda_pos,
+                                         job_result_id=job_id,
                                          job_result=result_url),
                          HTTPStatus.OK)
     resp.headers["Content-Type"] = "text/xml"
@@ -399,7 +405,7 @@ def img_async_job_results_result(job_id: str):
         resp = send_file(fn_out,
                          mimetype="image/fits",
                          as_attachment=True,
-                         attachment_filename=os.path.basename(result))
+                         attachment_filename=os.path.basename(fn_out))
         return resp
     else:
         return redirect(url_for('api_image_soda.img_async_jobs_job',
@@ -427,7 +433,7 @@ def img_async_job_parameters(job_id: str):
     if ar.state == "PENDING" and request.method == "POST":
         # TODO: DM-20852
         # Should be able to update the job parameters in PENDING state
-        new_params = _getparams()
+        return
     return _uws_job_response_plain("PARAMS="+params)
 
 

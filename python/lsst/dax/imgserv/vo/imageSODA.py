@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
+from datetime import datetime
 import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
@@ -94,8 +94,9 @@ class ImageSODA(SODA):
             the newly created task/job id.
 
         """
-        # enqueue the request for imageworker
-        task = imageworker.get_image_async.delay(params)
+        # enqueue the request for image_worker
+        job_start_time = datetime.timestamp(datetime.now())
+        task = imageworker.get_image_async.delay(job_start_time, params)
         return task.task_id
 
     def do_sia(self, params: dict) -> object:

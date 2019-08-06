@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import tempfile
 import os
-import datetime
+from datetime import datetime
 
 from celery import Celery
 from flask import current_app
@@ -32,7 +32,7 @@ import lsst.dax.imgserv.vo.imageSODA as imageSODA
 import etc.imgserv.imgserv_config as imgserv_config
 
 # Load and configure the celery app
-app_celery = Celery("Queue Worker")
+app_celery = Celery("image_worker")
 app_celery.config_from_object('etc.celery.celery_config')
 
 # for imgserv configuration files (internal)
@@ -47,17 +47,18 @@ def make_celery():
         Initiate the celery app for client access.
     """
     global app_celery
-    app = current_app
-    app_celery = Celery(app.import_name)
+    app_celery = Celery(current_app.import_name)
     app_celery.config_from_object('celery_config')
 
 
 @app_celery.task(bind=True)
-def get_image_async(self, params: dict):
+def get_image_async(self, job_start_time: float, params: dict):
     """This is called by celery worker to retrieve image.
     Parameters
     ----------
     self: `app.Task`
+    job_start_time: `int`
+        the job start time.
     params: `dict`
         the request parameters
     Returns
@@ -65,13 +66,12 @@ def get_image_async(self, params: dict):
     result: `dict`
         dax_result: `str`
             the file path to the image output.
-        dax_start_time: `str`
+        dax_start_time: `int`
             the job start time.
-        dax_end_time: `str`
-            the job finish time.
-        dax_duration: `str`
-            how long it took.
+        dax_end_time: `int`
+            the job completion time.
     """
+    print("get_image_async() called with params="+str(params))
     config = imgserv_config.config_json
     config["DAX_IMG_CONFIG"] = config_path
     meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
@@ -85,69 +85,11 @@ def get_image_async(self, params: dict):
                                      delete=False) as fp:
 
         image.writeFits(fp.name)
-        # store path to result in Redis
-        job_start_time = g_task_info[self.request.id+".start_time"]
-        job_end_time = g_task_info[self.request.id+".succeeded_time"]
-        job_duration = job_end_time - job_start_time
+        job_end_time = datetime.timestamp(datetime.now())
         result = {
             "job_result": fp.name,
-            "job_start_time": str(job_start_time),
-            "job_end_time": str(job_end_time),
-            "job_duration": str(job_duration)
+            "job_start_time": job_start_time,
+            "job_end_time": job_end_time,
+            "soda_params": params
         }
         return result
-
-
-def imageworker_monitor(app):
-    state = app.events.State()
-
-    def on_task_failed(event):
-        state.event(event)
-        task = state.tasks.get(event['uuid'])
-        print('TASK FAILED: %s[%s] %s' % (task.name, task.uuid, task.info(),))
-
-    def on_task_succeeded(event):
-        state.event(event)
-        task = state.tasks.get(event['uuid'])
-        g_task_info[task.uuid+".succeeded_time"]=datetime.datetime.now()
-        print('TASK SUCCEEDED: %s[%s] %s' % (task.name,
-                                             task.uuid, task.info(),))
-
-    def on_task_sent(event):
-        state.event(event)
-        task = state.tasks.get(event['uuid'])
-        print('TASK SENT: %s[%s] %s' % (task.name, task.uuid, task.info(),))
-
-    def on_task_received(event):
-        state.event(event)
-        # task name is sent only with -received event, and state
-        # will keep track of this for us.
-        task = state.tasks.get(event['uuid'])
-        print('TASK RECEIVED: %s[%s] %s' % (task.name, task.uuid, task.info(),))
-
-    def on_task_revoked(event):
-        state.event(event)
-        task = state.tasks.get(event['uuid'])
-        print('TASK REVOKED: %s[%s] %s' % (task.name, task.uuid, task.info(),))
-
-    def on_task_started(event):
-        state.event(event)
-        task = state.tasks.get(event['uuid'])
-        g_task_info[task.uuid+".start_time"]=datetime.datetime.now()
-        print('TASK STARTED: %s[%s] %s' % (task.name, task.uuid, task.info(),))
-
-    with app.connection() as connection:
-        recv = app.events.Receiver(connection, handlers={
-            'task-failed': on_task_failed,
-            'task-succeeded': on_task_succeeded,
-            'task-sent': on_task_sent,
-            'task-received': on_task_received,
-            'task-revoked': on_task_revoked,
-            'task-started': on_task_started,
-            '*': state.event,
-        })
-        recv.capture(limit=None, timeout=None, wakeup=True)
-
-
-if __name__ == '__main__':
-    imageworker_monitor(app_celery)

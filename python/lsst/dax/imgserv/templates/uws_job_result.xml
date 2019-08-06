@@ -13,6 +13,6 @@
     <uws:parameter id="POS">{{ soda_pos }}</uws:parameter>
   </uws:parameters>
   <uws:results>
-    <uws:result id="">{{ job_result_url }}</uws:result>
+    <uws:result id="{{ job_result_id }}">{{ job_result }}</uws:result>
   </uws:results>
 </uws:job>

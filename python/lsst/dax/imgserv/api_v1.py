@@ -84,9 +84,8 @@ def load_imgserv_config(config_path, metaserv_url):
     if config_path is None:
         # use default root_path for image_api_v1
         config_path = image_api_v1.root_path+"/config/"
-    f_json = imgserv_config.config_json
     # load the general config file
-    current_app.config.from_json(f_json)
+    current_app.config.update(imgserv_config.config_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_META_URL"] = metaserv_url

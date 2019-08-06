@@ -12,6 +12,8 @@
     <uws:parameter id="REQUEST">get_image_async</uws:parameter>
     <uws:parameter id="POS">{{ soda_pos }}</uws:parameter>
   </uws:parameters>
-  <uws:results/>
+  <uws:results>
+    <uws:result id="{{ job_result_id }}">{{ job_result }}</uws:result>
+  </uws:results>
 </uws:job>
 
