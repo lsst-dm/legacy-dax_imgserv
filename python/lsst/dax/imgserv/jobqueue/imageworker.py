@@ -52,13 +52,11 @@ def make_celery():
 
 
 @app_celery.task(bind=True)
-def get_image_async(self, job_start_time: float, params: dict):
+def get_image_async(self, *args, **kwargs):
     """This is called by celery worker to retrieve image.
     Parameters
     ----------
     self: `app.Task`
-    job_start_time: `int`
-        the job start time.
     params: `dict`
         the request parameters
     Returns
@@ -71,7 +69,10 @@ def get_image_async(self, job_start_time: float, params: dict):
         dax_end_time: `int`
             the job completion time.
     """
-    print("get_image_async() called with params="+str(params))
+    params = args[0]
+    print("get_image_async called with request params="+str(params))
+    job_start_time = kwargs.get("job_start_time")
+    job_owner = kwargs.get("owner")
     config = imgserv_config.config_json
     config["DAX_IMG_CONFIG"] = config_path
     meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
@@ -88,6 +89,7 @@ def get_image_async(self, job_start_time: float, params: dict):
         job_end_time = datetime.timestamp(datetime.now())
         result = {
             "job_result": fp.name,
+            "job_owner": job_owner,
             "job_start_time": job_start_time,
             "job_end_time": job_end_time,
             "soda_params": params

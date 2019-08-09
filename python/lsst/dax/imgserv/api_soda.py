@@ -194,29 +194,24 @@ def img_sync():
 def img_async():
     """ Get the /async service endpoint. """
     if not request.args:
-        # no parameters present, return service status
-        soda_url = url_for('api_image_soda.img_async', _external=True)
-        return _service_response(soda_url)
+        """ Get all the jobs of the user in the system. """
+        if session.get("user"):
+            xml = current_app.soda.get_jobs(_getparams())
+            resp = make_response(xml)
+            resp.headers["Content-Type"] = "text/xml"
+            return resp
+        else:
+            soda_url = url_for('api_image_soda.img_async', _external=True)
+            return _service_response(soda_url)
+    # new job for request
     job_id = current_app.soda.do_async(_getparams())
-    return redirect(url_for('api_image_soda.img_async_jobs_job',
+    return redirect(url_for('api_image_soda.img_async_job',
                             job_id=job_id,
                             _external=True))
 
 
-@image_soda.route("/async-jobs", methods=["GET"])
-def img_async_jobs():
-    """ Get all the jobs of the user in the system. """
-    if session.get("user"):
-        xml = current_app.soda.get_jobs(_getparams())
-        resp = make_response(xml)
-        resp.headers["Content-Type"] = "text/xml"
-        return resp
-    else:
-        raise Exception("Error: user not specified")
-
-
-@image_soda.route("/async-jobs/<job_id>", methods=["GET"])
-def img_async_jobs_job(job_id: str):
+@image_soda.route("/async/<job_id>", methods=["GET"])
+def img_async_job(job_id: str):
     """ Get the job info, including path to result if ready.
 
     Parameters
@@ -254,7 +249,7 @@ def img_async_jobs_job(job_id: str):
     return resp
 
 
-@image_soda.route("/async-jobs/<job_id>/phase", methods=["GET"])
+@image_soda.route("/async/<job_id>/phase", methods=["GET"])
 def img_async_job_phase(job_id: str):
     """ Get the phase info for the job.
 
@@ -272,7 +267,7 @@ def img_async_job_phase(job_id: str):
     return _uws_job_response_plain("PHASE="+phase)
 
 
-@image_soda.route("/async-jobs/<job_id>/executionduration", methods=["GET"])
+@image_soda.route("/async/<job_id>/executionduration", methods=["GET"])
 def img_async_job_duration(job_id: str):
     """ Get the duration in number of seconds for the job.
 
@@ -295,7 +290,7 @@ def img_async_job_duration(job_id: str):
         return _uws_job_response_plain("INFO=NOT_AVAILABLE")
 
 
-@image_soda.route("/async-jobs/<job_id>/destruction", methods=["GET"])
+@image_soda.route("/async/<job_id>/destruction", methods=["GET"])
 def img_async_job_destruction(job_id: str):
     """ Get the destruction time for the job.
 
@@ -308,10 +303,10 @@ def img_async_job_destruction(job_id: str):
     xml : `str`
         the destruction instant for the job.
     """
-    return _uws_job_response_plain("INFO=NOT_IMPLEMENTED")
+    raise NotImplemented("/destruction NOT implemented")
 
 
-@image_soda.route("/async-jobs/<job_id>/error", methods=["GET"])
+@image_soda.route("/async/<job_id>/error", methods=["GET"])
 def img_async_job_error(job_id: str):
     """ Get the error info for the job.
 
@@ -329,7 +324,7 @@ def img_async_job_error(job_id: str):
     return _uws_job_response_plain("ERROR="+e)
 
 
-@image_soda.route("/async-jobs/<job_id>/quote", methods=["GET"])
+@image_soda.route("/async/<job_id>/quote", methods=["GET"])
 def img_async_job_quote(job_id: str):
     """ Get the quote for the job.
 
@@ -341,10 +336,10 @@ def img_async_job_quote(job_id: str):
     xml : `str`
         the quote info for the job.
     """
-    return _uws_job_response_plain("INFO=NOT_IMPLEMENTED")
+    raise NotImplemented("/quote NOT implemented")
 
 
-@image_soda.route("/async-jobs/<job_id>/results", methods=["GET"])
+@image_soda.route("/async/<job_id>/results", methods=["GET"])
 def img_async_job_results(job_id: str):
     """ Get the results for the job.
 
@@ -385,7 +380,7 @@ def img_async_job_results(job_id: str):
     return resp
 
 
-@image_soda.route("/async-jobs/<job_id>/results/result", methods=["GET"])
+@image_soda.route("/async/<job_id>/results/result", methods=["GET"])
 def img_async_job_results_result(job_id: str):
     """ Get the single result for the job.
 
@@ -408,12 +403,12 @@ def img_async_job_results_result(job_id: str):
                          attachment_filename=os.path.basename(fn_out))
         return resp
     else:
-        return redirect(url_for('api_image_soda.img_async_jobs_job',
+        return redirect(url_for('api_image_soda.img_async_job',
                                 job_id=job_id,
                                 _external=True))
 
 
-@image_soda.route("/async-jobs/<job_id>/parameters", methods=["GET", "POST"])
+@image_soda.route("/async/<job_id>/parameters", methods=["GET", "POST"])
 def img_async_job_parameters(job_id: str):
     """Get/Set the parameters for the job.
 
@@ -437,7 +432,7 @@ def img_async_job_parameters(job_id: str):
     return _uws_job_response_plain("PARAMS="+params)
 
 
-@image_soda.route("/async-jobs/<job_id>/owner", methods=["GET"])
+@image_soda.route("/async/<job_id>/owner", methods=["GET"])
 def img_async_job_owner(job_id: str):
     """ Get the owner info for the job.
 
@@ -451,10 +446,15 @@ def img_async_job_owner(job_id: str):
         the job owner.
     """
     ar = app_celery.AsyncResult(job_id)
-    # ideally owner should be stored somewhere along with the job_id
-    # and assert session against that.
     user = session["user"] if session.get("user") else "UNKNOWN"
-    return _uws_job_response_plain("OWNER="+user)
+    if ar.ready():
+        result = ar.get()  # retrieve path to the image output
+        owner = result.get("owner", "UNKNOWN")
+    else:
+        owner = ar.kwargs.get("owner", "UNKNOWN")
+    if owner != user:
+        raise Exception("User in session not matching job owner")
+    return _uws_job_response_plain("OWNER="+owner)
 
 
 @image_soda.errorhandler(HTTPException)

@@ -20,6 +20,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime
+
+from flask import session
+
 import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
@@ -94,9 +97,16 @@ class ImageSODA(SODA):
             the newly created task/job id.
 
         """
+        user = session.get("user", "UNKNOWN")
         # enqueue the request for image_worker
         job_start_time = datetime.timestamp(datetime.now())
-        task = imageworker.get_image_async.delay(job_start_time, params)
+        # task = imageworker.get_image_async.delay(job_start_time, params)
+        kwargs = {"job_start_time": job_start_time, "owner": user}
+        task = imageworker.get_image_async.apply_async(
+            queue="imageworker_queue",
+            args=[params],
+            kwargs=kwargs
+        )
         return task.task_id
 
     def do_sia(self, params: dict) -> object:

@@ -8,7 +8,7 @@ setup(
     packages=['lsst', 'etc', 'lsst.dax.imgserv',
               'lsst.dax.imgserv.getimage', 'lsst.dax.imgserv.vo',
               'lsst.dax.imgserv.vo.dal', 'lsst.dax.imgserv.vo.soda',
-              'lsst.dax.imgserv.jobqueue', 'etc.celery'],
+              'lsst.dax.imgserv.jobqueue', 'etc.celery', 'etc.imgserv'],
     zip_safe=False,
     use_scm_version={'version_scheme': 'post-release'},
     setup_requires=['setuptools_scm', 'pytest-flask', 'pytest-runner'],

@@ -9,9 +9,10 @@ cd /home/lsst
 redis-server /app/rootfs/etc/redis/redis.conf
 # create the directory for results in /tmp
 mkdir /tmp/imageworker_results
-# Start celery worker in imgserv
-# Note: by default, celery will start 1 worker process per CPU core
+# Start celery worker in imgserv container
+# celery will start 1 worker process per CPU core, by default
 celery --detach -A lsst.dax.imgserv.jobqueue.imageworker worker \
---loglevel=INFO --logfile /tmp/img_jobqueue.log
+-Q celery,imageworker_queue --loglevel=INFO --logfile \
+/tmp/imageworker_jobqueue.log
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib
 uwsgi --ini /etc/uwsgi/uwsgi.ini

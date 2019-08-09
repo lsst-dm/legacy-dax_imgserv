@@ -28,6 +28,9 @@ broker_url = "redis://localhost:6379"
 # Use redis for storing the results
 result_backend = "redis://localhost:6379/0"
 
+# Use imageworker queue
+task_routes = {'feed.tasks.import_feed': {'queue': 'imageworker_queue'}}
+
 # worker event setting
 worker_send_task_events = True
 
