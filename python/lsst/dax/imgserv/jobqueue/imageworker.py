@@ -69,9 +69,10 @@ def get_image_async(self, *args, **kwargs):
         dax_end_time: `int`
             the job completion time.
     """
+    job_start_time = datetime.timestamp(datetime.now())
     params = args[0]
     print("get_image_async called with request params="+str(params))
-    job_start_time = kwargs.get("job_start_time")
+    job_creation_time = kwargs.get("job_creation_time")
     job_owner = kwargs.get("owner")
     config = imgserv_config.config_json
     config["DAX_IMG_CONFIG"] = config_path
@@ -84,12 +85,12 @@ def get_image_async(self, *args, **kwargs):
                                      prefix="img-",
                                      suffix=".fits",
                                      delete=False) as fp:
-
         image.writeFits(fp.name)
         job_end_time = datetime.timestamp(datetime.now())
         result = {
             "job_result": fp.name,
             "job_owner": job_owner,
+            "job_creation_time": job_creation_time,
             "job_start_time": job_start_time,
             "job_end_time": job_end_time,
             "soda_params": params

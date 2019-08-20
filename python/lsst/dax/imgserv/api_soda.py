@@ -225,9 +225,11 @@ def img_async_job(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     phase = map_phase_from_state[ar.state]
-    soda_pos, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+    soda_pos, duration, creation_time, start_time, end_time = "NA", "NA", \
+                                                              "NA", "NA", "NA"
     if ar.ready():
         result = ar.get()
+        creation_time = datetime.fromtimestamp(result.get("job_creation_time"))
         start_time = datetime.fromtimestamp(result.get("job_start_time"))
         end_time = datetime.fromtimestamp(result.get("job_end_time"))
         duration = (end_time - start_time).total_seconds()
@@ -238,6 +240,7 @@ def img_async_job(job_id: str):
     resp = make_response(render_template("uws_job_descriptor.xml",
                                          job_id=job_id,
                                          job_phase=phase,
+                                         job_creation_time=creation_time,
                                          job_start_time=start_time,
                                          job_end_time=end_time,
                                          job_duration=duration,
@@ -284,7 +287,7 @@ def img_async_job_duration(job_id: str):
     if ar.ready():
         result = ar.get()
         execution_duration = result.get("executionduration", "NA")
-        return _uws_job_response_plain("EXECUTION_DURATION=" +
+        return _uws_job_response_plain("EXECUTIONDURATION=" +
                                        execution_duration)
     else:
         return _uws_job_response_plain("INFO=NOT_AVAILABLE")
@@ -355,9 +358,11 @@ def img_async_job_results(job_id: str):
     # TODO: DM-20853 Handle multiple results per job
     # For now redirect to single result
     ar = app_celery.AsyncResult(job_id)
-    soda_pos, duration, start_time, end_time = "NA", "NA", "NA", "NA"
+    soda_pos, duration, creation_time, start_time, end_time = "NA", "NA", \
+                                                              "NA", "NA", "NA"
     if ar.ready():
         result = ar.get()
+        creation_time = datetime.fromtimestamp(result.get("job_creation_time"))
         start_time = datetime.fromtimestamp(result.get("job_start_time"))
         end_time = datetime.fromtimestamp(result.get("job_end_time"))
         duration = (end_time - start_time).total_seconds()
@@ -369,6 +374,7 @@ def img_async_job_results(job_id: str):
     resp = make_response(render_template("uws_job_result.xml",
                                          job_id=job_id,
                                          job_phase=phase,
+                                         job_creation_time=creation_time,
                                          job_start_time=start_time,
                                          job_end_time=end_time,
                                          job_duration=duration,
@@ -452,8 +458,7 @@ def img_async_job_owner(job_id: str):
         owner = result.get("owner", "UNKNOWN")
     else:
         owner = ar.kwargs.get("owner", "UNKNOWN")
-    if owner != user:
-        raise Exception("User in session not matching job owner")
+    assert(owner == user)
     return _uws_job_response_plain("OWNER="+owner)
 
 
