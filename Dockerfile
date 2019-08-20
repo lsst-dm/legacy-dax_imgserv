@@ -2,7 +2,7 @@ FROM lsstsqre/centos:w_latest
 
 MAINTAINER Kenny Lo <kennylo@slac.stanford.edu>
 
-# Add user for testing in jenkins
+# Add user for docker build/test/publish in jenkins
 USER root
 ARG USERNAME=jenkins
 ARG UID=48435
@@ -10,9 +10,11 @@ ARG GID=202
 RUN groupadd -g $GID -o $USERNAME
 RUN useradd -m -u $UID -g $GID -o -s /bin/bash $USERNAME
 
-# switch to user
-USER lsst
+# install redis
+RUN yum -y install redis
 
+# switch to lsst user
+USER lsst
 WORKDIR /app
 
 # Setup Dependencies
@@ -38,10 +40,5 @@ ENV UWSGI_OFFLOAD_THREADS=10
 ENV UWSGI_WSGI_FILE=/app/bin/imageServer.py
 ENV UWSGI_CALLABLE=app
 
-# Activate conda, setup lsst_distrib
-CMD ["bash", "-c", \
-  "source /opt/lsst/software/stack/loadLSST.bash; \
-     setup lsst_distrib;  \
-     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib; \
-     uwsgi --ini /etc/uwsgi/uwsgi.ini; \
-"]
+# Start up the services
+CMD ./bin/run_imgserv.sh

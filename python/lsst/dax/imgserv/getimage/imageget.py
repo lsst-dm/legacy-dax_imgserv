@@ -351,6 +351,9 @@ class ImageGetter:
                 POS: CIRCLE, RANGE, POLYGON
                 LSST extension: BRECT
 
+        Per SODA spec, all longitude and latitude (plus the radius of the
+        CIRCLE) are expressed in degrees in ICRS.
+
         Parameters
         ----------
         params: `dict`
@@ -363,11 +366,12 @@ class ImageGetter:
         _pos = params["POS"]
         _id = params["ID"]
         db, ds, filt = _id.split(".")
-        pos_items = _pos.split()
+        # allow both space and comma as delimiter in values
+        pos_items = _pos.replace(",", " ").split()
         shape = pos_items[0]
         if shape == "BRECT":
             if len(pos_items) < 6:
-                raise Exception("BRECT: invalid parameters")
+                raise Exception("BRECT: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             w, h = float(pos_items[3]), float(pos_items[4])
             unit_size = pos_items[5]
@@ -375,7 +379,7 @@ class ImageGetter:
             return cutout
         elif shape == "CIRCLE":
             if len(pos_items) < 4:
-                raise Exception("CIRCLE: invalid parameters")
+                raise Exception("CIRCLE: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             radius = float(pos_items[3])
             # convert from deg to pixels by wcs (ICRS)
@@ -383,16 +387,17 @@ class ImageGetter:
             data_id = self._data_id_from_qr(q_result)
             metadata = self._metadata_from_data_id(data_id)
             wcs = afwGeom.makeSkyWcs(metadata, strip=False)
-            pix_r = int(radius / wcs.getPixelScale().asArcseconds())
-            ss = SpanSet.fromShape(pix_r)
+            r_arcsecs = radius * 3600
+            pix_r = int(r_arcsecs / wcs.getPixelScale().asArcseconds())
+            ss = SpanSet.fromShape(pix_r) # defaults to circle
             ss_width = ss.getBBox().getWidth()
             src_image = self.cutout_from_nearest(ra, dec, ss_width, ss_width,
                                                  "pixel", filt)
             src_cutout = src_image.getMaskedImage()
             circle_cutout = afwImage.MaskedImageF(src_cutout.getBBox())
             spanset = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
-                                      offset=src_cutout.getXY0() +
-                                             afwGeom.Extent2I(pix_r, pix_r))
+                                        offset=src_cutout.getXY0() +
+                                               afwGeom.Extent2I(pix_r, pix_r))
             spanset.copyMaskedImage(src_cutout, circle_cutout)
             # make an Exposure cutout with WCS info
             cutout = afwImage.ExposureF(circle_cutout,
@@ -400,7 +405,7 @@ class ImageGetter:
             return cutout
         elif shape == "RANGE":
             if len(pos_items) < 5:
-                raise Exception("RANGE: invalid parameters")
+                raise Exception("RANGE: invalid number of values")
             # convert the pair of (ra,dec) to bbox
             ra1, ra2 = float(pos_items[1]), float(pos_items[2])
             dec1, dec2 = float(pos_items[3]), float(pos_items[4])
@@ -416,7 +421,7 @@ class ImageGetter:
             return cutout
         elif shape == "POLYGON":
             if len(pos_items) < 7:
-                raise Exception("POLYGON: invalid parameters")
+                raise Exception("POLYGON: invalid number of values")
             vertices = []
             pos_items.pop(0)
             for long, lat in zip(pos_items[::2], pos_items[1::2]):

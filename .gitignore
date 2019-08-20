@@ -26,3 +26,5 @@ _build.*
 .cache/
 tests/.tests
 webserv.ini
+dump.rdb
+celeryd.pid

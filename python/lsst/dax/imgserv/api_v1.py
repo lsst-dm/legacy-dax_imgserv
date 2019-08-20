@@ -48,6 +48,8 @@ from .locateImage import image_open, W13DeepCoaddDb, W13RawDb, W13CalexpDb
 from .dispatch import Dispatcher
 from .jsonutil import get_params
 
+import etc.imgserv.imgserv_config as imgserv_config
+
 ACCEPT_TYPES = ["application/json", "text/html"]
 
 image_api_v1 = Blueprint("api_image_v1", __name__, static_folder="static",
@@ -82,9 +84,8 @@ def load_imgserv_config(config_path, metaserv_url):
     if config_path is None:
         # use default root_path for image_api_v1
         config_path = image_api_v1.root_path+"/config/"
-    f_json = os.path.join(config_path, "imgserv_conf.json")
     # load the general config file
-    current_app.config.from_json(f_json)
+    current_app.config.update(imgserv_config.config_json)
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_META_URL"] = metaserv_url
@@ -252,9 +253,9 @@ def _data_response(image):
         fp = tempfile.NamedTemporaryFile()
         image.writeFits(fp.name)
         res = send_file(fp.name,
-                mimetype="image/fits",
-                as_attachment=True,
-                attachment_filename="image.fits")
+                        mimetype="image/fits",
+                        as_attachment=True,
+                        attachment_filename="image.fits")
     else:
         res = jsonify(image)
     return res

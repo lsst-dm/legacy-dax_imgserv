@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<uws:job xmlns:uws="http://www.ivoa.net/xml/UWS/v1.0">
+  <uws:jobId>{{ job_id }}</uws:jobId>
+  <uws:runId/>
+  <uws:ownerId/> <!-- TODO: DM-20852 -->
+  <uws:phase>{{ job_phase }}</uws:phase>
+  <uws:creationTimeTime> {{ job_creation_time }} </uws:creationTimeTime>
+  <uws:startTime> {{ job_start_time }} </uws:startTime>
+  <uws:endTime> {{ job_end_time }} </uws:endTime>
+  <uws:executionDuration>{{ job_duration }}</uws:executionDuration>
+  <uws:parameters>
+    <uws:parameter id="LANG">SODA</uws:parameter>
+    <uws:parameter id="REQUEST">cutout</uws:parameter>
+    <uws:parameter id="POS">{{ soda_pos }}</uws:parameter>
+  </uws:parameters>
+  <uws:results>
+    <uws:result id="{{ job_result_id }}">{{ job_result }}</uws:result>
+  </uws:results>
+</uws:job>
