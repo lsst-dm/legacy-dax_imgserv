@@ -44,10 +44,13 @@ tasks_parser = RawConfigParser()
 tasks_parser.optionxform = str
 
 defaults_file = os.environ.get("WEBSERV_CONFIG", "~/.lsst/webserv.ini")
-with open(os.path.expanduser(defaults_file)) as cfg:
-    tasks_parser.read_file(cfg, defaults_file)
-
-# provide access to webserv.ini
-webserv_config = dict(tasks_parser.items("webserv"))
+try:
+    with open(os.path.expanduser(defaults_file)) as cfg:
+        tasks_parser.read_file(cfg, source=defaults_file)
+        # provide access to webserv settings
+        webserv_config = dict(tasks_parser.items("webserv"))
+except FileNotFoundError:
+    # webserv settings not provided
+    webserv_config = dict({})
 
 
