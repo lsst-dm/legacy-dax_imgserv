@@ -49,11 +49,15 @@ class ImageSODA(SODA):
     """ Class to handle SODA operations.
 
     For reference, LSST camera filters (Filter, Blue Side, Red Side):
-        G : 400 - 552
+        U : 324 = 305
+        G : 405 - 552
         R : 552 - 691
         I : 691 - 818
-        Z : 818 - 922
-        Y : 948 - 1060
+        Z : 818 - 921
+        Y : 922 - 997
+    (Ref: https://lsst.org/scientists/keynumbers)
+
+    In SODA, these correspond to possible values for the BAND parameter.
     """
     def __init__(self, config):
         self._config = config
