@@ -88,6 +88,7 @@
     "BAND": {
       "type": "object",
       "ucd": "em.wl",
+      "$comment": "Ref: https://lsst.org/scientists/keynumbers",
       "properties": {
         "U": {"u": [324, 395]},
         "G": {"g": [405, 552]},
@@ -97,7 +98,7 @@
         "Y": {"y": [922, 997]}
         },
       "oneOf": [
-        {"required": ["u"]},
+        {"required": ["U"]},
         {"required": ["G"]},
         {"required": ["R"]},
         {"required": ["I"]},

@@ -49,7 +49,7 @@ class ImageSODA(SODA):
     """ Class to handle SODA operations.
 
     For reference, LSST camera filters (Filter, Blue Side, Red Side):
-        U : 324 = 305
+        U : 324 - 305
         G : 405 - 552
         R : 552 - 691
         I : 691 - 818
