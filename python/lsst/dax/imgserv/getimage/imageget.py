@@ -389,20 +389,21 @@ class ImageGetter:
             wcs = afwGeom.makeSkyWcs(metadata, strip=False)
             r_arcsecs = radius * 3600
             pix_r = int(r_arcsecs / wcs.getPixelScale().asArcseconds())
-            ss = SpanSet.fromShape(pix_r) # defaults to circle
+            ss = SpanSet.fromShape(pix_r, Stencil.CIRCLE)
             ss_width = ss.getBBox().getWidth()
-            src_image = self.cutout_from_nearest(ra, dec, ss_width, ss_width,
-                                                 "pixel", filt)
-            src_cutout = src_image.getMaskedImage()
-            circle_cutout = afwImage.MaskedImageF(src_cutout.getBBox())
-            spanset = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
-                                        offset=src_cutout.getXY0() +
-                                               afwGeom.Extent2I(pix_r, pix_r))
-            spanset.copyMaskedImage(src_cutout, circle_cutout)
-            # make an Exposure cutout with WCS info
-            cutout = afwImage.ExposureF(circle_cutout,
-                                            afwImage.ExposureInfo(wcs))
-            return cutout
+            ss_height = ss.getBBox().getHeight()
+            # create a subimage of bbox with all metadata from source image
+            circle_cutout = self.cutout_from_nearest(ra, dec, ss_width,
+                                                     ss_height, "pixel", filt)
+            ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
+                                          offset=circle_cutout.getXY0() +
+                                                 afwGeom.Extent2I(pix_r, pix_r))
+            no_data = circle_cutout.getMask().getMaskPlane("NO_DATA")
+            ss_bbox = SpanSet(ss_circle.getBBox())
+            ss_nodata = ss_bbox.intersectNot(ss_circle)
+            # set region outside circle to NO_DATA (or 8) bit value
+            ss_nodata.setImage(circle_cutout.getImage(), no_data)
+            return circle_cutout
         elif shape == "RANGE":
             if len(pos_items) < 5:
                 raise Exception("RANGE: invalid number of values")
@@ -573,7 +574,6 @@ class ImageGetter:
     def _imagedataset_sub(self):
         # Return the dataset type for sub-images
         return self._imagedataset_type + "_sub"
-
 
     def _cutout_from_src(self, src_image, xy_center_x, xy_center_y, width,
                          height, wcs):

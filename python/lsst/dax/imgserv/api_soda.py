@@ -177,7 +177,10 @@ def img_sync():
         soda_url = url_for('api_image_soda.img_sync', _external=True)
         # no parameters present, return service status
         return _service_response(soda_url)
-    image = current_app.soda.do_sync(_getparams())
+    _params = _getparams()
+    if _invalidsodaparam(_params):
+        return _uws_job_response_plain("ERROR=Invalid SODA parameter")
+    image = current_app.soda.do_sync(_params)
     if image:
         with tempfile.NamedTemporaryFile(prefix="img_", suffix=".fits") as fp:
             image.writeFits(fp.name)
@@ -203,8 +206,11 @@ def img_async():
         else:
             soda_url = url_for('api_image_soda.img_async', _external=True)
             return _service_response(soda_url)
+    _params = _getparams()
+    if _invalidsodaparam(_params):
+        return _uws_job_response_plain("ERROR=Invalid SODA parameter")
     # new job for request
-    job_id = current_app.soda.do_async(_getparams())
+    job_id = current_app.soda.do_async(_params)
     return redirect(url_for('api_image_soda.img_async_job',
                             job_id=job_id,
                             _external=True))
@@ -536,3 +542,10 @@ def _getparams():
     # Mark the API variant for later reference
     params["API"] = "SODA"
     return params
+
+
+def _invalidsodaparam(params):
+    if any(param in ["BAND", "TIME", "POL"] for param in params):
+        return True
+    else:
+        return False

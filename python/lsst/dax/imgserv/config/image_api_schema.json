@@ -47,13 +47,11 @@
       "required": ["x", "y", "unit"]
     },
     "circle": {
-      "type": "object",
+      "type": "array",
       "ucd": "phys.angArea;obs",
-      "properties": {
-        "unit": {"type": "string", "enum": ["deg"]},
-        "radius": {"type": "number", "ucd": "phys.angSize"}
-      },
-      "required": ["unit", "radius"]
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {"type": "number", "ucd": "phys.angSize"}
     },
     "range": {
       "type": "object",
@@ -67,25 +65,46 @@
       "required": ["long1", "lat1", "long2", "lat2"]
     },
     "polygon": {
+      "type": "array",
+      "ucd": "phys.angArea;obs",
+      "minItems": 3,
+      "items": {"type": "number", "ucd": "phys.angSize"}
+    },
+    "brect": {
       "type": "object",
       "ucd": "phys.angArea;obs",
       "properties": {
-        "sides": {
-          "type": "array",
-          "minItems": 3,
-          "items": {"type": "number", "ucd": "phys.angSize"}
-        },
-        "unit": {
-          "type": "string",
-          "enum": ["arsec", "arcmin", "deg"]
-        }
+        "ra": {"$ref": "#/definitions/ra"},
+        "dec": {"$ref": "#/definitions/dec"},
+        "size": {"$ref": "#/definitions/size"}
       },
-      "required": ["sides", "unit"]
+      "required": ["ra", "dec", "size"]
     },
     "filter": {
       "type": "string",
       "ucd": "phys.transmission;instr.filter",
       "enum": ["u", "g", "r", "i", "z", "y"]
+    },
+    "BAND": {
+      "type": "object",
+      "ucd": "em.wl",
+      "$comment": "Ref: https://lsst.org/scientists/keynumbers",
+      "properties": {
+        "U": {"u": [324, 395]},
+        "G": {"g": [405, 552]},
+        "R": {"r": [552, 691]},
+        "I": {"i": [691, 818]},
+        "Z": {"z": [818, 921]},
+        "Y": {"y": [922, 997]}
+        },
+      "oneOf": [
+        {"required": ["U"]},
+        {"required": ["G"]},
+        {"required": ["R"]},
+        {"required": ["I"]},
+        {"required": ["Z"]},
+        {"required": ["Y"]}
+      ]
     },
     "data_id": {
       "type": "object",
@@ -132,15 +151,28 @@
       "properties": {
         "image_id": {"$ref": "#/definitions/image_id"},
         "center": {"$ref": "#/definitions/center"},
-        "POS": {
-            "type": "string",
-            "ucd": "meta.id;obs.image"
-        },
+        "POS": {"$ref":  "#/definitions/POS"},
         "size": {"$ref": "#/definitions/size"}
       },
       "oneOf": [
         {"required": ["image_id", "center", "size"]},
         {"required": ["image_id", "POS"]}
+      ]
+    },
+    "POS": {
+      "type": "object",
+      "ucd": "phys.angArea;obs",
+      "properties": {
+        "CIRCLE": {"$ref": "#/definitions/circle"},
+        "RANGE": {"$ref": "#/definitions/range"},
+        "POLYGON": {"$ref": "#/definitions/polygon"},
+        "BRECT": {"$ref": "#/definitions/brect"}
+      },
+      "oneOf": [
+        { "required": ["CIRCLE"] },
+        { "required":  ["RANGE"]},
+        { "required:": ["POLYGON"] },
+        { "required": ["BRECT"] }
       ]
     },
     "image_id": {
