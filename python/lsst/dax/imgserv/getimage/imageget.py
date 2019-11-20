@@ -28,6 +28,9 @@ cutout dimensions, via the appropriate Butler object passed in.
 @author: Kenny Lo, SLAC
 
 """
+import math
+import rootfs.etc.imgserv.imgserv_config as imgserv_config
+
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 from lsst.afw.geom import SpanSet, Stencil
@@ -35,6 +38,7 @@ from lsst.afw.geom import SpanSet, Stencil
 import lsst.log as log
 
 from .skymapImage import SkymapImage
+from ..exceptions import ImageNotFoundError, UsageError
 
 
 class ImageGetter:
@@ -81,8 +85,7 @@ class ImageGetter:
         """
         q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
         if not q_result:
-            # not found
-            raise Exception("Image not found")
+            raise ImageNotFoundError()
         else:
             data_id = self._data_id_from_qr(q_result)
             image = self._image_from_butler(data_id)
@@ -169,8 +172,7 @@ class ImageGetter:
         """
         q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
         if not q_result:
-            # not found
-            return None
+            raise ImageNotFoundError()
         else:
             data_id = self._data_id_from_qr(q_result)
             cutout = self._cutout_by_data_id(data_id, ra, dec, width, height,
@@ -371,7 +373,7 @@ class ImageGetter:
         shape = pos_items[0]
         if shape == "BRECT":
             if len(pos_items) < 6:
-                raise Exception("BRECT: invalid number of values")
+                raise UsageError("BRECT: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             w, h = float(pos_items[3]), float(pos_items[4])
             unit_size = pos_items[5]
@@ -379,9 +381,12 @@ class ImageGetter:
             return cutout
         elif shape == "CIRCLE":
             if len(pos_items) < 4:
-                raise Exception("CIRCLE: invalid number of values")
+                raise UsageError("CIRCLE: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             radius = float(pos_items[3])
+            cutout_area = (radius**2)*math.pi
+            if cutout_area > imgserv_config.max_image_cutout_size:
+                raise UsageError("CIRCLE: max size for cutout exceeded")
             # convert from deg to pixels by wcs (ICRS)
             q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
             data_id = self._data_id_from_qr(q_result)
@@ -406,12 +411,14 @@ class ImageGetter:
             return circle_cutout
         elif shape == "RANGE":
             if len(pos_items) < 5:
-                raise Exception("RANGE: invalid number of values")
+                raise UsageError("RANGE: invalid number of values")
             # convert the pair of (ra,dec) to bbox
             ra1, ra2 = float(pos_items[1]), float(pos_items[2])
             dec1, dec2 = float(pos_items[3]), float(pos_items[4])
             box = afwGeom.Box2D(afwGeom.Point2D(ra1, dec1),
                                   afwGeom.Point2D(ra2, dec2))
+            if box.getArea() > imgserv_config.max_image_cutout_size:
+                raise UsageError("RANGE: max size for cutout exceeded")
             # convert from deg to arcsec
             w = box.getWidth()*3600
             h = box.getHeight()*3600
@@ -422,13 +429,16 @@ class ImageGetter:
             return cutout
         elif shape == "POLYGON":
             if len(pos_items) < 7:
-                raise Exception("POLYGON: invalid number of values")
+                raise UsageError("POLYGON: invalid number of values")
             vertices = []
             pos_items.pop(0)
             for long, lat in zip(pos_items[::2], pos_items[1::2]):
                 pt = afwGeom.Point2D(float(long), float(lat))
                 vertices.append(pt)
             polygon = afwGeom.Polygon(vertices)
+            # check cutout size
+            if polygon.calculateArea() > imgserv_config.max_image_cutout_size:
+                raise UsageError("POLYGON: max size for cutout exceeded")
             center = polygon.calculateCenter()
             ra, dec = center.getX(), center.getY()
             # afw limitation: can only return the bbox of the polygon
@@ -597,7 +607,7 @@ class ImageGetter:
         else:
             self._log.debug(
                 "cutout image wanted is OUTSIDE source image -> None")
-            raise Exception("non-overlapping cutout bbox")
+            raise UsageError("non-overlapping cutout bbox")
         if isinstance(src_image, afwImage.ExposureF):
             self._log.debug(
                 "co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"

@@ -51,6 +51,7 @@ def make_celery():
     app_celery.config_from_object('celery_config')
 
 
+# noinspection PyBroadException
 @app_celery.task(bind=True)
 def get_image_async(self, *args, **kwargs):
     """This is called by celery worker to retrieve image.
@@ -78,17 +79,27 @@ def get_image_async(self, *args, **kwargs):
     config["DAX_IMG_CONFIG"] = config_path
     meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
     config["DAX_IMG_META_URL"] = meta_url
-    soda = imageSODA.ImageSODA(config)
-    image = soda.do_sync(params)
-    # save the result image in local temp dir
-    with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
+    image = None
+    status = "OK"
+    try:
+        soda = imageSODA.ImageSODA(config)
+        image = soda.do_sync(params)
+    except Exception as e:
+        status = str(e)
+    finally:
+        # save the result image in local temp dir
+        if image:
+            with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
                                      prefix="img-",
                                      suffix=".fits",
                                      delete=False) as fp:
-        image.writeFits(fp.name)
+                image.writeFits(fp.name)
+                job_result = fp.name
+        else:
+            job_result = status
         job_end_time = datetime.timestamp(datetime.now())
         result = {
-            "job_result": fp.name,
+            "job_result": job_result,
             "job_owner": job_owner,
             "job_creation_time": job_creation_time,
             "job_start_time": job_start_time,

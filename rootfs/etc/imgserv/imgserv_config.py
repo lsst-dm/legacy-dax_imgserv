@@ -21,6 +21,8 @@
 import os
 from configparser import RawConfigParser
 
+max_image_cutout_size = 9.6 # in squared degrees
+
 config_json = dict({
   "DEBUG": True,
   "DAX_IMG_TEMPDIR": "/tmp/imageworker_results",
