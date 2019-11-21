@@ -85,7 +85,7 @@ class ImageGetter:
         """
         q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
         if not q_result:
-            raise ImageNotFoundError()
+            raise ImageNotFoundError("Image Query Returning None")
         else:
             data_id = self._data_id_from_qr(q_result)
             image = self._image_from_butler(data_id)
@@ -172,12 +172,22 @@ class ImageGetter:
         """
         q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
         if not q_result:
-            raise ImageNotFoundError()
-        else:
-            data_id = self._data_id_from_qr(q_result)
-            cutout = self._cutout_by_data_id(data_id, ra, dec, width, height,
-                                             unit)
-            return cutout
+            raise ImageNotFoundError("Empty result returned for image query")
+        data_id = self._data_id_from_qr(q_result)
+        metadata = self._metadata_from_data_id(data_id)
+        wcs = afwGeom.makeSkyWcs(metadata, strip=False)
+        ps = wcs.getPixelScale().asDegrees()
+        # first get the cutout area in squared degrees for size checking
+        if unit in ["pixel", "pix", "px"]:
+            cutout_area = width * height * ps  # convert to degrees
+        else:  # arcsec as unit
+            cutout_area = width * height / 3600  # convert to degrees
+        if cutout_area > imgserv_config.MAX_IMAGE_CUTOUT_SIZE:
+            msg = f"Requested image exceeded " \
+                  f"{imgserv_config.MAX_IMAGE_CUTOUT_SIZE} squared degrees"
+            raise UsageError(msg)
+        cutout = self._cutout_by_data_id(data_id, ra, dec, width, height, unit)
+        return cutout
 
     def cutout_from_data_id_by_run(self, run, camcol, field, filt, ra, dec,
                                    width, height, unit):
@@ -384,16 +394,12 @@ class ImageGetter:
                 raise UsageError("CIRCLE: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             radius = float(pos_items[3])
-            cutout_area = (radius**2)*math.pi
-            if cutout_area > imgserv_config.max_image_cutout_size:
-                raise UsageError("CIRCLE: max size for cutout exceeded")
             # convert from deg to pixels by wcs (ICRS)
             q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
             data_id = self._data_id_from_qr(q_result)
             metadata = self._metadata_from_data_id(data_id)
             wcs = afwGeom.makeSkyWcs(metadata, strip=False)
-            r_arcsecs = radius * 3600
-            pix_r = int(r_arcsecs / wcs.getPixelScale().asArcseconds())
+            pix_r = int(radius / wcs.getPixelScale().asDegrees())
             ss = SpanSet.fromShape(pix_r, Stencil.CIRCLE)
             ss_width = ss.getBBox().getWidth()
             ss_height = ss.getBBox().getHeight()
@@ -402,7 +408,7 @@ class ImageGetter:
                                                      ss_height, "pixel", filt)
             ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
                                           offset=circle_cutout.getXY0() +
-                                                 afwGeom.Extent2I(pix_r, pix_r))
+                                          afwGeom.Extent2I(pix_r, pix_r))
             no_data = circle_cutout.getMask().getMaskPlane("NO_DATA")
             ss_bbox = SpanSet(ss_circle.getBBox())
             ss_nodata = ss_bbox.intersectNot(ss_circle)
@@ -416,12 +422,10 @@ class ImageGetter:
             ra1, ra2 = float(pos_items[1]), float(pos_items[2])
             dec1, dec2 = float(pos_items[3]), float(pos_items[4])
             box = afwGeom.Box2D(afwGeom.Point2D(ra1, dec1),
-                                  afwGeom.Point2D(ra2, dec2))
-            if box.getArea() > imgserv_config.max_image_cutout_size:
-                raise UsageError("RANGE: max size for cutout exceeded")
+                                afwGeom.Point2D(ra2, dec2))
             # convert from deg to arcsec
-            w = box.getWidth()*3600
-            h = box.getHeight()*3600
+            w = box.getWidth() * 3600
+            h = box.getHeight() * 3600
             # compute the arithmetic center (ra, dec) of the range
             ra = (ra1 + ra2) / 2
             dec = (dec1 + dec2) / 2
@@ -436,16 +440,13 @@ class ImageGetter:
                 pt = afwGeom.Point2D(float(long), float(lat))
                 vertices.append(pt)
             polygon = afwGeom.Polygon(vertices)
-            # check cutout size
-            if polygon.calculateArea() > imgserv_config.max_image_cutout_size:
-                raise UsageError("POLYGON: max size for cutout exceeded")
             center = polygon.calculateCenter()
             ra, dec = center.getX(), center.getY()
             # afw limitation: can only return the bbox of the polygon
             bbox = polygon.getBBox()
             # convert from 'deg' to 'arcsec'
-            w = bbox.getWidth()*3600
-            h = bbox.getHeight()*3600
+            w = bbox.getWidth() * 3600
+            h = bbox.getHeight() * 3600
             cutout = self.cutout_from_nearest(ra, dec, w, h, "arcsec", filt)
             return cutout
 
@@ -558,7 +559,7 @@ class ImageGetter:
             else:
                 self._log.debug("pixel scale = 0!")
         cutout = self.cutout_from_src(src_img, xy_center_x, xy_center_y, width,
-                                 height, wcs)
+                                      height, wcs)
 
         return cutout
 
@@ -611,7 +612,8 @@ class ImageGetter:
         if isinstance(src_image, afwImage.ExposureF):
             self._log.debug(
                 "co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"
-                .format(pix_ulx, pix_ulx + width, pix_uly, pix_uly + height))
+                    .format(pix_ulx, pix_ulx + width, pix_uly,
+                            pix_uly + height))
             # image will keep wcs from source image
             cutout = afwImage.ExposureF(src_image, co_box)
         elif isinstance(src_image, afwImage.ExposureU):

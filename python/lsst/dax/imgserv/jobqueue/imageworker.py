@@ -55,11 +55,13 @@ def make_celery():
 @app_celery.task(bind=True)
 def get_image_async(self, *args, **kwargs):
     """This is called by celery worker to retrieve image.
+
     Parameters
     ----------
     self: `app.Task`
     params: `dict`
         the request parameters
+
     Returns
     -------
     result: `dict`
@@ -79,24 +81,21 @@ def get_image_async(self, *args, **kwargs):
     config["DAX_IMG_CONFIG"] = config_path
     meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
     config["DAX_IMG_META_URL"] = meta_url
-    image = None
-    status = "OK"
+    job_result = None
     try:
         soda = imageSODA.ImageSODA(config)
         image = soda.do_sync(params)
-    except Exception as e:
-        status = str(e)
-    finally:
         # save the result image in local temp dir
         if image:
             with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
-                                     prefix="img-",
-                                     suffix=".fits",
-                                     delete=False) as fp:
+                                             prefix="img-",
+                                             suffix=".fits",
+                                             delete=False) as fp:
                 image.writeFits(fp.name)
                 job_result = fp.name
-        else:
-            job_result = status
+    except Exception as e:
+        job_result = str(e)
+    finally:
         job_end_time = datetime.timestamp(datetime.now())
         result = {
             "job_result": job_result,

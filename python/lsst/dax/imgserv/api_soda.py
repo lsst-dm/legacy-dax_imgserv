@@ -180,22 +180,15 @@ def img_sync():
         # no parameters present, return service status
         return _service_response(soda_url)
     _params = _getparams()
-    if _invalid_soda_param(_params):
-        return _make_response_plain("ERROR=Invalid SODA parameter",
-                                    HTTPStatus.BAD_REQUEST)
-    try:
-        image = current_app.soda.do_sync(_params)
-        with tempfile.NamedTemporaryFile(prefix="img_", suffix=".fits") as fp:
-            image.writeFits(fp.name)
-            resp = send_file(fp.name,
-                             mimetype="image/fits",
-                             as_attachment=True,
-                             attachment_filename=os.path.basename(fp.name))
-            return resp
-    except ImageNotFoundError as e:
-        return _image_not_found(f"Error={e}")
-    except UsageError as e:
-        return _make_response_plain(f"UsageError={e}", HTTPStatus.BAD_REQUEST)
+    _check_soda_param(_params)
+    image = current_app.soda.do_sync(_params)
+    with tempfile.NamedTemporaryFile(prefix="img_", suffix=".fits") as fp:
+        image.writeFits(fp.name)
+        resp = send_file(fp.name,
+                         mimetype="image/fits",
+                         as_attachment=True,
+                         attachment_filename=os.path.basename(fp.name))
+        return resp
 
 
 @image_soda.route("/async", methods=["GET", "POST"])
@@ -212,9 +205,7 @@ def img_async():
             soda_url = url_for('api_image_soda.img_async', _external=True)
             return _service_response(soda_url)
     _params = _getparams()
-    if _invalid_soda_param(_params):
-        return _make_response_plain("ERROR=Invalid SODA parameter",
-                                    HTTPStatus.BAD_REQUEST)
+    _check_soda_param(_params)
     # new job for request
     job_id = current_app.soda.do_async(_params)
     return redirect(url_for('api_image_soda.img_async_job',
@@ -480,15 +471,21 @@ def img_async_job_owner(job_id: str):
 @image_soda.errorhandler(HTTPException)
 @image_soda.errorhandler(Exception)
 def unhandled_exceptions(error):
-    err = {
-        "exception": error.__class__.__name__,
-        "message": error.args[0],
-        "traceback": traceback.format_exc()
-    }
-    if len(error.args) > 1:
-        err["more"] = [str(arg) for arg in error.args[1:]]
-    return _make_response_plain("Error=" + str(err),
-                                HTTPStatus.INTERNAL_SERVER_ERROR)
+    if type(error) == UsageError:
+        return _make_response_plain(f"UsageError={error}",
+                                    HTTPStatus.BAD_REQUEST)
+    elif type(error) == ImageNotFoundError:
+        return _image_not_found(f"Error={error}")
+    else:
+        err = {
+            "exception": error.__class__.__name__,
+            "message": error.args[0],
+            "traceback": traceback.format_exc()
+        }
+        if len(error.args) > 1:
+            err["more"] = [str(arg) for arg in error.args[1:]]
+        return _make_response_plain("Error=" + str(err),
+                                    HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def _service_response(soda_url):
@@ -551,8 +548,6 @@ def _getparams():
     return params
 
 
-def _invalid_soda_param(params):
+def _check_soda_param(params):
     if any(param in ["BAND", "TIME", "POL"] for param in params):
-        return True
-    else:
-        return False
+        raise UsageError("Invalid SODA parameter")

@@ -21,7 +21,9 @@
 import os
 from configparser import RawConfigParser
 
-max_image_cutout_size = 9.6 # in squared degrees
+# 9.6 (unit in squared degrees) is the size of LSST's focal plane.
+# See https://www.lsst.org/scientists/keynumbers
+MAX_IMAGE_CUTOUT_SIZE = 9.6
 
 config_json = dict({
   "DEBUG": True,
