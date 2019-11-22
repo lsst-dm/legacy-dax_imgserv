@@ -404,17 +404,18 @@ def img_async_job_results_result(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     if ar.ready():
-        result = ar.get()  # retrieve path to the image output
-        fn_out = result.get("job_result")
-        if os.path.exists(fn_out):
+        if ar.state == "SUCCESS":
+            result = ar.get()  # retrieve path to the image output
+            fn_out = result.get("job_result")
             resp = send_file(fn_out,
                              mimetype="image/fits",
                              as_attachment=True,
                              attachment_filename=os.path.basename(fn_out))
             return resp
-        else:
-            return _make_response_plain(fn_out, HTTPStatus.BAD_REQUEST)
-    else:
+        else:  # FAILURE
+            return _make_response_plain(f"TaskFailed={ar.result}",
+                                        HTTPStatus.BAD_REQUEST)
+    else:  # NOT ready yet
         return redirect(url_for('api_image_soda.img_async_job',
                                 job_id=job_id,
                                 _external=True))

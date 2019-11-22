@@ -20,9 +20,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import tempfile
 import os
+import traceback
 from datetime import datetime
 
-from celery import Celery
+from celery import Celery, states
+from celery.exceptions import Ignore
+
 from flask import current_app
 
 # use following format for circular reference
@@ -81,28 +84,21 @@ def get_image_async(self, *args, **kwargs):
     config["DAX_IMG_CONFIG"] = config_path
     meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
     config["DAX_IMG_META_URL"] = meta_url
-    job_result = None
-    try:
-        soda = imageSODA.ImageSODA(config)
-        image = soda.do_sync(params)
-        # save the result image in local temp dir
-        if image:
-            with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
-                                             prefix="img-",
-                                             suffix=".fits",
-                                             delete=False) as fp:
-                image.writeFits(fp.name)
-                job_result = fp.name
-    except Exception as e:
-        job_result = str(e)
-    finally:
-        job_end_time = datetime.timestamp(datetime.now())
-        result = {
-            "job_result": job_result,
-            "job_owner": job_owner,
-            "job_creation_time": job_creation_time,
-            "job_start_time": job_start_time,
-            "job_end_time": job_end_time,
-            "soda_params": params
-        }
-        return result
+    soda = imageSODA.ImageSODA(config)
+    image = soda.do_sync(params)
+    # save the result image in local temp dir
+    with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
+                                     prefix="img-",
+                                     suffix=".fits",
+                                     delete=False) as fp:
+        image.writeFits(fp.name)
+    job_end_time = datetime.timestamp(datetime.now())
+    result = {
+        "job_result": fp.name,
+        "job_owner": job_owner,
+        "job_creation_time": job_creation_time,
+        "job_start_time": job_start_time,
+        "job_end_time": job_end_time,
+        "soda_params": params
+    }
+    return result
