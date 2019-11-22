@@ -21,10 +21,10 @@
 
 
 class UsageError(Exception):
-    def __init__(self, msg="Usage Error"):
+    def __init__(self, msg):
         super().__init__(msg)
 
 
 class ImageNotFoundError(Exception):
-    def __init__(self, msg="Image Not Found"):
+    def __init__(self, msg):
         super().__init__(msg)
