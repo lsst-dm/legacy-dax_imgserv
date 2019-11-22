@@ -28,7 +28,6 @@ cutout dimensions, via the appropriate Butler object passed in.
 @author: Kenny Lo, SLAC
 
 """
-import math
 import rootfs.etc.imgserv.imgserv_config as imgserv_config
 
 import lsst.afw.geom as afwGeom
@@ -174,18 +173,8 @@ class ImageGetter:
         if not q_result:
             raise ImageNotFoundError("Empty result returned for image query")
         data_id = self._data_id_from_qr(q_result)
-        metadata = self._metadata_from_data_id(data_id)
-        wcs = afwGeom.makeSkyWcs(metadata, strip=False)
-        ps = wcs.getPixelScale().asDegrees()
-        # first get the cutout area in squared degrees for size checking
-        if unit in ["pixel", "pix", "px"]:
-            cutout_area = width * height * ps  # convert to degrees
-        else:  # arcsec as unit
-            cutout_area = width * height / 3600  # convert to degrees
-        if cutout_area > imgserv_config.MAX_IMAGE_CUTOUT_SIZE:
-            msg = f"Requested image exceeded " \
-                  f"{imgserv_config.MAX_IMAGE_CUTOUT_SIZE} squared degrees"
-            raise UsageError(msg)
+        if not data_id:
+            raise ImageNotFoundError("No data_id mapped from query result")
         cutout = self._cutout_by_data_id(data_id, ra, dec, width, height, unit)
         return cutout
 
@@ -403,18 +392,18 @@ class ImageGetter:
             ss = SpanSet.fromShape(pix_r, Stencil.CIRCLE)
             ss_width = ss.getBBox().getWidth()
             ss_height = ss.getBBox().getHeight()
-            # create a subimage of bbox with all metadata from source image
-            circle_cutout = self.cutout_from_nearest(ra, dec, ss_width,
-                                                     ss_height, "pixel", filt)
+            # create a sub image of bbox with all metadata from source image
+            cutout = self._cutout_by_data_id(data_id, ra, dec, ss_width,
+                                             ss_height, "pixel", wcs)
             ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
-                                          offset=circle_cutout.getXY0() +
+                                          offset=cutout.getXY0() +
                                           afwGeom.Extent2I(pix_r, pix_r))
-            no_data = circle_cutout.getMask().getMaskPlane("NO_DATA")
+            no_data = cutout.getMask().getMaskPlane("NO_DATA")
             ss_bbox = SpanSet(ss_circle.getBBox())
             ss_nodata = ss_bbox.intersectNot(ss_circle)
             # set region outside circle to NO_DATA (or 8) bit value
-            ss_nodata.setImage(circle_cutout.getImage(), no_data)
-            return circle_cutout
+            ss_nodata.setImage(cutout.getImage(), no_data)
+            return cutout
         elif shape == "RANGE":
             if len(pos_items) < 5:
                 raise UsageError("RANGE: invalid number of values")
@@ -476,25 +465,32 @@ class ImageGetter:
             # pixel scale is defined as Angle/pixel
             wcs = src_image.getWcs()
             ps = wcs.getPixelScale().asArcseconds()
-            if ps != 0:
-                width = width / ps
-                height = height / ps
-            else:
-                raise Exception("Unexpected: pixel scale = 0")
+            width = width / ps
+            height = height / ps
         center = afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
         size = afwGeom.Extent2I(width, height)
         cutout = src_image.getCutout(center, size)
         return cutout
 
-    def _cutout_by_data_id(self, data_id, ra, dec, width, height, unit="pixel"):
-        # check to see if q_results is empty
-        if data_id is None:
-            return None
+    def _cutout_by_data_id(self, data_id, ra, dec, width, height, unit="pixel",
+                           wcs=None):
+        # first need to check the cutout dimensions, by degree conversion
+        if unit in ["pixel", "pix", "px"]:
+            if not wcs:
+                metadata = self._metadata_from_data_id(data_id)
+                wcs = afwGeom.makeSkyWcs(metadata, strip=False)
+            ps = wcs.getPixelScale().asDegrees()
+            cutout_area = width * height * ps**2
+        else:  # arcsec as unit
+            cutout_area = width * height / 3600**2
+        if cutout_area > imgserv_config.MAX_IMAGE_CUTOUT_SIZE:
+            msg = f"Requested image exceeded " \
+                  f"{imgserv_config.MAX_IMAGE_CUTOUT_SIZE} squared degrees"
+            raise UsageError(msg)
         # Return an image by data ID through the butler.
         image = self._image_from_butler(data_id)
-        if image is None:
-            # @todo html error handling see DM-1980
-            return None
+        if not image:
+            raise ImageNotFoundError("No image from data id")
         if isinstance(image, afwImage.Exposure):
             # only with exposures
             cutout = ImageGetter.cutout_from_exposure(image, ra, dec, width,
@@ -553,11 +549,8 @@ class ImageGetter:
         if unit == "arcsec":
             # pixel scale is defined as Angle/pixel
             ps = wcs.getPixelScale().asArcseconds()
-            if ps != 0:
-                width = width / ps
-                height = height / ps
-            else:
-                self._log.debug("pixel scale = 0!")
+            width = width / ps
+            height = height / ps
         cutout = self.cutout_from_src(src_img, xy_center_x, xy_center_y, width,
                                       height, wcs)
 
