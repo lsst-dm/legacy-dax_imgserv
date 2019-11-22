@@ -20,9 +20,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import tempfile
 import os
+import traceback
 from datetime import datetime
 
-from celery import Celery
+from celery import Celery, states
+from celery.exceptions import Ignore
+
 from flask import current_app
 
 # use following format for circular reference
@@ -51,14 +54,17 @@ def make_celery():
     app_celery.config_from_object('celery_config')
 
 
+# noinspection PyBroadException
 @app_celery.task(bind=True)
 def get_image_async(self, *args, **kwargs):
     """This is called by celery worker to retrieve image.
+
     Parameters
     ----------
     self: `app.Task`
     params: `dict`
         the request parameters
+
     Returns
     -------
     result: `dict`
@@ -86,13 +92,13 @@ def get_image_async(self, *args, **kwargs):
                                      suffix=".fits",
                                      delete=False) as fp:
         image.writeFits(fp.name)
-        job_end_time = datetime.timestamp(datetime.now())
-        result = {
-            "job_result": fp.name,
-            "job_owner": job_owner,
-            "job_creation_time": job_creation_time,
-            "job_start_time": job_start_time,
-            "job_end_time": job_end_time,
-            "soda_params": params
-        }
-        return result
+    job_end_time = datetime.timestamp(datetime.now())
+    result = {
+        "job_result": fp.name,
+        "job_owner": job_owner,
+        "job_creation_time": job_creation_time,
+        "job_start_time": job_start_time,
+        "job_end_time": job_end_time,
+        "soda_params": params
+    }
+    return result

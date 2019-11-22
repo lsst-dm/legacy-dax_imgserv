@@ -21,6 +21,10 @@
 import os
 from configparser import RawConfigParser
 
+# 9.6 (unit in squared degrees) is the size of LSST's focal plane.
+# See https://www.lsst.org/scientists/keynumbers
+MAX_IMAGE_CUTOUT_SIZE = 9.6
+
 config_json = dict({
   "DEBUG": True,
   "DAX_IMG_TEMPDIR": "/tmp/imageworker_results",

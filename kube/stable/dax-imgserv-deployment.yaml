@@ -18,6 +18,13 @@ spec:
       - name: dax-imgserv
         image: webserv/imgserv:dax_latest
         imagePullPolicy: Always
+        resources:
+          requests:
+            memory: 16Gi
+            cpu: 4
+          limits:
+            memory: 64Gi
+            cpu: 16
         env:
         - name: WEBSERV_CONFIG
           value: "/etc/dax-webserv/webserv.ini"

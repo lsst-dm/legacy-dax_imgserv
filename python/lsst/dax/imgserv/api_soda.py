@@ -25,6 +25,7 @@ Corresponding URI: /api/image/soda
 
 """
 import os
+import os.path
 from datetime import datetime
 
 import traceback
@@ -41,6 +42,7 @@ from jsonschema import validate
 
 import lsst.log as log
 
+from .exceptions import ImageNotFoundError, UsageError
 from .vo.imageSODA import ImageSODA
 from .jsonutil import get_params
 from .jobqueue.imageworker import make_celery, app_celery
@@ -178,19 +180,15 @@ def img_sync():
         # no parameters present, return service status
         return _service_response(soda_url)
     _params = _getparams()
-    if _invalidsodaparam(_params):
-        return _uws_job_response_plain("ERROR=Invalid SODA parameter")
+    _check_soda_param(_params)
     image = current_app.soda.do_sync(_params)
-    if image:
-        with tempfile.NamedTemporaryFile(prefix="img_", suffix=".fits") as fp:
-            image.writeFits(fp.name)
-            resp = send_file(fp.name,
-                             mimetype="image/fits",
-                             as_attachment=True,
-                             attachment_filename=os.path.basename(fp.name))
-            return resp
-    else:
-        return _image_not_found()
+    with tempfile.NamedTemporaryFile(prefix="img_", suffix=".fits") as fp:
+        image.writeFits(fp.name)
+        resp = send_file(fp.name,
+                         mimetype="image/fits",
+                         as_attachment=True,
+                         attachment_filename=os.path.basename(fp.name))
+        return resp
 
 
 @image_soda.route("/async", methods=["GET", "POST"])
@@ -207,8 +205,7 @@ def img_async():
             soda_url = url_for('api_image_soda.img_async', _external=True)
             return _service_response(soda_url)
     _params = _getparams()
-    if _invalidsodaparam(_params):
-        return _uws_job_response_plain("ERROR=Invalid SODA parameter")
+    _check_soda_param(_params)
     # new job for request
     job_id = current_app.soda.do_async(_params)
     return redirect(url_for('api_image_soda.img_async_job',
@@ -273,7 +270,7 @@ def img_async_job_phase(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     phase = map_phase_from_state[ar.state]
-    return _uws_job_response_plain("PHASE="+phase)
+    return _make_response_plain("PHASE="+phase)
 
 
 @image_soda.route("/async/<job_id>/executionduration", methods=["GET"])
@@ -293,10 +290,10 @@ def img_async_job_duration(job_id: str):
     if ar.ready():
         result = ar.get()
         execution_duration = result.get("executionduration", "NA")
-        return _uws_job_response_plain("EXECUTIONDURATION=" +
+        return _make_response_plain("EXECUTIONDURATION=" +
                                        execution_duration)
     else:
-        return _uws_job_response_plain("INFO=NOT_AVAILABLE")
+        return _make_response_plain("INFO=NOT_AVAILABLE")
 
 
 @image_soda.route("/async/<job_id>/destruction", methods=["GET"])
@@ -330,7 +327,7 @@ def img_async_job_error(job_id: str):
     ar = app_celery.AsyncResult(job_id)
     phase = map_phase_from_state[ar.state]
     e = ar.get() if phase == "ERROR" else "NONE"
-    return _uws_job_response_plain("ERROR="+e)
+    return _make_response_plain("ERROR="+e)
 
 
 @image_soda.route("/async/<job_id>/quote", methods=["GET"])
@@ -407,14 +404,18 @@ def img_async_job_results_result(job_id: str):
     """
     ar = app_celery.AsyncResult(job_id)
     if ar.ready():
-        result = ar.get()  # retrieve path to the image output
-        fn_out = result.get("job_result")
-        resp = send_file(fn_out,
-                         mimetype="image/fits",
-                         as_attachment=True,
-                         attachment_filename=os.path.basename(fn_out))
-        return resp
-    else:
+        if ar.state == "SUCCESS":
+            result = ar.get()  # retrieve path to the image output
+            fn_out = result.get("job_result")
+            resp = send_file(fn_out,
+                             mimetype="image/fits",
+                             as_attachment=True,
+                             attachment_filename=os.path.basename(fn_out))
+            return resp
+        else:  # FAILURE
+            return _make_response_plain(f"TaskFailed={ar.result}",
+                                        HTTPStatus.BAD_REQUEST)
+    else:  # NOT ready yet
         return redirect(url_for('api_image_soda.img_async_job',
                                 job_id=job_id,
                                 _external=True))
@@ -441,7 +442,7 @@ def img_async_job_parameters(job_id: str):
         # TODO: DM-20852
         # Should be able to update the job parameters in PENDING state
         return
-    return _uws_job_response_plain("PARAMS="+params)
+    return _make_response_plain("PARAMS="+params)
 
 
 @image_soda.route("/async/<job_id>/owner", methods=["GET"])
@@ -465,22 +466,27 @@ def img_async_job_owner(job_id: str):
     else:
         owner = ar.kwargs.get("owner", "UNKNOWN")
     assert(owner == user)
-    return _uws_job_response_plain("OWNER="+owner)
+    return _make_response_plain("OWNER="+owner)
 
 
 @image_soda.errorhandler(HTTPException)
 @image_soda.errorhandler(Exception)
 def unhandled_exceptions(error):
-    err = {
-        "exception": error.__class__.__name__,
-        "message": error.args[0],
-        "traceback": traceback.format_exc()
-    }
-    if len(error.args) > 1:
-        err["more"] = [str(arg) for arg in error.args[1:]]
-    resp = jsonify(err)
-    resp.status_code = HTTPStatus.INTERNAL_SERVER_ERROR
-    return resp
+    if type(error) == UsageError:
+        return _make_response_plain(f"UsageError={error}",
+                                    HTTPStatus.BAD_REQUEST)
+    elif type(error) == ImageNotFoundError:
+        return _image_not_found(f"Error={error}")
+    else:
+        err = {
+            "exception": error.__class__.__name__,
+            "message": error.args[0],
+            "traceback": traceback.format_exc()
+        }
+        if len(error.args) > 1:
+            err["more"] = [str(arg) for arg in error.args[1:]]
+        return _make_response_plain("Error=" + str(err),
+                                    HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 def _service_response(soda_url):
@@ -496,7 +502,7 @@ def _service_response(soda_url):
     return resp
 
 
-def _uws_job_response_plain(info: str):
+def _make_response_plain(info: str, http_status: int=HTTPStatus.OK):
     """ Generate the generic textual response.
     Parameters
     ----------
@@ -504,18 +510,17 @@ def _uws_job_response_plain(info: str):
         the info string.
     """
     resp = make_response(info,
-                         HTTPStatus.OK)
+                         http_status)
     resp.headers["Content-Type"] = "text/plain"
     return resp
 
 
 @image_soda.errorhandler(HTTPStatus.NOT_FOUND)
-def _image_not_found():
+def _image_not_found(msg: str = "Image Not Found"):
     # Return generic error using DALI template.
-    message = "Image Not Found"
     resp = make_response(render_template("dali_response.xml",
                                          dali_resp_state="Error",
-                                         dali_resp_msg=message),
+                                         dali_resp_msg=msg),
                          HTTPStatus.NOT_FOUND)
     resp.headers["Content-Type"] = "text/xml"
     return resp
@@ -544,8 +549,6 @@ def _getparams():
     return params
 
 
-def _invalidsodaparam(params):
+def _check_soda_param(params):
     if any(param in ["BAND", "TIME", "POL"] for param in params):
-        return True
-    else:
-        return False
+        raise UsageError("Invalid SODA parameter")
