@@ -13,14 +13,14 @@ RUN useradd -m -u $UID -g $GID -o -s /bin/bash $USERNAME
 # install redis
 RUN yum -y install redis
 
-# switch to lsst user
-USER lsst
-WORKDIR /app
-
 # Setup Dependencies
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
     conda install -y mysqlclient pymysql; \
     LDFLAGS=-fno-lto pip install uwsgi'
+
+# switch to lsst user
+USER lsst
+WORKDIR /app
 
 ADD requirements.txt .
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \

@@ -28,7 +28,7 @@ cutout dimensions, via the appropriate Butler object passed in.
 @author: Kenny Lo, SLAC
 
 """
-import rootfs.etc.imgserv.imgserv_config as imgserv_config
+import etc.imgserv.imgserv_config as imgserv_config
 
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
