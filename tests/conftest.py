@@ -30,7 +30,7 @@ def app():
     app.register_blueprint(is_api_soda.image_soda, url_prefix='/api/image/soda')
 
     with app.app_context():
-        is_api_soda.load_imgserv_config(metaserv_url="mysql://NA@test.edu")
+        is_api_soda.load_imgserv_config(metaserv_url="postgres://NA@test.edu")
 
     @app.route('/test-endpoint')
     def test_endpoint():

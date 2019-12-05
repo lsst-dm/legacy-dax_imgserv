@@ -1,0 +1,13 @@
+{
+  "image": {
+    "cutout": {
+      "imageId": { "ID": "default.raw.r" },
+      "POS": {
+        "CIRCLE": {
+          "pos": { "ra": 320.839, "dec": -0.3395 },
+          "radius": 0.01
+        }
+      }
+    }
+  }
+}

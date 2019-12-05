@@ -1,0 +1,13 @@
+{
+  "image": {
+    "cutout": {
+      "imageId": { "ID": "default.calexp.r" },
+      "POS": {
+        "CIRCLE": {
+          "pos": { "ra": 320.94, "dec": -0.289128},
+          "radius": 0.01
+        }
+      }
+    }
+  }
+}

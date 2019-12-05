@@ -27,8 +27,11 @@ This module implements the API dispatch logic.
 import os
 import json
 
-from .image import Image
-from .hashutil import Hasher
+from .exceptions import UsageError
+
+from lsst.dax.imgserv.image import Image
+
+import etc.imgserv.imgserv_config as imgserv_config
 
 
 class Dispatcher(object):
@@ -38,8 +41,12 @@ class Dispatcher(object):
     def __init__(self, config_dir):
         """Load and keep ref to the key to API Map."""
         config = os.path.join(config_dir, "api_map.json")
-        with open(config) as jason_api:
-            self.api_map = json.load(jason_api)
+        self.api_map = {}
+        with open(config) as f:
+            apis = json.load(f)
+            for key in apis.keys():
+                s_key = ",".join(sorted(key.split(",")))
+                self.api_map[s_key] = apis[key]
 
     def find_api(self, req_params):
         """ Find the API based on its method signature.
@@ -54,76 +61,52 @@ class Dispatcher(object):
         api, api_param: `Image.func_name`, `dict`
             the matching API of Image class and the parameters.
         """
-        if req_params.get("API") == "SODA":
-            api_params = self._map_soda_params(req_params)
-        else:  # v1 (legacy)
-            api_params = self._map_url_params(req_params)
-        ids = sorted(api_params.keys())
-        api_id = Hasher.md5(ids)
-        entry = self.api_map.get(api_id)
-        if entry:
-            mod_func = entry["api"]
-            # example for api_str: 'Image.cutout'
-            mod_name, func_name = mod_func.split(".")
-            api = getattr(Image, func_name)
+        api_params = self._map_soda_params(req_params)
+        api_id = self._get_api_id(api_params)
+        module_func = self.api_map.get(api_id)
+        if module_func:
+            api = eval(module_func)
             return api, api_params
         else:
-            raise Exception("Dispatcher.find_api(): API not found")
+            raise Exception("Dispatcher: API method not Found")
 
     @staticmethod
-    def _map_url_params(req_params):
-        """" Extract and map API parameters from the request. The return
-        parameters should match that of  the API signature map.
-        """
-        api_params = req_params.copy()
-        if api_params.get("API"):
-            api_params.pop("API")  # not needed for API signature
-        # deg presumed for center coordinates
-        if api_params.get("center.unit"):
-            api_params.pop("center.unit")
-        # map ra,dec into center.x,center.y
-        ra = api_params.pop("ra", None)
-        if ra:
-            api_params["center.x"] = ra
-        dec = api_params.pop("dec", None)
-        if dec:
-            api_params["center.y"] = dec
-        if ra or dec:
-            filt = None
-            if "run" in api_params or "tract" in api_params:
-                # case of filter name already specified in data id
-                pass
-            else:
-                filt = api_params.get("filter")
-            if filt:
-                api_params["filter"] = filt
-        width = api_params.pop("width", None)
-        if width:
-            api_params["size.x"] = width
-        height = api_params.pop("height", None)
-        if height:
-            api_params["size.y"] = height
-        unit = api_params.pop("unit", None)
-        if unit:
-            api_params["size.unit"] = unit
-        patch = api_params.pop("patch", None)
-        if patch:
-            patch_x, patch_y = patch.split(",")
-            api_params["patch_x"] = patch_x
-            api_params["patch_y"] = patch_y
-        return api_params
+    def _get_api_id(api_params):
+        params_l = list(api_params.keys())
+        params_l.remove("ds")
+        params_l.remove("dsType")
+        params_l.remove("filter")
+        api_id = ",".join(sorted(params_l))
+        return api_id
 
     @staticmethod
-    def _map_soda_params(req_params):
+    def _map_soda_params(req):
         """ Map the SODA parameters from the request.
         """
-        db, ds, filt = req_params["ID"].split(".")
-        api_params = {
-            "db": db,
-            "ds": ds,
-            "filter": filt,
-            "ID": req_params["ID"],
-            "POS": req_params["POS"]
-        }
+        ds, ds_type, filt = req["ID"].split(".")
+        pos = req.get("POS", None)
+        api_params = {"ds": ds}
+        if imgserv_config.config_datasets.get(ds, None) is not None:
+            api_params["dsType"] = ds_type
+            api_params["filter"] = filt
+            if pos == "NA" or pos is None:
+                if ds_type == "calexp":
+                    api_params["visit"] = int(req["visit"])
+                    api_params["detector"] = int(req["detector"])
+                    api_params["instrument"] = req["instrument"]
+                elif ds_type == "deepCoadd":
+                    api_params["band"] = req["band"]
+                    api_params["skymap"] = req["skymap"]
+                    api_params["tract"] = int(req["tract"])
+                    api_params["patch"] = int(req["patch"])
+                elif ds_type == "raw":
+                    api_params["instrument"] = req["instrument"]
+                    api_params["detector"] = int(req["detector"])
+                    api_params["exposure"] = int(req["exposure"])
+                else:
+                    raise UsageError("Missing POS or data id in request")
+            else:
+                api_params["POS"] = pos
+        else:
+            raise UsageError("Unrecognized dataset identifier")
         return api_params
-

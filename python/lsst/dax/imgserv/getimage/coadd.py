@@ -27,6 +27,7 @@ import lsst.afw.image as afwImage
 import lsst.afw.math as afwMath
 import lsst.coadd.utils as coadd_utils
 
+
 class CoaddConfig(pexConfig.Config):
     """Config for Coadd
     """

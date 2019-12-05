@@ -26,6 +26,7 @@ digests.
 
 import hashlib
 
+
 class Hasher(object):
     """ Hasher is wrapper to hash functions
     """

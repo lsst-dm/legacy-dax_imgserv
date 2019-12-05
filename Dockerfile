@@ -19,7 +19,6 @@ RUN yum -y install redis
 
 # Setup Dependencies
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
-    conda install -y mysqlclient pymysql; \
     LDFLAGS=-fno-lto pip install uwsgi'
 
 # switch to lsst user
@@ -32,11 +31,19 @@ RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
 
 # Add the code in
 ADD . /app
+# Add /etc
 ADD /rootfs /
 
 RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
    setup lsst_distrib; \
    pip install --no-cache-dir --user .'
+
+USER root
+# remove unneeded stuff
+RUN rm -rf /app/kube /app/integration /app/doc /app/lsst-dm-ci /app/rootfs /app/tests /app/Dockerfile
+
+# run imgserv as lsst user
+USER lsst
 
 ENV UWSGI_THREADS=40
 ENV UWSGI_PROCESSES=1

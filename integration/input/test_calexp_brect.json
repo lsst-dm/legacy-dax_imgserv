@@ -1,0 +1,15 @@
+{
+  "image": {
+    "cutout": {
+      "imageId": {
+        "ID": "default.calexp.r"
+      },
+      "POS": {
+        "BRECT": {
+          "pos": { "ra": 320.94, "dec": -0.289128 },
+          "extent": { "x": 72, "y": 72, "unit": "arcsec" }
+        }
+      }
+    }
+  }
+}

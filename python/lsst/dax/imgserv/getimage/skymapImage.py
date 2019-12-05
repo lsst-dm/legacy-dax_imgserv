@@ -22,11 +22,8 @@
 """
 Module to stitch together SkyMap images.
 
-@author: John Gates, SLAC
-@author: Kenny Lo, SLAC
-
 """
-import lsst.afw.geom as afw_geom
+import lsst.geom as geom
 import lsst.afw.image as afw_image
 import lsst.afw.math as afw_math
 import lsst.log as log
@@ -34,6 +31,7 @@ import lsst.coadd.utils as coadd_utils
 import lsst.pex.config as pex_config
 
 from .coadd import Coadd
+
 
 class CoaddConfig(pex_config.Config):
     saveDebugImages = pex_config.Field(
@@ -67,11 +65,10 @@ class SkymapImage(object):
     """skyMapImage returns the stitched together images from the specified
     skyMap.
     """
-    def __init__(self, butler, skymapid, logger):
+    def __init__(self, butler, skymapid):
         # Get the basic SkyMap information
         self._butler = butler
         self._skymap = butler.get(skymapid)
-        self._log = logger
 
     def get(self, center_coord, width, height, filt, units):
         """Merge multiple patches from a SkyMap into a single image.
@@ -92,7 +89,7 @@ class SkymapImage(object):
         dest_bbox = self._bbox_for_coords(dest_wcs, center_coord, width, height,
                                           units)
         dest_corner_coords = [dest_wcs.pixelToSky(pixPos) for pixPos in
-                              afw_geom.Box2D(dest_bbox).getCorners()]
+                              geom.Box2D(dest_bbox).getCorners()]
         # Collect patches of the SkyMap that are in the target region.
         # Create source exposures from the patches within each tract
         # as all patches from a tract share a WCS.
@@ -104,7 +101,7 @@ class SkymapImage(object):
             self._log.info("tract_info[{}]={}".format(j, tract_info))
             self._log.info("patch_list[{}]={}".format(j, patch_list))
             src_wcs = tract_info.getWcs()
-            src_bbox = afw_geom.Box2I()
+            src_bbox = geom.Box2I()
             for patch_info in patch_list:
                 src_bbox.include(patch_info.getOuterBBox())
             src_exposure = afw_image.ExposureF(src_bbox, src_wcs)  # blank,
@@ -135,8 +132,8 @@ class SkymapImage(object):
                 expo_bbox = dest_bbox  # dest_bbox only correct for first image
             else:
                 # Determine the correct BBox (in pixels) for the current src_wcs
-                ll_corner = afw_geom.Point2I(src_wcs.skyToPixel(dest_corner_coords[0]))
-                ur_corner = afw_geom.Point2I(src_wcs.skyToPixel(dest_corner_coords[2]))
+                ll_corner = geom.Point2I(src_wcs.skyToPixel(dest_corner_coords[0]))
+                ur_corner = geom.Point2I(src_wcs.skyToPixel(dest_corner_coords[2]))
                 # Handle negative values for in expo_bbox.
                 if ll_corner.getX() < 0:
                     ll_corner.setX(0)
@@ -148,7 +145,7 @@ class SkymapImage(object):
                 if ur_corner.getY() < 0:
                     ur_corner.setY(0)
                     self._log.warn("getSkyMap negative Y for ur_corner")
-                expo_bbox = afw_geom.Box2I(ll_corner, ur_corner)
+                expo_bbox = geom.Box2I(ll_corner, ur_corner)
             self._log.info("j={} expo_bbox={} sBBox={}".format(j, expo_bbox,
                                                         src_exposure.getBBox()))
             dest_exposure = afw_image.ExposureF(expo_bbox, src_wcs)
@@ -210,26 +207,26 @@ class SkymapImage(object):
         if units == "arcsec":
             # center_coord center, RA and Dec with width and height in
             # arcseconds
-            width_half_a = afw_geom.Angle((width / 2.0), afw_geom.arcseconds)
-            height_half_a = afw_geom.Angle((height / 2.0), afw_geom.arcseconds)
+            width_half_a = geom.Angle((width / 2.0), geom.arcseconds)
+            height_half_a = geom.Angle((height / 2.0), geom.arcseconds)
             min_ra = center_coord.getLongitude() - width_half_a
             min_dec = center_coord.getLatitude() - height_half_a
             max_ra = center_coord.getLongitude() + width_half_a
             max_dec = center_coord.getLatitude() + height_half_a
-            ll_coord = afw_geom.SpherePoint(min_ra, min_dec)
+            ll_coord = geom.SpherePoint(min_ra, min_dec, geom.degrees)
             ll_coord_pix = wcs.skyToPixel(ll_coord)
-            ur_coord = afw_geom.SpherePoint(max_ra, max_dec)
+            ur_coord = geom.SpherePoint(max_ra, max_dec, geom.degrees)
             ur_coord_pix = wcs.skyToPixel(ur_coord)
-            p2i_min = afw_geom.Point2I(ll_coord_pix)
-            p2i_max = afw_geom.Point2I(ur_coord_pix)
-            bbox = afw_geom.Box2I(p2i_min, p2i_max)
+            p2i_min = geom.Point2I(ll_coord_pix)
+            p2i_max = geom.Point2I(ur_coord_pix)
+            bbox = geom.Box2I(p2i_min, p2i_max)
         elif units == "pixel":
             # center_coord center, RA and Dec with width and height in pixels
             ctr_coord_pix = wcs.skyToPixel(center_coord)
             min_ra_pix = int(ctr_coord_pix.getX() - width//2)
             min_dec_pix = int(ctr_coord_pix.getY() - height//2)
-            p2i = afw_geom.Point2I(min_ra_pix, min_dec_pix)
-            bbox = afw_geom.Box2I(p2i, afw_geom.Extent2I(width, height))
+            p2i = geom.Point2I(min_ra_pix, min_dec_pix)
+            bbox = geom.Box2I(p2i, geom.Extent2I(width, height))
         else:
             raise Exception("invalid units {}".format(units))
         return bbox

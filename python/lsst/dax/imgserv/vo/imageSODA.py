@@ -26,8 +26,8 @@ from flask import session
 import lsst.afw.image as afw_image
 
 from ..locateImage import get_image
-from .soda.soda import SODA
-# use following format for circular reference
+from .soda import SODA
+# use following format to prevent circular reference
 import lsst.dax.imgserv.jobqueue.imageworker as imageworker
 
 """ This module implements the IVOA's SODA v1.0 per LSST requirements.
@@ -38,7 +38,7 @@ import lsst.dax.imgserv.jobqueue.imageworker as imageworker
         CIRCLE <ra> <dec> <radius>
         RANGE <ra1> <ra2> <dec1> <dec2>
         POLYGON <ra1> <dec1> ... (at least 3 pairs)
-        BRECT <ra> <dec> <w> <h> <filter> <unit>
+        BBOX <ra> <dec> <w> <h> <filter> <unit>
        
     The parameters are represented in `dict`, for example: 
         {'ID': 'DC_W13_Stripe82.calexp.r', 'CIRCLE 37.644598 0.104625 100'}
@@ -48,19 +48,25 @@ import lsst.dax.imgserv.jobqueue.imageworker as imageworker
 class ImageSODA(SODA):
     """ Class to handle SODA operations.
 
-    For reference, LSST camera filters (Filter, Blue Side, Red Side):
-        U : 324 - 305
-        G : 405 - 552
-        R : 552 - 691
-        I : 691 - 818
-        Z : 818 - 921
-        Y : 922 - 997
-    (Ref: https://lsst.org/scientists/keynumbers)
-
-    In SODA, these correspond to possible values for the BAND parameter.
     """
     def __init__(self, config):
         self._config = config
+
+    def do_test(self, params: dict) -> afw_image:
+        """ Do sync operation.
+
+        Parameters
+        ---------
+        params : `dict`
+            the request parameters (See Shape requirements above)
+
+        Returns
+        -------
+        resp: `lsst.afw.image`
+            the image object.
+        """
+        cutout = get_image(params, self._config)
+        return cutout
 
     def do_sync(self, params: dict) -> afw_image:
         """ Do sync operation.
@@ -82,6 +88,8 @@ class ImageSODA(SODA):
                 return resp[0]
             else:
                 return resp
+        elif "ID" in params:
+            return self.get_image_by_did(params)
         else:
             raise NotImplementedError("ImageSODA.do_sync(): Unsupported "
                                       "Request")
@@ -113,7 +121,7 @@ class ImageSODA(SODA):
         return task.task_id
 
     def do_sia(self, params: dict) -> object:
-        """ Do async operation.
+        """ Do SIA operation.
 
         Parameters
         ----------
@@ -189,13 +197,33 @@ class ImageSODA(SODA):
     def handle_default(self, params: dict) -> afw_image:
         """Dispatch to class specific methods """
         shape = params["POS"].split()
-        if shape[0] == "BRECT":
-            return self.get_brect(params)
+        if shape[0] == "BBOX":
+            return self.get_bbox(params)
+        elif shape[0] == "NA":
+            return self.get_image_by_did(params)
         else:
             raise TypeError("ImageSODA", "Unsupported shape", shape[0])
 
+    def get_image_by_did(self, params: dict) -> afw_image:
+        """ Retrieve image on its data id.
+
+        Parameters
+        ----------
+        params: `dict`
+            ID: <db><collection><ds>]
+                db: database identifer
+                collection: image collection
+                ds: dataset identifier, e.g. calexp.
+
+        Returns
+        -------
+        image : `lsst.afw.image`
+        """
+        image = get_image(params, self._config)
+        return image
+
     def get_circle(self, params: dict) -> afw_image:
-        """ Method to retrieve image cutout specified in CIRCLE.
+        """ Retrieve image cutout specified in CIRCLE.
 
         All input values in ICRS degrees, including the radius.
 
@@ -220,7 +248,7 @@ class ImageSODA(SODA):
         return cutout
 
     def get_range(self, params: dict) -> afw_image:
-        """ Method to retrieve image cutout specified in RANGE.
+        """ Retrieve image cutout specified in RANGE.
 
         All longitude(ra) and latitude(dec) values in ICRS degrees.
 
@@ -246,7 +274,7 @@ class ImageSODA(SODA):
         return cutout
 
     def get_polygon(self, params: dict) -> afw_image:
-        """ Method to retrieve image cutout specified in POLYGON.
+        """ Retrieve image cutout as specified in POLYGON.
 
         All contained ra and dec values in ICRS degrees.
 
@@ -269,8 +297,8 @@ class ImageSODA(SODA):
         cutout = get_image(params, self._config)
         return cutout
 
-    def get_brect(self, params: dict) -> afw_image:
-        """ LSST Extension to SODA: retrieve image cutout specified in BRECT.
+    def get_bbox(self, params: dict) -> afw_image:
+        """ Retrieve image cutout specified in BBOX,as LSST extension.
 
         Parameters
         ----------
@@ -279,7 +307,7 @@ class ImageSODA(SODA):
                 db: database identifier
                 ds: dataset identifier
                 filter: one of ( g, r, i, z, y )
-            POS: BRECT <ra> <dec> <width> <height> <unit>
+            POS: BBOX <ra> <dec> <width> <height> <unit>
                 ra : `float`
                     the longitude.
                 dec : `float`

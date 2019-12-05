@@ -2,71 +2,13 @@
   "$comment": [
     "Version: 1.0",
     "Source: https://lsst.org/schemas/imgserv_api.schema",
-    "HashOp: hashlib.md5(str(sorted(api_id)).encode('utf-8')).hexdigest()"
+    "Description: EDIT this file to bind API signature to its handler method"
   ],
-  "42c52a0ecba167867ee99bba94ce3518": {
-    "api": "Image.full_nearest",
-    "api_id": ["db", "ds", "filter", "center.x", "center.y"]
-  },
-  "6c57f5e4848215e7b7876eabdc26a973": {
-    "api": "Image.full_from_data_id",
-    "api_id": ["db", "ds", "run", "camcol", "field", "filter"]
-  },
-  "907ab501ecb2f569ab4ab1523da8d0f6": {
-    "api": "Image.full_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch_x", "patch_y", "filter"]
-  },
-  "4e1bcf00252c343a96bd8ea6e60ec5a4": {
-    "api": "Image.full_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch", "filter"]
-  },
-  "c682961c25f0d8a56a524bf42780538b": {
-    "api": "Image.full_from_ccd_exp_id",
-    "api_id": ["db", "ds", "ccd_exp_id"]
-  },
-  "326fd80756a88553ebf7ba88b1233f79": {
-    "api": "Image.cutout_from_nearest",
-    "api_id": ["db", "ds", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "ff161e5cf18b2b8cbec16595452ce5c9": {
-    "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "run", "camcol", "field", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "b2e5dae7803d1dcc743b48bf8411e665": {
-    "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch_x","patch_y", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "55560e07dec2ed69b7ea578ceaf41006": {
-    "api": "Image.cutout_from_data_id",
-    "api_id": ["db", "ds", "tract", "patch", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "4deade13a38fc426d0ae9dd3b2898cdf": {
-    "api": "Image.cutout_from_ccd_exp_id",
-    "api_id": ["db", "ds", "ccd_exp_id", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "76190ef407b8be9613d8ccafabd01758": {
-    "api": "Image.cutout_from_skymap_id",
-    "api_id": ["db", "ds", "skymap_id", "filter", "center.x", "center.y", "size.x", "size.y", "size.unit"]
-  },
-  "d6a0b3ccae8ba47e919c16894a57b8f1": {
-    "api": "Image.data_id_from_science_id",
-    "api_id": ["db", "ds", "get_data_id", "ccd_exp_id"]
-  },
-  "b5ed4469c890eeaa242214cf07fbb28a": {
-    "api": "Image.science_id_from_data_id",
-    "api_id": ["db", "ds", "get_ccdexp_id", "run", "camcol", "field", "filter"]
-  },
-  "977d2a46b9cfb98853064e63f3c50260": {
-    "api": "Image.science_id_from_data_id",
-    "api_id": ["db", "ds", "get_ccdexp_id", "tract", "patch", "filter"]
-  },
-  "038724032f5750049181b8b8ea8c58f1": {
-    "api": "Image.science_id_from_data_id",
-    "api_id": ["db", "ds", "get_ccdexp_id", "tract", "patch_x", "patch_y", "filter"]
-  },
-  "bacbec145481aceffd5b5e98a215758e": {
-    "api": "Image.cutout_from_pos",
-    "api_id": ["db", "ds", "filter", "ID", "POS"]
-  }
+  "ID_FIELDS": ["ds", "dsType", "filter"],
+  "detector,instrument,visit": "Image.full_from_data_id",
+  "band,patch,skymap,tract": "Image.full_from_data_id",
+  "detector,exposure,instrument": "Image.full_from_data_id",
+  "POS": "Image.cutout_from_pos",
+  "ID": "Image.cutout_from_id"
 }
 

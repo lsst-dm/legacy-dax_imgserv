@@ -24,9 +24,6 @@
 """
 This module implements the command line interface (CLI) to ImageServ.
 
-@author: Brian Van Klaveren, SLAC
-@author: Kenny Lo, SLAC
-
 """
 
 import os
@@ -37,48 +34,64 @@ import click
 
 import lsst.log as log
 
-from lsst.dax.imgserv.locateImage import image_open
-from lsst.dax.imgserv.dispatch import Dispatcher
 from lsst.dax.imgserv.hashutil import Hasher
+from lsst.dax.imgserv.locateImage import open_image
+from lsst.dax.imgserv.dispatch import Dispatcher
 from lsst.dax.imgserv.jsonutil import flatten_json
-from lsst.dax.imgserv.locateImage import get_ds
 
 import etc.imgserv.imgserv_config as imgserv_config
 
 ROOT = os.path.abspath(os.path.dirname(__file__))
 
-webserv_config = imgserv_config.webserv_config
-imgserv_meta_url = webserv_config.get("dax.imgserv.meta.url")
+imgserv_meta_url = imgserv_config.webserv_config.get("dax.imgserv.meta.url", None)
 
 
 @click.command()
-@click.option("--config", type=click.Path(exists=True))
+@click.option("--ds")
 @click.option("--query")
-@click.option("--out", type=click.Path(exists=True))
-def exec_command(config, query, out):
+@click.option("--out_dir", type=click.Path(exists=True))
+def exec_cli(ds, query, out_dir):
     """ Command Line Interface: Process query to return image file
         in output directory.
+
+    Parameters
+    ----------
+    ds : `str`
+        the dataset identifier.
+    query : `str`
+        the request query.
+    out_dir : `str`
+        the output directory
     """
-    cli = ImageServCLI(config, out)
-    cli.process_request(query)
+    if query is None or out_dir is None:
+        print("Missing input parameter(s)")
+    else:
+        cli = ImageServCLI(ds, out_dir)
+        cli.process_request(query)
 
 
 class ImageServCLI(object):
-    """ Module to implement CLI for ImageServ.
+    """ Module to implement the command line interface for ImageServ.
+
+    Parameters
+    ----------
+    ds : `str`
+        the dataset identifier.
+    out_dir : `str`
+        the output directory.
     """
-    def __init__(self, config_dir, out_dir):
+    def __init__(self, ds, out_dir):
         # load the configuration file
-        if not config_dir:
-            config_dir = os.path.join(ROOT, "config")
-        config = imgserv_config.config_json
-        with open(config) as f:
-            self._config = json.load(f)
+        config_dir = os.path.join(ROOT, "config")
+        if ds is None or ds == "default":
+            ds = imgserv_config.config_datasets["default"]
+        self._config = imgserv_config.config_datasets[ds]
         # configure the log file (log4cxx)
         log.configure(os.path.join(config_dir, "log.properties"))
         self._out_dir = out_dir
         self._dispatcher = Dispatcher(config_dir)
         self._schema = os.path.join(config_dir, "image_api_schema.json")
-        self._validate =  self._config["DAX_IMG_VALIDATE"]
+        self._validate = self._config.get("DAX_IMG_VALIDATE", False)
         self._config["DAX_IMG_META_URL"] = imgserv_meta_url
 
     def process_request(self, in_req):
@@ -86,27 +99,32 @@ class ImageServCLI(object):
 
         Parameters
         ----------
-            in_req - the file pathname containing the request
+            in_req : `str`
+            the file pathname containing the JSON query OR param1=value1&param2=value2&...
         """
-        errors, req = self._parse_req(in_req)
-        if errors > 0:
-            raise Exception("parse error in req")
-        image_type = req["image"]["ds"]
-        w13db = get_ds(image_type)
-        self._config["DAX_IMG_META_DB"] = req["image"]["db"]
-        img_getter = image_open(w13db, self._config)
-        result = self._dispatch(img_getter, req)
-        name = req["name"]
-        fp_image = self._save_result(result, name)
-        if self._check_result(req, fp_image):
-            print(name+": PASSED")
+        if os.path.isfile(in_req):
+            req = self._parse_req_in_file(in_req)
         else:
-            print(name+": FAILED")
+            req = self._parse_req_str(in_req)
+        ds, ds_type, filt = req["ID"].split(".")
+        req["ds"] = ds
+        req["filter"] = filt
+        # make sure the corect ds configuration is used
+        if ds == "default":
+            ds = imgserv_config.config_datasets["default"]
+            self._config = imgserv_config.config_datasets[ds]
+        img_getter = open_image(ds, ds_type, self._config)
+        result = self._dispatch(img_getter, req)
+        f_name = ds_type + Hasher.md5(in_req)
+        fn = self._save_result(result, f_name)
+        if self._check_result(fn):
+            print( f"Output = {fn}")
+        else:
+            print(f"{f_name} is invalid FITS")
 
     def _dispatch(self, img_getter, req):
         # direct the request to the best fit image API on parameters
-        req_params = self._get_params(req)
-        api, api_params = self._dispatcher.find_api(req_params)
+        api, api_params = self._dispatcher.find_api(req)
         # call the API with the params
         result = api(img_getter, api_params)
         return result
@@ -122,12 +140,14 @@ class ImageServCLI(object):
             image.writeFits(fn)
         return fn
 
-    def _check_result(self, req, image_fp):
-        check_code = req["check_output"]["md5"]
+    @staticmethod
+    def _check_result(image_fp):
         with open(image_fp, "rb") as f:
-            image_data = f.read()
-        h = Hasher.md5(image_data)
-        return True if h == check_code else False
+            first_line = str(f.read(80))
+            if "does conform to FITS standard" in first_line:
+                return True
+            else:
+                return False
 
     def _get_params(self, req):
         """ Get the parameters corresponding to the API.
@@ -144,27 +164,25 @@ class ImageServCLI(object):
         params : `dict`
             the list of parameters and their values.
         """
-        keys = req["api_id"]
-        image = req["image"]
+        image = req.get("image", None)
         p_list = flatten_json(image)
-        # params to be list of values for the keys
         params = {}
-        for k in keys:
-            for p in p_list:
+        pos = ""
+        for k in ["ID", "POS"]:
+            for p in list(p_list):
                 if self._endswith(p, k):
-                    params[k] = p_list[p]  # keep it
-        params["API"] = req["API"]
-        if req["API"] == "SODA":
-            # get values of POS parameter
-            pos_items = params["ID"].split(".")
-            if len(pos_items) < 3:
-                raise Exception("Invalid value for ID parameter")
-            params["db"] = pos_items[0]
-            params["ds"] = pos_items[1]
-            params["filter"] = pos_items[2]
+                    params[k] = p_list[p]
+                elif "POS" in p:
+                    pos += f" {p_list[p]}"
+                p_list.pop(p)
+        if pos != "":
+            # get the shape
+            shape = list(image["cutout"]["POS"])[0]
+            params["POS"] = shape.upper() + pos
         return params
 
-    def _endswith(self, param, k):
+    @staticmethod
+    def _endswith(param, k):
         if param.endswith("."+k):
             return True
         elif k == param:
@@ -172,7 +190,27 @@ class ImageServCLI(object):
         else:
             return False
 
-    def _parse_req(self, in_req):
+    @staticmethod
+    def _parse_req_str(in_req):
+        if "&" in in_req:
+            l_params = in_req.split("&")
+        else:
+            l_params = in_req.split()  # whitespace delimiter, as default
+        req = {}
+        for param in l_params:
+            pv = param.split("=")
+            req[pv[0]] = pv[1]
+        if "ID" in in_req:
+            if "POS" in in_req:
+                req["POS"] = req["POS"].replace("+", " ")
+                req["api_id"] = "POS"
+            else:
+                req["api_id"] = "ID"
+        else:
+            raise Exception("Invalid query")
+        return req
+
+    def _parse_req_in_file(self, in_req):
         with open(in_req) as f:
             req = json.load(f)
         try:
@@ -183,11 +221,11 @@ class ImageServCLI(object):
                     s.close()
                 validate(req, schema)
         except ValidationError as e:
-            msg = json.dumps({"Validation Error": e.message})
-            return 1, msg
-        return 0, req
+            raise Exception(f"Validation Error {e.message}")
+        params = self._get_params(req)
+        return params
 
 
 if __name__ == '__main__':
-    exec_command()
+    exec_cli()
 

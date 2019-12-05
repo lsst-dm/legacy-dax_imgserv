@@ -22,9 +22,8 @@
 """
 This module implements various JSON-related utility functions and classes.
 
-@author: Kenny Lo, SLAC
-
 """
+
 
 def flatten_json(j):
     """ Flatten JSON object into a dictionary. """
@@ -35,7 +34,7 @@ def flatten_json(j):
             for x in r:
                 flatten(r[x], name+x+".")
         elif isinstance(r, list):
-            j_d[name[:-1]].append(r)
+            j_d[name[:-1]] = " ".join([str(i) for i in r])
         else:
             j_d[name[:-1]] = r
 

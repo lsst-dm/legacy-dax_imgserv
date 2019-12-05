@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <div vocab="http://www.ivoa.net/rdf/examples">
 
-    <div id="brect" resource="#brect" typeof="example">
-    <p> Example 1: <h3 property="name">Synchronous Query by BRECT </h3>
+    <div id="bbox" resource="#bbox" typeof="example">
+    <p> Example 1: <h3 property="name">Synchronous Query by BBOX </h3>
         <a href="{{ url_for('api_image_soda.img_sync', _external=True) }}">
-            Query by BRECT, pixel
+            Query by BBOX, pixel
         </a>
         <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
         <span property="generic-parameter" typeof="keyval">
             <span property="key">ID</span>
             <span property="value">DC_W13_Stripe82.calexp.r</span>
             <span property="key">POS</span>
-            <span property="value">BRECT 37.644598 104625 100 100 pixel</span>
+            <span property="value">BBOX 37.644598 104625 100 100 pixel</span>
         </span>
     </p>
     </div>
