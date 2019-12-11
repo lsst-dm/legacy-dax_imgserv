@@ -30,7 +30,11 @@ if [[ -z "$DOCKER_REPO" ]]; then
     DOCKER_REPO="webserv/imgserv"
 fi
 
-TAG="$DOCKER_REPO:dax_latest"
+if [[ -z "$DOCKER_TAG" ]]; then
+    DOCKER_TAG="19.0.0"
+fi
+
+TAG="$DOCKER_REPO:$DOCKER_TAG"
 
 printf "Push/publish the image ..."
 docker push "$TAG"

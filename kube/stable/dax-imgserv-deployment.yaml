@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: dax-imgserv
-        image: webserv/imgserv:dax_latest
+        image: webserv/imgserv:19.0.0
         imagePullPolicy: Always
         resources:
           requests:

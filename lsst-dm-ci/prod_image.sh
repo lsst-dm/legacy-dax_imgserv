@@ -26,12 +26,16 @@
 set -e
 
 # Build and push container image for ImgServ production version
-# FIXME: $rep check due to wrong value from jenkins-dm-jobs
+# FIXME: $repo check due to wrong value from jenkins-dm-jobs
 if [[ -z "$DOCKER_REPO" || "$DOCKER_REPO" == '$repo' ]]; then
     DOCKER_REPO="webserv/imgserv"
 fi
 
-TAG="$DOCKER_REPO:dax_latest"
+if [[ -z "$DOCKER_TAG" ]]; then
+    DOCKER_TAG="19.0.0"
+fi
+
+TAG="$DOCKER_REPO:$DOCKER_TAG"
 DOCKERDIR="."
 
 # Build the image
