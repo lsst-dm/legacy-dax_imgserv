@@ -26,9 +26,11 @@
 set -e
 
 # setup lsst stack
-cd /opt/lsst/software/stack
-source ./loadLSST.bash
+source /opt/lsst/software/stack/loadLSST.bash
 setup lsst_distrib
+
+# install Java JRE for sodalint tests
+yum -y install java-11-openjdk
 
 # setup imgserv
 cd /app
@@ -38,4 +40,4 @@ pip install --no-cache-dir --user .
 #run pytest
 cd /app/tests
 pytest
-printf "Image %s tested successfully\n" "$TAG"
+printf "Run Image %s tests successfully\n" "$TAG"
