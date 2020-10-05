@@ -11,6 +11,7 @@ RUN groupadd -g $GID -o $USERNAME
 RUN useradd -m -u $UID -g $GID -o -s /bin/bash $USERNAME
 
 # install redis
+RUN yum -y install epel-release
 RUN yum -y install redis
 
 # Setup Dependencies
