@@ -24,7 +24,7 @@ from flask import Flask
 from lsst.dax.imgserv import api_soda as is_api_soda
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def app():
     app = Flask(__name__)
     app.register_blueprint(is_api_soda.image_soda, url_prefix='/api/image/soda')
