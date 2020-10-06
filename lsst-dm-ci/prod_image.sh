@@ -32,7 +32,7 @@ if [[ -z "$DOCKER_REPO" || "$DOCKER_REPO" == '$repo' ]]; then
 fi
 
 if [[ -z "$DOCKER_TAG" ]]; then
-    DOCKER_TAG="19.0.0"
+    DOCKER_TAG="dax_latest"
 fi
 
 TAG="$DOCKER_REPO:$DOCKER_TAG"
