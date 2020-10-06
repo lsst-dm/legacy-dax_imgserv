@@ -32,7 +32,6 @@ This module is used to fetch metadata based on astronomical parameters.
 
 """
 from sqlalchemy import create_engine
-from sqlalchemy import exc
 
 
 class MetaservGet:

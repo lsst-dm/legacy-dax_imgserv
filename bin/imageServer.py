@@ -30,7 +30,6 @@ import logging as log
 import os
 import sys
 
-from sqlalchemy import create_engine
 
 from lsst.dax.imgserv import api_v1 as is_api_v1
 from lsst.dax.imgserv import api_soda as is_api_soda
@@ -52,19 +51,14 @@ i_path=os.path.join(os.path.expanduser("~"), ".lsst/instance")
 app = Flask(__name__, instance_path=i_path)
 
 webserv_config = imgserv_config.webserv_config
-default_db_url = webserv_config.get("dax.webserv.db.url")
 
-# Execute this last, we can overwrite anything we don't like
-app.config["default_engine"] = create_engine(default_db_url,
-                                             pool_size=10,
-                                             pool_recycle=3600)
 app.config.update(webserv_config)
 
 # Initialize configuration for ImageServ
 imgserv_config_path = os.path.join(app.instance_path, "imgserv")
 with app.app_context():
     # imgserv_config_path only prep for use of instance folder later
-    is_api_soda.load_imgserv_config(metaserv_url=webserv_config["dax.dbserv.db.url"])
+    is_api_soda.load_imgserv_config(metaserv_url=webserv_config["dax.imgserv.meta.url"])
 
 # Extract werkzeug options, if necessary
 # It's okay that we put them into app.config above
