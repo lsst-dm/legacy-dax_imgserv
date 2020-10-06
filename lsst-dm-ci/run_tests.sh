@@ -30,14 +30,6 @@ set -e
 source /opt/lsst/software/stack/loadLSST.bash
 setup lsst_distrib
 
-# install Java JRE for sodalint tests
-if [ -f /usr/bin/java ]
-then
-  printf "Java already installed."
-else
-  yum -y install java-11-openjdk
-fi
-
 # setup imgserv
 cd /app
 pip install --no-cache-dir --user -r requirements.txt
