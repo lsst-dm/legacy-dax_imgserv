@@ -30,6 +30,7 @@ cutout dimensions, via the appropriate Butler object passed in.
 """
 import etc.imgserv.imgserv_config as imgserv_config
 
+import lsst.geom as Geom
 import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
 from lsst.afw.geom import SpanSet, Stencil
@@ -281,7 +282,7 @@ class ImageGetter:
 
         """
         skymap = SkymapImage(self._butler, skymap_id, self._log)
-        center_coord = afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
+        center_coord = Geom.SpherePoint(ra, dec, Geom.degrees)
         cutout = skymap.get(center_coord, width, height, filt, unit)
         return cutout
 
@@ -397,7 +398,7 @@ class ImageGetter:
                                              ss_height, "pixel", wcs)
             ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
                                           offset=cutout.getXY0() +
-                                          afwGeom.Extent2I(pix_r, pix_r))
+                                          Geom.Extent2I(pix_r, pix_r))
             no_data = cutout.getMask().getMaskPlane("NO_DATA")
             ss_bbox = SpanSet(ss_circle.getBBox())
             ss_nodata = ss_bbox.intersectNot(ss_circle)
@@ -410,8 +411,7 @@ class ImageGetter:
             # convert the pair of (ra,dec) to bbox
             ra1, ra2 = float(pos_items[1]), float(pos_items[2])
             dec1, dec2 = float(pos_items[3]), float(pos_items[4])
-            box = afwGeom.Box2D(afwGeom.Point2D(ra1, dec1),
-                                afwGeom.Point2D(ra2, dec2))
+            box = Geom.Box2D(Geom.Point2D(ra1, dec1), Geom.Point2D(ra2, dec2))
             # convert from deg to arcsec
             w = box.getWidth() * 3600
             h = box.getHeight() * 3600
@@ -426,7 +426,7 @@ class ImageGetter:
             vertices = []
             pos_items.pop(0)
             for long, lat in zip(pos_items[::2], pos_items[1::2]):
-                pt = afwGeom.Point2D(float(long), float(lat))
+                pt = Geom.Point2D(float(long), float(lat))
                 vertices.append(pt)
             polygon = afwGeom.Polygon(vertices)
             center = polygon.calculateCenter()
@@ -467,8 +467,8 @@ class ImageGetter:
             ps = wcs.getPixelScale().asArcseconds()
             width = width / ps
             height = height / ps
-        center = afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
-        size = afwGeom.Extent2I(width, height)
+        center = Geom.SpherePoint(ra, dec, Geom.degrees)
+        size = Geom.Extent2I(width, height)
         cutout = src_image.getCutout(center, size)
         return cutout
 
@@ -540,7 +540,7 @@ class ImageGetter:
             wcs = afwGeom.makeSkyWcs(metadata, strip=False)
         if wcs is None:
             raise Exception("wcs missing in source image")
-        radec = afwGeom.SpherePoint(ra, dec, afwGeom.degrees)
+        radec = Geom.SpherePoint(ra, dec, Geom.degrees)
         xy_wcs = wcs.skyToPixel(radec)
         xy_center_x = xy_wcs.getX()
         xy_center_y = xy_wcs.getY()
@@ -590,12 +590,11 @@ class ImageGetter:
         # First, center the cutout image.
         pix_ulx = int(xy_center_x - width / 2.0)
         pix_uly = int(xy_center_y - height / 2.0)
-        xy_center = afwGeom.Point2I(pix_ulx, pix_uly)
+        xy_center = Geom.Point2I(pix_ulx, pix_uly)
         log.debug("xy_center={}".format(xy_center))
         src_box = src_image.getBBox()
         # assuming both src_box and xy_center to be in Box2I
-        co_box = afwGeom.Box2I(xy_center,
-                               afwGeom.Extent2I(int(width), int(height)))
+        co_box = Geom.Box2I(xy_center, Geom.Extent2I(int(width), int(height)))
         if co_box.overlaps(src_box):
             co_box.clip(src_box)
         else:
