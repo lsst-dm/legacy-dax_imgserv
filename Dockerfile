@@ -40,7 +40,7 @@ RUN /bin/bash -c 'source /opt/lsst/software/stack/loadLSST.bash; \
 
 USER root
 # remove unneeded stuff
-RUN rm -rf /app/kube /app/integration /app/doc /app/rootfs /app/Dockerfile
+RUN rm -rf /app/kube /app/integration /app/doc /app/Dockerfile
 
 # run imgserv as lsst user
 USER lsst
