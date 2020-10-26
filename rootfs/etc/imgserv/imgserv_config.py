@@ -25,23 +25,29 @@ from configparser import RawConfigParser
 # See https://www.lsst.org/scientists/keynumbers
 MAX_IMAGE_CUTOUT_SIZE = 9.6
 
-config_json = dict({
-  "DEBUG": True,
-  "DAX_IMG_TEMPDIR": "/tmp/imageworker_results",
-  "DAX_IMG_VALIDATE": True,
-  "DAX_IMG_DS": "/datasets/sdss/preprocessed/dr7/sdss_stripe82_01",
-  "DAX_IMG_TAB_SCICCDEXP": "Science_Ccd_Exposure",
-  "DAX_IMG_TAB_DEEPCOADD": "DeepCoadd",
-  "DAX_IMG_DR": "/datasets/sdss/preprocessed/dr7/runs",
-  "DAX_IMG_BUTLER_KEYS1": ["run", "camcol", "field", "filter"],
-  "DAX_IMG_COLUMNS1": ["run", "camcol", "field", "filterName"],
-  "DAX_IMG_BUTLER_KEYS2": ["tract", "patch", "filter"],
-  "DAX_IMG_COLUMNS2": ["tract", "patch", "filterName"],
-  "DAX_IMG_BUTLER_POL0": "fpC",
-  "DAX_IMG_BUTLER_POL1": "calexp",
-  "DAX_IMG_BUTLER_POL2": "deepCoadd",
-  "DAX_IMG_SKYMAP_DEEPCOADD": "deepCoadd_skyMap"
-})
+config_datasets = {
+    "ci_hsc": {
+        "IMG_REPO_ROOT": "/datasets/ci_hsc_gen3/DATA",
+        "IMG_DEFAULT_COLLECTION": "shared/ci_hsc_output",
+        "IMG_OBSCORE_DB": "ci_hsc_db",
+        "IMG_SCHEMA_TABLE": "imgserv.obscore",
+        "IMG_DEFAULT_FILTER": "r",
+        "calexp": ["instrument", "detector", "visit"],
+        "raw": ["instrument", "detector", "exposure"],
+        "deepCoadd": ["band", "skymap",  "tract", "patch"]
+    },
+    "hsc_rc2": {
+        "IMG_REPO_ROOT": "/project/hsc/gen3repo/rc2w30_ssw31",
+        "IMG_DEFAULT_COLLECTION": "RC2/W_2020_30",
+        "IMG_OBSCORE_DB": "lsstdb1",
+        "IMG_SCHEMA_TABLE": "imgserv.obscore",
+        "IMG_DEFAULT_FILTER": "r",
+        "calexp": ["instrument", "detector", "visit"],
+        "raw": ["instrument", "detector", "exposure"],
+        "deepCoadd": ["band", "skymap",  "tract", "patch"]
+    },
+    "default": "ci_hsc"
+}
 
 # load webserv.ini configuration
 tasks_parser = RawConfigParser()

@@ -1,2 +1,2 @@
-__all__ = [ "imageget", "skymapImage", "coadd" ]
-
+import pkgutil
+__path__ = pkgutil.extend_path(__path__, __name__)

@@ -1,0 +1,13 @@
+{
+  "image": {
+    "cutout": {
+      "imageId": { "ID": "default.deepCoadd.r" },
+      "POS": {
+        "CIRCLE": {
+          "pos": { "ra": 320.75, "dec": -0.28 },
+          "radius": 0.01
+        }
+      }
+    }
+  }
+}

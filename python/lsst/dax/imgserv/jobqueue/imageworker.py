@@ -19,17 +19,13 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import tempfile
-import os
-import traceback
 from datetime import datetime
 
-from celery import Celery, states
-from celery.exceptions import Ignore
+from celery import Celery
 
 from flask import current_app
 
-# use following format for circular reference
-import lsst.dax.imgserv.vo.imageSODA as imageSODA
+from .getimagetask import GetImageTask
 
 # load config settings for imgserv
 import etc.imgserv.imgserv_config as imgserv_config
@@ -37,12 +33,6 @@ import etc.imgserv.imgserv_config as imgserv_config
 # Load and configure the celery app
 app_celery = Celery("image_worker")
 app_celery.config_from_object('etc.celery.celery_config')
-
-# for imgserv configuration files (internal)
-config_path = os.path.join(os.path.dirname(__file__), "../config/")
-
-# for keeping track of info per task_id
-g_task_info = dict({})
 
 
 def make_celery():
@@ -80,18 +70,15 @@ def get_image_async(self, *args, **kwargs):
     print("get_image_async called with request params="+str(params))
     job_creation_time = kwargs.get("job_creation_time")
     job_owner = kwargs.get("owner")
-    config = imgserv_config.config_json
-    config["DAX_IMG_CONFIG"] = config_path
-    meta_url = imgserv_config.webserv_config["dax.imgserv.meta.url"]
-    config["DAX_IMG_META_URL"] = meta_url
-    soda = imageSODA.ImageSODA(config)
-    image = soda.do_sync(params)
+    config = imgserv_config.config_datasets["default"]
+    task = GetImageTask()
+    result = task.runDataRef(params)
     # save the result image in local temp dir
     with tempfile.NamedTemporaryFile(dir=config["DAX_IMG_TEMPDIR"],
                                      prefix="img-",
                                      suffix=".fits",
                                      delete=False) as fp:
-        image.writeFits(fp.name)
+        result.get("image").writeFits(fp.name)
     job_end_time = datetime.timestamp(datetime.now())
     result = {
         "job_result": fp.name,

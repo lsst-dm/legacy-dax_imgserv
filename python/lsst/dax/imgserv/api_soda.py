@@ -35,7 +35,7 @@ import base64
 from http import HTTPStatus
 
 from flask import Blueprint, make_response, request, current_app, session
-from flask import render_template, send_file, jsonify, url_for, redirect
+from flask import render_template, send_file, url_for, redirect
 from werkzeug.exceptions import HTTPException
 
 from jsonschema import validate
@@ -44,6 +44,7 @@ import lsst.log as log
 
 from .exceptions import ImageNotFoundError, UsageError
 from .vo.imageSODA import ImageSODA
+from .metaGet import MetaGet
 from .jsonutil import get_params
 from .jobqueue.imageworker import make_celery, app_celery
 import etc.imgserv.imgserv_config as imgserv_config
@@ -64,10 +65,12 @@ map_phase_from_state = {"SUCCESS": "COMPLETED",
                         "ARCHIVED": "ARCHIVED"     # and ARCHIVED
                         }
 
-# log the user name of the auth token
+
 @image_soda.before_request
 def check_auth():
-    """ Data Formats
+    """ log the user name of the auth token.
+
+    Data Formats:
     HTTP Header
         Authorization: Bearer <JWT token>
     JWT token
@@ -88,21 +91,25 @@ def check_auth():
             log.info("unexpected error in JWT")
 
 
-def load_imgserv_config(config_path=None, metaserv_url=None):
+def load_imgserv_config(config_path=None, dataset=None, metaserv_url=None):
     """ Load service configuration into ImageServ.
 
     Parameters
     ----------
     config_path : `str`
         configuration location of this service.
+    dataset: `str`
+        the specified dataset configuration.
     metaserv_url : `str`
         service url of the metaserv instance.
     """
     if config_path is None:
         # use default root_path for app
         config_path = image_soda.root_path+"/config/"
-    # load the general config file
-    current_app.config.update(imgserv_config.config_json)
+    # load the general config files for image datasets
+    if dataset is None or dataset == "default":
+        dataset = imgserv_config.config_datasets["default"]
+    current_app.config.update(imgserv_config.config_datasets[dataset])
     # configure the log file (log4cxx)
     log.configure(os.path.join(config_path, "log.properties"))
     current_app.config["DAX_IMG_CONFIG"] = config_path
@@ -166,6 +173,17 @@ def img_sia():
     return make_response(resp)
 
 
+@image_soda.route("/adql", methods=["GET"])
+def img_adql():
+    """" Get the /adql service endpoint."""
+    metaget = MetaGet(current_app.config["DAX_IMG_META_URL"])
+    params = _getparams()
+    pos = params["POS"]
+    ra, dec, radius = pos.split(" ")
+    resp = metaget.adql_nearest_image_contains(ra, dec, radius)
+    return make_response(resp)
+
+
 @image_soda.route("/sync", methods=["GET", "PUT", "POST"])
 def img_sync():
     """ Service the /sync request.
@@ -208,9 +226,7 @@ def img_async():
     _check_soda_param(_params)
     # new job for request
     job_id = current_app.soda.do_async(_params)
-    return redirect(url_for('api_image_soda.img_async_job',
-                            job_id=job_id,
-                            _external=True))
+    return redirect(url_for('api_image_soda.img_async_job', job_id=job_id, _external=True))
 
 
 @image_soda.route("/async/<job_id>", methods=["GET"])

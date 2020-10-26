@@ -1,8 +1,12 @@
 # Useful link:
 http://blog.miguelgrinberg.com/post/designing-a-restful-api-with-python-and-flask
 
-# To install flask:
-sudo aptitude install python-flask
+# Get code from GitHub
+git clone https://github.com/lsst/dax_imgserv.git
+cd dax_imgserv
+
+# Install the requirements
+pip install -r requirements.txt
 
 # To run some quick tests:
 
@@ -10,10 +14,10 @@ sudo aptitude install python-flask
   python bin/imageServer.py
 
   # and fetch the urls:
-  http://localhost:5000/api/image/soda/availability
-  http://localhost:5000/api/image/soda/capabilities
-  http://localhost:5000/api/image/soda/examples
-  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=CIRCLE+37.644598+0.104625+100
-  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=RANGE+37.616820222+37.67235778+0.07684722222+0.132402777
-  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=POLYGON+37.6580803+0.0897081+37.6580803+0.1217858+37.6186104+0.1006648
-  http://localhost:5000/api/image/soda/sync?ID=DC_W13_Stripe82.calexp.r&POS=BRECT+37.644598+0.104625+100+100+pixel
+  http://127.0.0.1:5000/api/image/soda/availability
+  http://127.0.0.1:5000/api/image/soda/capabilities
+  http://127.0.0.1:5000/api/image/soda/examples
+  http://127.0.0.1:5000/api/image/soda/sync?ID=ci_hsc_gen3.calexp.r&POS=CIRCLE+320.94+-0.289128+0.01
+  http://127.0.0.1:5000/api/image/soda/sync?ID=ci_hsc_gen3.calexp.r&POS=RANGE+320.94+321.04+-0.289128+-0.279128
+  http://127.0.0.1:5000/api/image/soda/sync?ID=ci_hsc_gen3.calexp.r&POS=POLYGON+320.94+-0.289128+320.95+-0.279128+320.96+-0.289128
+  http://127.0.0.1:5000/api/image/soda/sync?ID=ci_hsc_gen3.calexp.r&POS=BBOX+320.94+-0.289128+0.01+0.01

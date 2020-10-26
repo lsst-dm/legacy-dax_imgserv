@@ -31,7 +31,6 @@ import os
 import sys
 
 
-from lsst.dax.imgserv import api_v1 as is_api_v1
 from lsst.dax.imgserv import api_soda as is_api_soda
 
 # for access to webserv.ini
@@ -51,7 +50,6 @@ i_path=os.path.join(os.path.expanduser("~"), ".lsst/instance")
 app = Flask(__name__, instance_path=i_path)
 
 webserv_config = imgserv_config.webserv_config
-
 app.config.update(webserv_config)
 
 # Initialize configuration for ImageServ
@@ -86,12 +84,10 @@ def route_imgserv():
     fmt = request.accept_mimetypes.best_match(ACCEPT_TYPES)
     if fmt == 'text/html':
         return "<a href='image/soda'>SODA</a>"
-    return json.dumps("{'DAX Image. Links': ['/api/image/v1',"
-                      "'/api/image/soda']}")
+    return json.dumps("{'DAX Image Server. Links': ['/api/image/soda']}")
 
 
 app.register_blueprint(is_api_soda.image_soda, url_prefix='/api/image/soda')
-app.register_blueprint(is_api_v1.image_api_v1, url_prefix='/api/image/v1')
 
 if __name__ == '__main__':
     try:

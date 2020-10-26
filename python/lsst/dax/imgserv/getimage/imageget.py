@@ -23,17 +23,14 @@
 This library module is used to locate and retrieve variolus image types and
 cutout dimensions, via the appropriate Butler object passed in.
 
-@author: John Gates, SLAC
-@author: Brian Van Klaveren, SLAC
-@author: Kenny Lo, SLAC
-
 """
+import math
+from urllib.parse import urlparse, parse_qs
 import etc.imgserv.imgserv_config as imgserv_config
 
 import lsst.geom as Geom
-import lsst.afw.geom as afwGeom
 import lsst.afw.image as afwImage
-from lsst.afw.geom import SpanSet, Stencil
+from lsst.afw.geom import SpanSet, Stencil, makeSkyWcs, Polygon
 
 import lsst.log as log
 
@@ -42,29 +39,25 @@ from ..exceptions import ImageNotFoundError, UsageError
 
 
 class ImageGetter:
-    """Provide operations to retrieve images including cutouts from the specified
-    image repository through the passed-in butler and metaserv.
+    """Provide operations to retrieve images including cutouts from the
+    specified image repository through the passed-in butler and metaget.
 
+    Parameters
+    ----------
+        config: `dict`
+            the application configuration.
+        butlerget : `locateImage.ButlerGet`
+            the butler instance and config info.
+        metaget : `locateImage.MetaGet`
+            provides access to image meta data.
     """
 
-    def __init__(self, butlerget, metaservget, logger):
-        """ Instantiate ImageGetter object with butler, butler configuration,
-        and connection for image metadata.
-
-        Parameters
-        ----------
-        butlerget : locateImage.ButlerGet
-            the butler instance and config info.
-        metaservget : locateImage.MetaservGet
-            provides access to image metadata.
-        logger : log
-            the logger to be used.
-        """
-        self._log = logger
+    def __init__(self, config, butlerget, metaget):
+        self._config = config
         self._butler = butlerget.butler
         self._butler_keys = sorted(butlerget.butler_keys)
-        self._imagedataset_type = butlerget.butler_policy
-        self._metaservget = metaservget
+        self._ds_type = butlerget.butler_ds
+        self._metaget = metaget
 
     def full_nearest(self, ra, dec, filt):
         """Returns image containing center(x,y) of unit and filter.
@@ -83,73 +76,32 @@ class ImageGetter:
         image : `afwImage.Exposure`
 
         """
-        q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
+        # 0.01: default value in arcsec
+        ds_type = self._ds_type
+        q_result = self._metaget.nearest_image_contains(ds_type, ra, dec, 0.01, filt)
         if not q_result:
             raise ImageNotFoundError("Image Query Returning None")
         else:
-            data_id = self._data_id_from_qr(q_result)
+            data_id = self.data_id_from_obscore(q_result)
             image = self._image_from_butler(data_id)
             return image
 
-    def full_from_data_id_by_run(self, run, camcol, field, filt):
-        """Returns image from specified data id (run, camcol, field, filter).
+    def full_image_from_data_id(self, params: dict):
+        """ Returns image from specified data id
 
         Parameters
         ----------
-        run : `int`
-        camcol : `int`
-        field : `int`
-        filt : `str`
-            ['u', 'g', 'r', 'i', 'z', 'y']
-
-        Returns
-        -------
-        image: `afwImage.Exposure`
-
-        """
-        image = self._butler.get(self._imagedataset_type, run=run,
-                                 camcol=camcol, field=field, filter=filt)
-        return image
-
-    def full_from_data_id_by_tract(self, tract, patch_x, patch_y, filt):
-        """Returns image from specified data id (tract, patch<x,y>, filter).
-
-        Parameters
-        ----------
-        tract : `int`
-        patch_x : `int`
-        patch_y : `int`
-        filt : `str`
-            ['u', 'g', 'r', 'i', 'z', 'y']
+        params : `dict`
+            parameters that contain the data id.
 
         Returns
         -------
         image : `afwImage.Exposure`
 
         """
-        patch = ",".join((str(patch_x), str(patch_y)))
-        image = self._butler.get(self._imagedataset_type, tract=tract,
-                                 patch=patch, filter=filt)
+        data_id = self.data_id_from_params(params)
+        image = self._butler.get(self._ds_type, dataId=data_id)
         return image
-
-    def full_from_ccd_exp_id(self, ccd_exp_id):
-        """Returns image from the science id.
-
-        Parameters
-        ----------
-        ccd_exp_id : `int`
-
-        Returns
-        -------
-        image: `afwImage.Expsoure`
-
-        """
-        data_id = self.data_id_from_ccd_exp_id(ccd_exp_id)
-        if data_id:
-            image = self._image_from_butler(data_id)
-            return image
-        else:
-            raise Exception("data id not found")
 
     def cutout_from_nearest(self, ra, dec, width, height, unit, filt):
         """Returns the cutout image at center (x,y) of unit and size.
@@ -170,68 +122,18 @@ class ImageGetter:
         cutout: `afwImage.Exposure`
 
         """
-        q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
+        radius = math.sqrt((width/2)**2+(height/2)**2)
+        if unit != "deg":
+            if unit == "arcsec" or unit == "arsecond":
+                radius = radius / 3600
+            else:
+                raise UsageError("Invalid unit type for size")
+        q_result = self._metaget.nearest_image_contains(self._ds_type, ra, dec, radius, filt)
         if not q_result:
             raise ImageNotFoundError("Empty result returned for image query")
-        data_id = self._data_id_from_qr(q_result)
+        data_id = self.data_id_from_obscore(q_result)
         if not data_id:
-            raise ImageNotFoundError("No data_id mapped from query result")
-        cutout = self._cutout_by_data_id(data_id, ra, dec, width, height, unit)
-        return cutout
-
-    def cutout_from_data_id_by_run(self, run, camcol, field, filt, ra, dec,
-                                   width, height, unit):
-        """Returns cutout image from data id (run, camcol, field, filtername)
-        of specified center.
-
-        Parameters
-        ----------
-        run : `int`
-        camcol : `int`
-        field : `int`
-        filt : `str`
-        ra : `float`
-        dec: `float`
-        width : `float`
-        height : `float`
-        unit : `str`
-            [ 'px', 'pix', 'pixel', 'pixels', 'arcsec' ]
-        Returns
-        -------
-        cutout: `afwImage.Exposure`
-
-        """
-        data_id = {"run": run, "camcol": camcol, "field": field, "filter": filt}
-        cutout = self._cutout_by_data_id(data_id, ra, dec, width, height,
-                                         unit)
-        return cutout
-
-    def cutout_from_data_id_by_tract(self, tract, patch_x, patch_y, filt,
-                                     ra, dec, width, height,
-                                     unit):
-        """Returns cutout image from data id (tract, patch<x,y>, filt)
-        of specified center.
-
-        Parameters
-        ----------
-        tract : `int`
-        patch_x : `int`
-        pactch_y : `int`
-        filt : `str`
-        ra: `float`
-        dec : `float`
-            in degrees.
-        width : `float`
-        height: `float`
-        unit : `str`
-
-        Returns
-        -------
-        cutout: `afwImage.Exposure`
-
-        """
-        patch = ",".join((str(patch_x), str(patch_y)))
-        data_id = {"tract": tract, "patch": patch, "filter": filt}
+            raise ImageNotFoundError("No dataId found in query result")
         cutout = self._cutout_by_data_id(data_id, ra, dec, width, height, unit)
         return cutout
 
@@ -281,74 +183,37 @@ class ImageGetter:
         cutout: `afwImage.Exposure`
 
         """
-        skymap = SkymapImage(self._butler, skymap_id, self._log)
+        skymap = SkymapImage(self._butler, skymap_id)
         center_coord = Geom.SpherePoint(ra, dec, Geom.degrees)
         cutout = skymap.get(center_coord, width, height, filt, unit)
         return cutout
 
-    def data_id_from_ccd_exp_id(self, ccd_exp_id):
-        """ The ids match the ids in _butler_keys and valid is false
-        if at least one of the ids is missing.
+    def cutout_from_id(self, params: dict) -> afwImage:
+        """ Get cutout through Butler Gen3.
 
         Parameters
         ----------
-        ccd_exp_id: `int`
-
+        params: `dict`
+            data_id (one of):
+                1) instrument, detector, visit
+                2) band, skymap, tract, patch
+                3) instrument, detector, exposure
+            POS: `str`
+                the cutout specification.
         Returns
         -------
-        data_id : `dict`
-            the list of ids derived from scienceId.
+        lsst.afw.Image
 
         """
-        data_id = {}
-        ccd_exp_id = int(ccd_exp_id)
-        if self._butler_keys == sorted(["run", "camcol", "field", "filter"]):
-            possible_fields = {
-                "field": ccd_exp_id % 10000,
-                "camcol": (ccd_exp_id // 10000) % 10,
-                "filter": "ugriz"[(ccd_exp_id // 100000) % 10],
-                "run": ccd_exp_id // 1000000,
-            }
-            self._log.debug("data_id_from_ccd_exp_id {}".format(
-                possible_fields))
-            for key in self._butler_keys:
-                value = possible_fields[key]
-                data_id[key] = value
-            self._log.debug("dataID={}".format(data_id))
-        elif self._butler_keys == sorted(["tract", "patch", "filter"]):
-            patch_y = (ccd_exp_id // 8) % (2 ** 13)
-            patch_x = (ccd_exp_id // (2 ** 16)) % (2 ** 13)
-            possible_fields = {
-                "filter": "ugriz"[ccd_exp_id % 8],
-                "tract": ccd_exp_id // (2 ** 29),
-                "patch": "%d,%d" % (patch_x, patch_y)
-            }
-            self._log.debug("data_id_from_ccd_exp_id {}".format(
-                possible_fields))
-            for key in self._butler_keys:
-                value = possible_fields[key]
-                data_id[key] = value
-            self._log.debug("dataID={}".format(data_id))
-        return data_id
+        ds_type = params.get("dsType")
+        pos = params.get("POS", None)
+        if pos is None:
+            raise UsageError("Missing POS parameter")
+        data_id = self.data_id_from_params(params)
+        image = self._butler.get(ds_type, data_id)
+        return self.cutout_from_pos(params, image, data_id)
 
-    def ccd_exp_id_from_data_id(self, data_id):
-        """Compose and return the science id corresponding to the data id input.
-
-        Parameters
-        ----------
-        data_id: `dict`
-            the data id as input.
-
-        Returns
-        -------
-        ccd_exp_id : int
-            the CCD Exposure id.
-
-        """
-        ccd_exp_id = self._butler.get('ccdExposureId', dataId=data_id)
-        return ccd_exp_id
-
-    def cutout_from_pos(self, params: dict):
+    def cutout_from_pos(self, params: dict, src_img=None, data_id=None):
         """ Get cutout of source image by supported SODA shapes:
                 POS: CIRCLE, RANGE, POLYGON
                 LSST extension: BRECT
@@ -358,47 +223,56 @@ class ImageGetter:
 
         Parameters
         ----------
+        src_img: `afwImage.Exposure`
+            the source image if any.
         params: `dict`
             the POS parameter.
+        data_id: `dict`
+            the data id.
         Returns
         -------
         cutout: `afwImage.Exposure`
 
         """
-        _pos = params["POS"]
-        _id = params["ID"]
-        db, ds, filt = _id.split(".")
+        pos = params["POS"]
+        ds_type = self._ds_type
+        filt = params.get("filter", None)
         # allow both space and comma as delimiter in values
-        pos_items = _pos.replace(",", " ").split()
-        shape = pos_items[0]
+        pos_items = pos.replace(",", " ").split()
+        shape = (pos_items[0]).upper()
         if shape == "BRECT":
-            if len(pos_items) < 6:
-                raise UsageError("BRECT: invalid number of values")
+            nargs = len(pos_items)
+            if nargs < 5:
+                raise UsageError("BBOX: invalid input parameters")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             w, h = float(pos_items[3]), float(pos_items[4])
-            unit_size = pos_items[5]
-            cutout = self.cutout_from_nearest(ra, dec, w, h, unit_size, filt)
+            if nargs == 6:
+                unit_size = pos_items[5]
+            else:
+                unit_size = "deg"  # default
+            if src_img is None:
+                cutout = self.cutout_from_nearest(ra, dec, w, h, unit_size, filt)
+            else:
+                cutout = self._cutout_from_image(src_img, ra, dec, w, h, unit_size, data_id)
             return cutout
         elif shape == "CIRCLE":
             if len(pos_items) < 4:
                 raise UsageError("CIRCLE: invalid number of values")
             ra, dec = float(pos_items[1]), float(pos_items[2])
             radius = float(pos_items[3])
+            if src_img is None:
+                q_result = self._metaget.nearest_image_contains(ds_type, ra, dec, radius, filt)
+                data_id = self.data_id_from_obscore(q_result)
+            wcs = self._get_wcs_from_butler(data_id)
             # convert from deg to pixels by wcs (ICRS)
-            q_result = self._metaservget.nearest_image_containing(ra, dec, filt)
-            data_id = self._data_id_from_qr(q_result)
-            metadata = self._metadata_from_data_id(data_id)
-            wcs = afwGeom.makeSkyWcs(metadata, strip=False)
             pix_r = int(radius / wcs.getPixelScale().asDegrees())
             ss = SpanSet.fromShape(pix_r, Stencil.CIRCLE)
             ss_width = ss.getBBox().getWidth()
             ss_height = ss.getBBox().getHeight()
             # create a sub image of bbox with all metadata from source image
-            cutout = self._cutout_by_data_id(data_id, ra, dec, ss_width,
-                                             ss_height, "pixel", wcs)
-            ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE,
-                                          offset=cutout.getXY0() +
-                                          Geom.Extent2I(pix_r, pix_r))
+            cutout = self._cutout_by_data_id(data_id, ra, dec, ss_width, ss_height, "pixel", wcs)
+            ss_circle = SpanSet.fromShape(pix_r, Stencil.CIRCLE, offset=cutout.getXY0() + Geom.Extent2I(
+                pix_r, pix_r))
             no_data = cutout.getMask().getMaskPlane("NO_DATA")
             ss_bbox = SpanSet(ss_circle.getBBox())
             ss_nodata = ss_bbox.intersectNot(ss_circle)
@@ -418,7 +292,10 @@ class ImageGetter:
             # compute the arithmetic center (ra, dec) of the range
             ra = (ra1 + ra2) / 2
             dec = (dec1 + dec2) / 2
-            cutout = self.cutout_from_nearest(ra, dec, w, h, "arcsec", filt)
+            if src_img is None:
+                cutout = self.cutout_from_nearest(ra, dec, w, h, "arcsec", filt)
+            else:
+                cutout = self._cutout_from_image(src_img, ra, dec, w, h, "arcsec", data_id)
             return cutout
         elif shape == "POLYGON":
             if len(pos_items) < 7:
@@ -428,19 +305,22 @@ class ImageGetter:
             for long, lat in zip(pos_items[::2], pos_items[1::2]):
                 pt = Geom.Point2D(float(long), float(lat))
                 vertices.append(pt)
-            polygon = afwGeom.Polygon(vertices)
+            polygon = Polygon(vertices)
             center = polygon.calculateCenter()
             ra, dec = center.getX(), center.getY()
-            # afw limitation: can only return the bbox of the polygon
+            # afw limitation: can only returns the bbox of the polygon
             bbox = polygon.getBBox()
-            # convert from 'deg' to 'arcsec'
-            w = bbox.getWidth() * 3600
-            h = bbox.getHeight() * 3600
-            cutout = self.cutout_from_nearest(ra, dec, w, h, "arcsec", filt)
+            w = bbox.getWidth()
+            h = bbox.getHeight()
+            if src_img is None:
+                cutout = self.cutout_from_nearest(ra, dec, w, h, "deg", filt)
+            else:
+                cutout = self._cutout_from_image(src_img, ra, dec, w, h, "deg", data_id)
             return cutout
+        else:
+            raise UsageError("Invalid shape in POS")
 
-    @staticmethod
-    def cutout_from_exposure(src_image, ra, dec, width, height, unit="pixel"):
+    def _cutout_from_image(self, src_image, ra, dec, width, height, unit="pixel", data_id=None):
         """ Get the Exposure cutout including wcs headers.
 
         Parameters
@@ -451,10 +331,10 @@ class ImageGetter:
             in degrees.
         dec : `float`
             in degrees.
-        width : int
-            in pixels.
-        height : int
-            in pixels
+        width : `float`
+            the width.
+        height : `float`
+            the height.
 
         Returns
         -------
@@ -469,39 +349,42 @@ class ImageGetter:
             height = height / ps
         center = Geom.SpherePoint(ra, dec, Geom.degrees)
         size = Geom.Extent2I(width, height)
-        cutout = src_image.getCutout(center, size)
+        if isinstance(src_image, afwImage.Exposure):
+            cutout = src_image.getCutout(center, size)
+        else:
+            cutout = self._apply_cutout(data_id, src_image, ra, dec, width, height, unit)
         return cutout
 
-    def _cutout_by_data_id(self, data_id, ra, dec, width, height, unit="pixel",
-                           wcs=None):
-        # first need to check the cutout dimensions, by degree conversion
+    def _cutout_by_data_id(self, data_id, ra, dec, width, height, unit="pixel", wcs=None):
+        if not wcs:
+            wcs = self._get_wcs_from_butler(data_id)
+        ps = wcs.getPixelScale().asDegrees()
+        # check to see if size exceeds maximum allowed
         if unit in ["pixel", "pix", "px"]:
-            if not wcs:
-                metadata = self._metadata_from_data_id(data_id)
-                wcs = afwGeom.makeSkyWcs(metadata, strip=False)
-            ps = wcs.getPixelScale().asDegrees()
             cutout_area = width * height * ps**2
-        else:  # arcsec as unit
+        elif unit in ["arcsec", "arsecond"]:
             cutout_area = width * height / 3600**2
+            width = width / 3600 / ps
+            height = height / 3600 / ps
+        elif unit in ["deg", "degree", "degrees"]:
+            cutout_area = width * height
+            width = width / ps
+            height = height / ps
+        else:
+            raise UsageError("Invalid unit for cutout size")
         if cutout_area > imgserv_config.MAX_IMAGE_CUTOUT_SIZE:
             msg = f"Requested image exceeded " \
                   f"{imgserv_config.MAX_IMAGE_CUTOUT_SIZE} squared degrees"
             raise UsageError(msg)
-        # Return an image by data ID through the butler.
-        image = self._image_from_butler(data_id)
-        if not image:
-            raise ImageNotFoundError("No image from data id")
-        if isinstance(image, afwImage.Exposure):
-            # only with exposures
-            cutout = ImageGetter.cutout_from_exposure(image, ra, dec, width,
-                                                      height, unit)
-        else:
-            cutout = self._apply_cutout(data_id, image, ra, dec, width, height,
-                                        unit)
+        pos = Geom.SpherePoint(ra, dec, Geom.degrees)
+        xy = Geom.PointI(wcs.skyToPixel(pos))
+        cutout_size = Geom.Extent2I(width, height)
+        cutout_box = Geom.Box2I(xy - cutout_size//2, cutout_size)
+        # cutout_box must be in pixels
+        cutout = self._image_from_butler(data_id, cutout_box)
         return cutout
 
-    def _apply_cutout(self, data_id, src_img, ra, dec, width, height,
-                      unit="pixel"):
+    def _apply_cutout(self, data_id, src_img, ra, dec, width, height, unit="pixel"):
         """Return an image centered on ra and dec (in degrees) with dimensions
         height and width (in arcseconds by default).
 
@@ -529,111 +412,111 @@ class ImageGetter:
         cutout: `afwImage.Exposure`
 
         """
-        self._log.debug("apply_cutout %f %f %f %f", ra, dec, width, height)
+        log.debug("apply_cutout %f %f %f %f", ra, dec, width, height)
         # False: do not remove FITS keywords from metadata
         wcs = None
         if isinstance(src_img, afwImage.Exposure):
             wcs = src_img.getWcs()
         elif data_id:
-            # Get the metadata for the source image.
-            metadata = self._metadata_from_data_id(data_id)
-            wcs = afwGeom.makeSkyWcs(metadata, strip=False)
+            wcs = self._get_wcs_from_butler(data_id)
         if wcs is None:
             raise Exception("wcs missing in source image")
         radec = Geom.SpherePoint(ra, dec, Geom.degrees)
         xy_wcs = wcs.skyToPixel(radec)
         xy_center_x = xy_wcs.getX()
         xy_center_y = xy_wcs.getY()
-        self._log.debug("ra=%f dec=%f xy_center=(%f,%f)",
-                        ra, dec, xy_center_x, xy_center_y)
+        log.debug("ra=%f dec=%f xy_center=(%f,%f)", ra, dec, xy_center_x, xy_center_y)
         if unit == "arcsec":
             # pixel scale is defined as Angle/pixel
             ps = wcs.getPixelScale().asArcseconds()
             width = width / ps
             height = height / ps
-        cutout = self.cutout_from_src(src_img, xy_center_x, xy_center_y, width,
-                                      height, wcs)
-
-        return cutout
-
-    def _metadata_from_data_id(self, data_id):
-        # Return the metadata for the query results in qResults.
-        metadata = self._butler.get(self._imagedataset_md(), dataId=data_id)
-        return metadata
-
-    def _image_from_butler(self, data_id, bbox=None):
-        # Retrieve the image through the Butler using data id.
-        self._log.debug("_image_from_butler data_id:{}".format(data_id))
-        if bbox:
-            image = self._butler.get(self._imagedataset_sub(), bbox=bbox,
-                                     dataId=data_id, immediate=True)
-        else:
-            image = self._butler.get(self._imagedataset_type, dataId=data_id)
-        return image
-
-    def _imagedataset_md(self):
-        # Return the butler policy name to retrieve metadata
-        return self._imagedataset_type + "_md"
-
-    def _imagedataset_sub(self):
-        # Return the dataset type for sub-images
-        return self._imagedataset_type + "_sub"
-
-    def _cutout_from_src(self, src_image, xy_center_x, xy_center_y, width,
-                         height, wcs):
-        # Returns an image cutout from the source image.
-        # srcImage - Source image.
-        # xy_center - The center of region to cutout in pixels.
-        # width - The width in pixels.
-        # height - The height in pixels.
-        # height and width trimmed if they go past the edge of source image.
-        # First, center the cutout image.
         pix_ulx = int(xy_center_x - width / 2.0)
         pix_uly = int(xy_center_y - height / 2.0)
         xy_center = Geom.Point2I(pix_ulx, pix_uly)
         log.debug("xy_center={}".format(xy_center))
-        src_box = src_image.getBBox()
+        src_box = src_img.getBBox()
         # assuming both src_box and xy_center to be in Box2I
         co_box = Geom.Box2I(xy_center, Geom.Extent2I(int(width), int(height)))
         if co_box.overlaps(src_box):
             co_box.clip(src_box)
         else:
-            self._log.debug(
-                "cutout image wanted is OUTSIDE source image -> None")
+            log.debug("cutout image wanted is OUTSIDE source image -> None")
             raise UsageError("non-overlapping cutout bbox")
-        if isinstance(src_image, afwImage.ExposureF):
-            self._log.debug(
-                "co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}"
-                    .format(pix_ulx, pix_ulx + width, pix_uly,
-                            pix_uly + height))
+        if isinstance(src_img, afwImage.ExposureF):
+            log.debug("co_box pix_ulx={} pix_end_x={} pix_uly={} pix_end_y={}".format(pix_ulx,
+                                                                                      pix_ulx + width,
+                                                                                      pix_uly,
+                                                                                      pix_uly + height))
             # image will keep wcs from source image
-            cutout = afwImage.ExposureF(src_image, co_box)
-        elif isinstance(src_image, afwImage.ExposureU):
-            cutout = afwImage.ExposureU(src_image, co_box)
+            cutout = afwImage.ExposureF(src_img, co_box)
+        elif isinstance(src_img, afwImage.ExposureU):
+            cutout = afwImage.ExposureU(src_img, co_box)
         else:
             raise Exception("Unexpected source image object type")
         return cutout
 
-    def _data_id_from_qr(self, q_results):
-        # identify and fetch the data ID from 1 of 2 defined sets
-        ln = q_results[0]
-        # first try run, camcol, field, filter keys
-        if self._butler_keys == sorted(["run", "camcol", "field", "filter"]):
-            run, camcol, field, filtername = ln[2:6]
-            data_id = {"run": run, "camcol": camcol, "field": field,
-                       "filter": filtername}
-            return data_id
-        # if no match, then try tract, patch, filter keys
-        if self._butler_keys == sorted(["tract", "patch", "filter"]):
-            tract, patch, filtername = ln[2:5]
-            data_id = {"tract": tract, "patch": patch, "filter": filtername}
-            return data_id
+    def _get_wcs_from_butler(self, data_id):
+        wcs = self._butler.get(self._ds_type + ".wcs", dataId=data_id)
+        return wcs
 
-    def _keep_within_180(self, target, val):
-        # Return a value that is equivalent to val on circle
-        # within 180 degrees of target.
-        while val > (target + 180.0):
-            val -= 360.0
-        while val < (target - 180.0):
-            val += 360.0
-        return val
+    def _image_from_butler(self, data_id, bbox=None):
+        # Retrieve the image through the Butler using data id.
+        log.debug("_image_from_butler data_id:{}".format(data_id))
+        try:
+            image = self._butler.get(self._ds_type, dataId=data_id, parameters={"bbox": bbox}, immediate=True)
+        except Exception as e:
+            raise ImageNotFoundError("butler failed to get image") from e
+        return image
+
+    @staticmethod
+    def data_id_from_params(params):
+        if set(params.keys()) >= {"instrument", "detector", "visit"}:
+            data_id = {"visit": params.get("visit"),
+                       "detector": params.get("detector"),
+                       "instrument": params.get("instrument")}
+        elif set(params.keys()) >= {"band", "skymap", "tract", "patch"}:
+            data_id = {"band": params.get("band"),
+                       "skymap": params.get("skymap"),
+                       "tract": params.get("tract"),
+                       "patch": params.get("patch")}
+        elif set(params.keys()) >= {"instrument", "detector", "exposure"}:
+            data_id = {"instrument": params.get("instrument"),
+                       "detector": params.get("detector"),
+                       "exposure": params.get("exposure")}
+        else:
+            raise UsageError("Invalid dataId")
+        return data_id
+
+    @staticmethod
+    def data_id_from_obscore(q_results):
+        if len(q_results) != 1:
+            # TODO: enhance handling for multiple results
+            raise UsageError("Info: overlapping images in query result")
+        ln = q_results[0]
+        vo_item = ImageGetter._find_item("ivo://", ln)
+        data_id = ImageGetter._extract_data_id(vo_item)
+        return data_id
+
+    @staticmethod
+    def _find_item(term, fields):
+        for x in fields:
+            if type(x) == str:
+                if term in x:
+                    return x
+            elif type(x) == int or type(x) == float:
+                if term == x:
+                    return x
+
+    @staticmethod
+    def _extract_data_id(obs_pub_did):
+        o = urlparse(obs_pub_did)
+        did = parse_qs(o.query)
+        data_id = {}
+        for k in did:
+            v = did[k][0]
+            if v.isnumeric():
+                data_id[k] = int(v)
+            else:
+                data_id[k] = v
+        return data_id

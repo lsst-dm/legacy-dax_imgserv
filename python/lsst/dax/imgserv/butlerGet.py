@@ -23,13 +23,14 @@
 This module is used to instantiate or fetch from cache the
 appropriate butler instance.
 
-@author: John Gates, SLAC
-@author: Brian Van Klaveren, SLAC
-@author: Kenny Lo, SLAC
-
 """
 from flask import current_app, has_app_context
-import lsst.daf.persistence as dafPersist
+
+import lsst.log as log
+# Gen3
+from lsst.daf.butler import Butler
+
+import etc.imgserv.imgserv_config as imgserv_config
 
 
 class ButlerGet(object):
@@ -38,16 +39,16 @@ class ButlerGet(object):
 
     _butler_instances = {}  # caching butler instances for CLI context only
 
-    def __init__(self, dataRoot, butler_policy, butler_keys, logger):
+    def __init__(self, butler, ds, dataset_type, dataid_keys):
         """Instantiate ButlerGet per specification.
         """
-        self.logger = logger
-        logger.debug("Instantiating ButlerGet with dataRoot: {}".format(dataRoot))
-        self.butler = self.get_butler(datarepo_id=dataRoot, logger=logger)
-        self.butler_policy = butler_policy
-        self.butler_keys = butler_keys
+        self.butler = butler
+        self.dataset_config = ds
+        self.butler_ds = dataset_type
+        self.butler_keys = dataid_keys
 
-    def get_butler(cls, datarepo_id, logger):
+    @staticmethod
+    def get_butler(ds, datarepo_id, ds_type, dataid_keys):
         """Get butler instance from cache if available and instantiate if not.
         """
         if has_app_context():
@@ -59,9 +60,10 @@ class ButlerGet(object):
         butler = butler_instances.get(datarepo_id)
         if not butler:
             # new butler instance needed
-            logger.debug("Instantiating new butler with data repository:\
-                    {}".format(datarepo_id))
-            butler = dafPersist.Butler(inputs=datarepo_id)
+            log.debug(f"Instantiating Butler Gen3 with data repository: {datarepo_id}")
+            if ds == "default":
+                ds = imgserv_config.config_datasets["default"]
+            collection = imgserv_config.config_datasets[ds]["IMG_DEFAULT_COLLECTION"]
+            butler = Butler(datarepo_id, collections=collection)
             butler_instances[datarepo_id] = butler
-        return butler
-
+        return ButlerGet(butler, ds, ds_type, dataid_keys)
