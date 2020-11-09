@@ -9,9 +9,9 @@
         <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
         <span property="generic-parameter" typeof="keyval">
             <span property="key">ID</span>
-            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="value">default.calexp.r</span>
             <span property="key">POS</span>
-            <span property="value">BBOX 37.644598 104625 100 100 pixel</span>
+            <span property="value">BBOX 216.68 -0.53 100 100 pixel</span>
         </span>
     </p>
     </div>
@@ -24,9 +24,9 @@
         <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
         <span property="generic-parameter" typeof="keyval">
             <span property="key">ID</span>
-            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="value">default.calexp.r</span>
             <span property="key">POS</span>
-            <span property="value">CIRCLE 37.6444598 0.104625 100</span>
+            <span property="value">CIRCLE 216.68 -0.53 0.01</span>
         </span>
     </p>
     </div>
@@ -39,10 +39,9 @@
         <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
         <span property="generic-parameter" typeof="keyval">
             <span property="key">ID</span>
-            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="value">default.calexp.r</span>
             <span property="key">POS</span>
-            <span property="value">RANGE 37.6168202222 37.67235778
-                0.07684722222 0.13240277777</span>
+            <span property="value">RANGE 216.55 216.65 -0.53 -0.60</span>
         </span>
     </p>
     </div>
@@ -55,10 +54,9 @@
         <span property="capability">ivoa://ivoa.net/std/SODA#snc-1.0</span>
         <span property="generic-parameter" typeof="keyval">
             <span property="key">ID</span>
-            <span property="value">DC_W13_Stripe82.calexp.r</span>
+            <span property="value">default.calexp.r</span>
             <span property="key">POS</span>
-            <span property="value"> POLYGON 37.6580803 0.0897081 37.6580803
-                0.1217858 37.6186104 0.1006648</span>
+            <span property="value"> POLYGON 216.55 -0.53 216.65 -0.60 216.6 -0.57</span>
         </span>
     </p>
     </div>

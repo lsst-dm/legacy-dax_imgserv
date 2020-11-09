@@ -33,6 +33,8 @@ from .metaGet import MetaGet
 from .dispatch import Dispatcher
 from .exceptions import UsageError
 
+import etc.imgserv.imgserv_config as imgserv_config
+
 
 def open_image(ds, ds_type, config) -> ImageGetter:
     """Open access to specified images (raw, calexp, deepCoadd,etc) of
@@ -54,12 +56,15 @@ def open_image(ds, ds_type, config) -> ImageGetter:
         instance for access to all image operations.
 
     """
-    repo_root = config["IMG_REPO_ROOT"]
+    dataset = imgserv_config.config_datasets.get(ds, None)
+    if dataset is None:
+        raise UsageError("Invalid dataset id")
+    repo_root = dataset["IMG_REPO_ROOT"]
     dataid_keys = config.get(ds_type, None)
     if dataid_keys is None:
-        raise UsageError("Unrecognized image dataset type")
+        raise UsageError("Invalid dataset type")
     butler_get = ButlerGet.get_butler(ds, repo_root, ds_type, dataid_keys)
-    meta_get = MetaGet(config)
+    meta_get = MetaGet(ds, config)
     return ImageGetter(config, butler_get, meta_get)
 
 

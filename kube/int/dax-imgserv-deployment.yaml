@@ -43,7 +43,8 @@ spec:
               - >- 
                   cp /etc/dax-webserv/* /etc/dax-imgserv/ &&
                   cp /etc/dax-db-auth/* /etc/dax-imgserv/ && 
-                  chmod 0600 /etc/dax-imgserv/db-auth.yaml
+                  chmod 0600 /etc/dax-imgserv/db-auth.yaml &&
+                  chmod 0600 /etc/dax-imgserv/webserv.ini
           volumeMounts:
           - name: db-auth
             mountPath: /etc/dax-db-auth

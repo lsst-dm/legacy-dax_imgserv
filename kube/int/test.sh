@@ -1,5 +1,5 @@
 #!/bin/bash -ex
 
 echo "ImgServe smoke test at lsst-lsp-int ..."
-curl --fail -o /tmp/imgserv_int_circle.fits -L \
-"https://lsst-lsp-int.ncsa.illinois.edu/api/image/soda/sync?ID=default.calexp.r&POS=CIRCLE+320.806258+-0.3313935+0.01"
+curl --fail -o /tmp/lsp_int_test.fits -L \
+"https://lsst-lsp-int.ncsa.illinois.edu/api/image/soda/sync?ID=default.calexp.r&POS=CIRCLE+216.68+-0.53+0.01"

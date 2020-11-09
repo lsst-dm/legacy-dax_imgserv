@@ -31,6 +31,7 @@ import re
 from sqlalchemy import create_engine
 
 import pyvo as vo
+import etc.imgserv.imgserv_config as imgserv_config
 
 
 class MetaGet:
@@ -38,17 +39,20 @@ class MetaGet:
 
     """
 
-    def __init__(self, config):
+    def __init__(self, ds, config):
         """Instantiate MetaServGet for access to image medatadata.
 
         Parameters
         ----------
+        ds: `str`
+            the dataset identifier.
         config: `dict`
                 the configuration file.
         """
         self._config = config
         image_meta_url = config.get("DAX_IMG_META_URL", "")
-        db_url = image_meta_url + "/" + config["IMG_OBSCORE_DB"]
+        dataset = imgserv_config.config_datasets.get(ds, None)
+        db_url = image_meta_url + "/" + dataset["IMG_OBSCORE_DB"]
         # TODO: Need to test against ObsTAP server
         self._obstap_service = vo.dal.TAPService(db_url)
         self._engine = create_engine(db_url)

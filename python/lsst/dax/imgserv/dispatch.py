@@ -29,6 +29,7 @@ import json
 
 from .exceptions import UsageError
 
+# needed for eval
 from lsst.dax.imgserv.image import Image
 
 import etc.imgserv.imgserv_config as imgserv_config

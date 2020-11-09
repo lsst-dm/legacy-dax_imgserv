@@ -490,9 +490,12 @@ class ImageGetter:
 
     @staticmethod
     def data_id_from_obscore(q_results):
-        if len(q_results) != 1:
+        n = len(q_results)
+        if n == 0:
+            raise UsageError("No result found")
+        elif n > 1:
             # TODO: enhance handling for multiple results
-            raise UsageError("Info: overlapping images in query result")
+            raise UsageError("Overlapping images in query result")
         ln = q_results[0]
         vo_item = ImageGetter._find_item("ivo://", ln)
         data_id = ImageGetter._extract_data_id(vo_item)
