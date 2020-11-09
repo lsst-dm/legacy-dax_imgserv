@@ -56,6 +56,8 @@ def open_image(ds, ds_type, config) -> ImageGetter:
         instance for access to all image operations.
 
     """
+    if ds == "default":
+        ds = imgserv_config.config_datasets["default"]
     dataset = imgserv_config.config_datasets.get(ds, None)
     if dataset is None:
         raise UsageError("Invalid dataset id")
