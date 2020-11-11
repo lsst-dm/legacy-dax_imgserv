@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: project-lsst-lsp-stable-dax-claim
+spec:
+  accessModes:
+  - ReadOnlyMany
+  resources:
+    requests:
+      storage: 1090Ti
+  volumeName: project-lsst-lsp-stable-dax
