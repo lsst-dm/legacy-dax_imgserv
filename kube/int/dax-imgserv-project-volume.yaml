@@ -10,6 +10,6 @@ spec:
   capacity:
     storage: 1100Ti
   nfs:
-    path: /project/hsc/gen3repo
+    path: /user/staff/project/hsc/gen3repo
     server: lsst-nfs.ncsa.illinois.edu
   persistentVolumeReclaimPolicy: Retain
