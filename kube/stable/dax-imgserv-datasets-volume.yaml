@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: dax-stable-imgserv-datasets-volume
+  name: datasets-lsst-lsp-stable-dax
   annotations:
     volume.beta.kubernetes.io/mount-options: local_lock=all
 spec:

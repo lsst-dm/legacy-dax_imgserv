@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: dax-imgserv-datasets-claim
+  name: datasets-lsst-lsp-stable-dax-claim
 spec:
   accessModes:
   - ReadOnlyMany
   resources:
     requests:
       storage: 1090Ti
-  volumeName: dax-stable-imgserv-datasets-volume
+  volumeName: datasets-lsst-lsp-stable-dax
