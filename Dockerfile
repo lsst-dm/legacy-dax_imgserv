@@ -1,4 +1,4 @@
-FROM lsstsqre/centos:7-stack-lsst_distrib-w_2020_46
+FROM lsstsqre/centos:7-stack-lsst_distrib-w_2020_42
 
 MAINTAINER Kenny Lo <kennylo@slac.stanford.edu>
 
