@@ -37,7 +37,7 @@ config_datasets = {
         "deepCoadd": ["band", "skymap",  "tract", "patch"]
     },
     "hsc_rc2": {
-        "IMG_REPO_ROOT": "/datasets/hsc/gen3repo/rc2w38_ssw42",
+        "IMG_REPO_ROOT": "/project/hsc/gen3repo/rc2w38_ssw42",
         "IMG_DEFAULT_COLLECTION": "RC2/w_2020_38",
         "IMG_OBSCORE_DB": "lsstdb1",
         "IMG_SCHEMA_TABLE": "imgserv.obscore",

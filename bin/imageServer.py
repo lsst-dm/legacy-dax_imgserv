@@ -41,7 +41,7 @@ ACCEPT_TYPES = ["application/json", "text/html"]
 log.basicConfig(
     format='%(asctime)s %(name)s %(levelname)s: %(message)s',
     datefmt='%m/%d/%Y %I:%M:%S',
-    level=log.DEBUG)
+    level=log.INFO)
 
 WERKZEUG_PREFIX = "dax.webserv.werkzeug."
 
