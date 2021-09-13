@@ -9,7 +9,7 @@ setup(
               'lsst.dax.imgserv.getimage', 'lsst.dax.imgserv.vo',
               'lsst.dax.imgserv.jobqueue', 'etc.celery', 'etc.imgserv'],
     zip_safe=False,
-    use_scm_version={'version_scheme': 'post-release'},
+    version='test',
     setup_requires=['setuptools_scm', 'pytest-flask', 'pytest-runner'],
     tests_require=['pytest'],
 )

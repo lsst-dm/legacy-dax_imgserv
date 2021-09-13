@@ -1,0 +1,21 @@
+cd Downloads
+git clone https://github.com/lsst/dax_imgserv 
+cd dax_imgserv/
+cd kube
+cp -r  stable localhost
+cd localhost/
+export DAX_NAMESPACE='lsst-lsp-localhost-dax'
+vi namespace-localhost.json
+kubectl apply -f namespace-localhost.json
+kubectl apply -f dax-imgserv-datasets-volume.yaml
+kubectl apply -f dax-imgserv-datasets-claim.yaml --namespace $DAX_NAMESPACE
+kubectl apply -f dax-imgserv-project-volume.yaml
+kubectl apply -f dax-imgserv-project-claim.yaml --namespace $DAX_NAMESPACE
+kubectl create secret generic dax-imgserv-config --from-file=/Users/krughoff/projects/minikube/webserv.ini --namespace $DAX_NAMESPACE
+kubectl create secret generic dax-db-auth --from-file=/Users/krughoff/projects/minikube/db-auth.yaml --namespace $DAX_NAMESPACE
+kubectl apply -f dax-imgserv-deployment.yaml --namespace $DAX_NAMESPACE
+kubectl apply -f dax-imgserv-service.yaml --namespace $DAX_NAMESPACE
+kubectl apply -f dax-imgserv-ingress.yaml --namespace $DAX_NAMESPACE
+sh create.sh
+kubectl expose deployment dax-imgserv-deployment --type=NodePort --port=5000 --namespace $DAX_NAMESPACE
+kubectl port-forward service/dax-imgserv-deployment 5000:5000 --namespace $DAX_NAMESPACE

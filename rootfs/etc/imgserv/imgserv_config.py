@@ -32,16 +32,18 @@ config_datasets = {
         "IMG_OBSCORE_DB": "ci_hsc_db",
         "IMG_SCHEMA_TABLE": "imgserv.obscore",
         "IMG_DEFAULT_FILTER": "r",
+        "INSTRUMENT": "HSC",
         "calexp": ["instrument", "detector", "visit"],
         "raw": ["instrument", "detector", "exposure"],
         "deepCoadd": ["band", "skymap",  "tract", "patch"]
     },
     "hsc_rc2": {
-        "IMG_REPO_ROOT": "/datasets/hsc/gen3repo/rc2w38_ssw42",
-        "IMG_DEFAULT_COLLECTION": "RC2/w_2020_38",
+        "IMG_REPO_ROOT": "/project/validation_hsc_gen3/",
+        "IMG_DEFAULT_COLLECTION": "shared/valid_hsc_all",
         "IMG_OBSCORE_DB": "lsstdb1",
         "IMG_SCHEMA_TABLE": "imgserv.obscore",
         "IMG_DEFAULT_FILTER": "r",
+        "INSTRUMENT": "HSC",
         "calexp": ["instrument", "detector", "visit"],
         "raw": ["instrument", "detector", "exposure"],
         "deepCoadd": ["band", "skymap",  "tract", "patch"]

@@ -322,7 +322,11 @@ class ImageSODA(SODA):
         Returns
         -------
         cutout : `lsst.afw.image`
-i
         """
-        cutout = get_image(params, self._config)
+        database, datasetType, band = params['ID'].split('.')
+        shape, ra, dec, width, height, unit = params['POS'].split()
+        # This assumes that the width is in angular separation not delta Declination
+        size = max([width, height])
+        position = geom.SpherePoint(ra, dec)
+        cutout = get_image(datasetType, position, size, unit)
         return cutout

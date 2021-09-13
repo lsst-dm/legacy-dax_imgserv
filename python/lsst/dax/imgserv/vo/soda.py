@@ -70,13 +70,6 @@ class SODA(DAL):
         img : `object`
             the image object.
         """
-        shape = params["POS"].split()
-        if shape[0] == "CIRCLE":
-            return self.get_circle(params)
-        if shape[0] == "RANGE":
-            return self.get_range(params),
-        if shape[0] == "POLYGON":
-            return self.get_polygon(params)
         return self.handle_default(params)
 
     @abstractmethod

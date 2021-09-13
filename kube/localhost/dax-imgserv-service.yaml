@@ -1,0 +1,11 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: dax-imgserv-service
+spec:
+  selector:
+    app: dax-imgserv
+  ports:
+  - protocol: TCP
+    port: 5000
+    targetPort: 5000

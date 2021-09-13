@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dax-imgserv-deployment
+  labels:
+    app: dax-imgserv
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dax-imgserv
+  template:
+    metadata:
+      labels:
+        app: dax-imgserv
+    spec:
+      securityContext:
+        fsGroup: 1000
+      volumes:
+      - name: config
+        secret:
+          secretName: dax-imgserv-config
+          defaultMode: 0600
+      - name: db-auth
+        secret:
+          secretName: dax-db-auth
+          defaultMode: 0600
+      - name: imgserv-config
+        emptyDir:
+          sizeLimit: "1M"
+      - name: project
+        persistentVolumeClaim:
+          claimName: project-lsst-lsp-localhost-dax-claim
+      - name: datasets
+        persistentVolumeClaim:
+          claimName: datasets-lsst-lsp-localhost-dax-claim
+      initContainers:
+        - name: set-secrets-ownership
+          image: webserv/imgserv:local
+          command: ["sh"] 
+          args: 
+              - -c 
+              - >- 
+                  cp /etc/dax-webserv/* /etc/dax-imgserv/ &&
+                  cp /etc/dax-db-auth/* /etc/dax-imgserv/ && 
+                  chmod 0600 /etc/dax-imgserv/db-auth.yaml &&
+                  chmod 0600 /etc/dax-imgserv/webserv.ini
+          volumeMounts:
+          - name: db-auth
+            mountPath: /etc/dax-db-auth
+          - name: config
+            mountPath: /etc/dax-webserv
+          - name: imgserv-config
+            mountPath: /etc/dax-imgserv
+      containers:
+      - name: dax-imgserv
+        image: webserv/imgserv:local
+        imagePullPolicy: Never
+        resources:
+          requests:
+            memory: 500Mi
+            cpu: 1
+          limits:
+            memory: 500Mi
+            cpu: 1
+        env:
+        - name: WEBSERV_CONFIG
+          value: "/etc/dax-imgserv/webserv.ini"
+        - name: LSST_DB_AUTH
+          value: "/etc/dax-imgserv/db-auth.yaml"
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: imgserv-config
+          mountPath: /etc/dax-imgserv
+          readOnly: true
+        - name: project
+          mountPath: "/project/hsc/gen3repo"
+          readOnly: true
+        - name: datasets
+          mountPath: "/datasets"
+          readOnly: true
