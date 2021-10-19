@@ -21,6 +21,7 @@
 import os
 import lsst.pex.config as pexConfig
 import lsst.pipe.base as pipeBase
+from lsst.utils.timer import timeMethod
 
 # use following format for circular reference
 import lsst.dax.imgserv.vo.imageSODA as imageSODA
@@ -47,7 +48,7 @@ class GetImageTask(pipeBase.Task):
     def __init__(self, *args, **kwargs):
         pipeBase.Taskinit__(self, *args, **kwargs)
 
-    @pipeBase.timeMethod
+    @timeMethod
     def runDataRef(self, dataRef):
         config = imgserv_config.config_datasets["default"]
         config["DAX_IMG_CONFIG"] = config_path
